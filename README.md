@@ -33,6 +33,24 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 16. The first full scenario is framed around the 2027 Krewe of Endymion parade and exposes route, partner priorities, and exercise weather thresholds directly in the DSS workspace.
 17. Scenario partner messages and injects can release automatically at simulation times, with facilitator controls to release early, skip, restore, or add unscripted messages.
 18. Historical weather data can be remapped onto the exercise date while preserving local clock time, so a real LIX case can run as a 2027 Mardi Gras DRT without changing the storm geography.
+19. Google Classroom is explicitly planned as the exercise launch/resource/debrief layer while LIX SimOps remains authoritative for live simulation timing.
+20. The DSS workspace reserves a configurable link for the coworker-owned mock shift-log Google Form that populates a linked Google Sheet.
+
+## Exercise support tools
+
+The Endymion exercise deliberately uses three systems together:
+
+- **LIX SimOps** — authoritative live DRT, radar/meso products, partner messages, simulation clock, and facilitator control.
+- **Google Classroom** — opening briefing, PowerPoint, reference materials, participant links, and post-exercise reflection.
+- **Mock Shift Log** — coworker-owned Google Form feeding a Google Sheet; each DSS Meteorologist logs meaningful external communication.
+
+Operational injects should remain in LIX SimOps rather than Classroom because the DRT can pause or change playback speed.
+
+See:
+
+- `docs/google-classroom-integration.md`
+- `docs/mock-shift-log-integration.md`
+- `docs/exercise-instruction-deck-outline.md`
 
 ## Repository layout
 
@@ -60,14 +78,16 @@ Backend health check: http://localhost:8000/health
 
 ### Exercise workflow
 
-1. Open the frontend and enter a facilitator name.
-2. Choose the Mardi Gras scenario and select **Create Session**.
-3. Share the generated session code with participants.
-4. Participants enter the code, select their assigned team and role, and join.
-5. Confirm all three roles are connected for each team from Exercise Control.
-6. Start the simulation clock.
-7. Use Partner Control and Exercise Injects to drive the exercise.
-8. Use the live event log during the debrief.
+1. Open Google Classroom and the opening instruction deck.
+2. Open LIX SimOps and enter a facilitator name.
+3. Choose the Mardi Gras scenario and select **Create Session**.
+4. Share the generated session code with participants.
+5. Participants enter the code, select their assigned team and role, and join.
+6. DSS Meteorologists also open the coworker-provided mock shift-log Google Form.
+7. Confirm all three roles are connected for each team from Exercise Control.
+8. Start the simulation clock.
+9. Let automatic partner messages/injects release by simulation time; facilitators can override when needed.
+10. Use the live event log and mock shift-log Sheet during the debrief.
 
 ### Radar-case preparation
 
@@ -110,8 +130,8 @@ See `docs/scenario-authoring.md` for the planned format.
 - **V0.2:** multi-team sessions, presence, facilitator controls, partner/DSS communications
 - **V0.3:** interactive archived radar playback
 - **V0.4:** mesoanalysis/environment workspace
-- **V0.5:** Endymion scenario, automatic timeline, operational DSS references, and historical-case time remapping
-
+- **V0.5:** Endymion scenario, automatic timeline, operational DSS references, historical-case time remapping, and external exercise-tool integration
+- **V0.6:** build and validate the December 14, 2022 meteorological data package end-to-end
 
 ## Meso product preparation
 
@@ -124,7 +144,6 @@ python scripts/build_meso_cache.py \
 ```
 
 See `docs/meso-workspace.md` for timestamp naming and product details.
-
 
 ## Endymion scenario
 
@@ -140,7 +159,10 @@ The scenario uses an NWS-derived exercise lightning framework:
 
 These are **exercise defaults based on NWS large-venue guidance**, not claimed City of New Orleans Mardi Gras policy.
 
+The approved historical source case for development is **December 14, 2022**. Participant-facing materials should not reveal that source date.
+
 See:
+
 - `scenarios/mardi-gras/event.yaml`
 - `scenarios/mardi-gras/injects.yaml`
 - `docs/mardi-gras-case-selection.md`
