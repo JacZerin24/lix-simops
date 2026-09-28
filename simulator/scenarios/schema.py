@@ -39,3 +39,4 @@ class ScenarioConfig(BaseModel):
     event_file: str = "event.yaml"
     injects_file: str = "injects.yaml"
     resources_file: str = "resources.yaml"
+    source_case_file: str | None = None

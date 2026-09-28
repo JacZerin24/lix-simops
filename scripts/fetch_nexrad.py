@@ -39,6 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--end", default="23:59", help="UTC end time HH:MM")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--bucket", default=DEFAULT_BUCKET)
+    parser.add_argument("--list-only", action="store_true")
     return parser.parse_args()
 
 
@@ -80,6 +81,11 @@ def main() -> None:
         )
 
     print(f"Found {len(selected)} Level II files in s3://{args.bucket}/{prefix}")
+    if args.list_only:
+        for key, size in selected:
+            print(f"{size:>10}  s3://{args.bucket}/{key}")
+        return
+
     for index, (key, expected_size) in enumerate(selected, start=1):
         destination = args.output / Path(key).name
         if destination.exists() and expected_size and destination.stat().st_size == expected_size:

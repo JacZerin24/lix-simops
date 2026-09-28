@@ -23,3 +23,4 @@ datasets:
 event_file: event.yaml
 injects_file: injects.yaml
 resources_file: resources.yaml
+source_case_file: source-case.yaml
