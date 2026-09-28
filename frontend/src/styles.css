@@ -457,3 +457,85 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .schedule-row { grid-template-columns: 1fr; }
   .schedule-actions { justify-content: flex-start; }
 }
+
+
+.dss-ops {
+  min-width: 0;
+  max-height: 720px;
+  overflow-y: auto;
+}
+.ops-tabs {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.ops-tab {
+  background: #0b1422;
+  border-color: #2d4261;
+  padding: 7px 10px;
+}
+.ops-tab.active {
+  background: #245b8f;
+  border-color: #477eaf;
+}
+.ops-content h4 {
+  margin: 16px 0 8px;
+}
+.ops-facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.ops-facts > div {
+  display: grid;
+  gap: 3px;
+  border-bottom: 1px solid #263951;
+  padding-bottom: 8px;
+}
+.ops-facts dt {
+  color: #8395ab;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ops-facts dd {
+  margin: 0;
+  color: #edf3fa;
+}
+.threshold-cards {
+  display: grid;
+  gap: 9px;
+}
+.threshold-card {
+  display: grid;
+  gap: 5px;
+  border: 1px solid #2c405e;
+  border-radius: 9px;
+  padding: 10px;
+  background: #111e30;
+}
+.threshold-card > span,
+.threshold-card small {
+  color: #8fa0b7;
+}
+.threshold-card > span {
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+}
+.threshold-card p {
+  margin: 0;
+  color: #c5d0dd;
+}
+.threshold-cards.compact .threshold-card p {
+  font-size: 0.88rem;
+}
+.route-list {
+  padding-left: 20px;
+}
+.route-list li,
+.ops-content ul li {
+  margin-bottom: 7px;
+  color: #c5d0dd;
+}
