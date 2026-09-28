@@ -67,3 +67,30 @@ export type RadarFrameResponse = {
   selected_elevation: number;
   frames: RadarFrame[];
 };
+
+
+export type MesoProductSummary = {
+  id: string;
+  label: string;
+  category: string;
+  units: string;
+  description: string;
+  kind: string;
+};
+
+export type MesoFrame = {
+  timestamp: string;
+  product: string;
+  asset_url: string;
+  source_key?: string | null;
+};
+
+export type MesoFrameResponse = {
+  available: boolean;
+  scenario_id: string;
+  sim_time: string;
+  categories: string[];
+  products: MesoProductSummary[];
+  selected_product: string;
+  frames: MesoFrame[];
+};

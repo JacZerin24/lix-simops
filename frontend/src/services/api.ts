@@ -1,4 +1,4 @@
-import type { RadarFrameResponse, ScenarioSummary, SessionState } from "../types/simulation";
+import type { MesoFrameResponse, RadarFrameResponse, ScenarioSummary, SessionState } from "../types/simulation";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -36,6 +36,29 @@ export async function getRadarFrames(
   );
   if (!response.ok) throw new Error("Unable to load radar frames");
   const payload: RadarFrameResponse = await response.json();
+  return {
+    ...payload,
+    frames: payload.frames.map((frame) => ({
+      ...frame,
+      asset_url: frame.asset_url.startsWith("http")
+        ? frame.asset_url
+        : `${API_BASE}${frame.asset_url}`,
+    })),
+  };
+}
+
+
+export async function getMesoFrames(
+  sessionCode: string,
+  product: string,
+): Promise<MesoFrameResponse> {
+  const params = new URLSearchParams();
+  if (product) params.set("product", product);
+  const response = await fetch(
+    `${API_BASE}/api/sessions/${encodeURIComponent(sessionCode)}/meso/frames?${params.toString()}`,
+  );
+  if (!response.ok) throw new Error("Unable to load mesoanalysis products");
+  const payload: MesoFrameResponse = await response.json();
   return {
     ...payload,
     frames: payload.frames.map((frame) => ({

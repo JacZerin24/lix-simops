@@ -9,6 +9,7 @@ resources:
       - ZDR
 
   meso:
+    product_config: meso-products.yaml
     tabs:
       - Environment
       - Satellite

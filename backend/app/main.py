@@ -9,11 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .models import Role, SessionCreateRequest
+from .services.meso_data import meso_payload
 from .services.radar_data import CACHE_ROOT, radar_payload
 from .services.scenario_loader import list_scenarios, load_scenario_by_id
 from .state import ClientConnection, Participant, SessionState, manager
 
-app = FastAPI(title="LIX SimOps API", version="0.3.0")
+app = FastAPI(title="LIX SimOps API", version="0.4.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -83,6 +84,17 @@ def get_radar_frames(
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return radar_payload(session, product, elevation)
+
+
+@app.get("/api/sessions/{session_code}/meso/frames")
+def get_meso_frames(
+    session_code: str,
+    product: str | None = None,
+) -> dict:
+    session = manager.get(session_code)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return meso_payload(session, product)
 
 
 def event_visible_to(event: dict, participant: Participant) -> bool:
