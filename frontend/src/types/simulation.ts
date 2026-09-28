@@ -108,3 +108,48 @@ export type MesoFrameResponse = {
   selected_product: string;
   frames: MesoFrame[];
 };
+
+
+export type DecisionThreshold = {
+  id: string;
+  hazard: string;
+  threshold: string;
+  action: string;
+  basis: string;
+  exercise_note?: string;
+};
+
+export type EventOperationsConfig = {
+  event?: {
+    name?: string;
+    type?: string;
+    event_date?: string;
+    scheduled_start_local?: string;
+    timezone?: string;
+    primary_operational_area?: string;
+    crowd_note?: string;
+    pre_parade?: {
+      name?: string;
+      location?: string;
+      planning_note?: string;
+    };
+    route?: string[];
+    route_end?: string;
+  };
+  partner?: {
+    organization?: string;
+    primary_contact_role?: string;
+    assumption_note?: string;
+    partner_priorities?: string[];
+  };
+  operations?: {
+    exercise_duration_minutes?: number;
+    simulation_strategy?: string;
+    first_aid_reference?: {
+      basis_year?: number;
+      note?: string;
+      locations?: string[];
+    };
+    decision_thresholds?: DecisionThreshold[];
+  };
+};
