@@ -539,3 +539,32 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   margin-bottom: 7px;
   color: #c5d0dd;
 }
+
+
+.shift-log-callout {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #3a557b;
+  border-radius: 10px;
+  background: #10253a;
+}
+.shift-log-callout p {
+  margin: 5px 0 0;
+  color: #b9c5d4;
+  font-size: 0.9rem;
+}
+.shift-log-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .shift-log-callout { flex-direction: column; align-items: stretch; }
+}
