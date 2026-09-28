@@ -44,6 +44,7 @@ def main() -> None:
             "--start", start,
             "--end", end,
             "--output", "data/raw/nexrad/20221214",
+            *(["--list-only"] if args.list_only else []),
         ],
         args.dry_run,
     )
