@@ -18,11 +18,25 @@ export type ScenarioSummary = {
   name: string;
 };
 
+export type ScheduledExerciseItem = {
+  id: string;
+  at_sim_time: string;
+  kind: "inject" | "partner_message";
+  title: string;
+  body: string;
+  audience: string;
+  target_team_id?: string | null;
+  sender: string;
+  due_at?: string | null;
+  status: "pending" | "released" | "skipped";
+};
+
 export type SessionState = ClockState & {
   session_code: string;
   scenario_id: string;
   scenario_name: string;
   participants: Participant[];
+  schedule?: ScheduledExerciseItem[];
 };
 
 export type ExerciseEvent = {
