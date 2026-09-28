@@ -16,9 +16,9 @@ RADAR_RENDER_CONFIG = {
     },
     "VEL": {
         "field_candidates": ["velocity"],
-        "units": "kt",
-        "vmin": -80.0,
-        "vmax": 80.0,
+        "units": "m/s",
+        "vmin": -40.0,
+        "vmax": 40.0,
         "cmap": "pyart_NWSVel",
     },
     "CC": {
