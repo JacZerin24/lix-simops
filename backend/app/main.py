@@ -6,12 +6,14 @@ from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .models import Role, SessionCreateRequest
+from .services.radar_data import CACHE_ROOT, radar_payload
 from .services.scenario_loader import list_scenarios, load_scenario_by_id
 from .state import ClientConnection, Participant, SessionState, manager
 
-app = FastAPI(title="LIX SimOps API", version="0.2.0")
+app = FastAPI(title="LIX SimOps API", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,6 +21,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+app.mount(
+    "/scenario-data",
+    StaticFiles(directory=str(CACHE_ROOT), check_dir=False),
+    name="scenario-data",
 )
 
 
@@ -63,6 +71,18 @@ def get_session_events(session_code: str) -> list[dict]:
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return session.log
+
+
+@app.get("/api/sessions/{session_code}/radar/frames")
+def get_radar_frames(
+    session_code: str,
+    product: str | None = None,
+    elevation: float | None = None,
+) -> dict:
+    session = manager.get(session_code)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return radar_payload(session, product, elevation)
 
 
 def event_visible_to(event: dict, participant: Participant) -> bool:
