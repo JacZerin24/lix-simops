@@ -36,6 +36,7 @@ export function DSS({ sessionCode, events, onRespond }: Props) {
   );
 
   const thresholds = operations?.operations?.decision_thresholds ?? [];
+  const shiftLog = operations?.communications?.mock_shift_log;
   const priorityThresholds = useMemo(
     () => thresholds.filter((item) => item.hazard === "lightning"),
     [thresholds],
@@ -75,6 +76,30 @@ export function DSS({ sessionCode, events, onRespond }: Props) {
                   <p>{item.body}</p>
                 </article>
               ))
+            )}
+          </div>
+
+          <div className="shift-log-callout">
+            <div>
+              <strong>Mock Shift Log</strong>
+              <p>
+                Log each meaningful communication to or from Event Command in the coworker-owned
+                Google Form so it populates the shared exercise sheet.
+              </p>
+            </div>
+            {shiftLog?.form_url ? (
+              <a
+                className="primary-action shift-log-link"
+                href={shiftLog.form_url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Shift Log
+              </a>
+            ) : (
+              <button type="button" disabled title="The facilitator will add the Google Form link">
+                Shift Log Link Pending
+              </button>
             )}
           </div>
 

@@ -1,4 +1,21 @@
 resources:
+  external:
+    google_classroom:
+      enabled: true
+      class_url: null
+      purpose: >-
+        Participant launch point for briefing materials, links, reference resources,
+        the instruction PowerPoint, and post-exercise reflection. Live scenario timing
+        remains authoritative in LIX SimOps.
+    shift_log:
+      enabled: true
+      form_url: null
+      owner: Facilitator coworker
+      purpose: >-
+        Google Form used by each team's DSS Meteorologist to document meaningful
+        communications to or from the simulated event coordinator. Responses populate
+        the coworker's linked Google Sheet.
+
   radar:
     primary_site: KLIX
     enabled_products:
@@ -23,3 +40,4 @@ resources:
     show_partner_chat: true
     show_event_schedule: true
     show_decision_log: true
+    show_shift_log_link: true
