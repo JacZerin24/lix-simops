@@ -4,7 +4,7 @@ Role-based displaced-real-time weather operations and DSS training simulator for
 
 ## Purpose
 
-LIX SimOps is a reusable training platform for realistic, synchronized weather operations exercises. The first planned scenario is Mardi Gras DSS, but the platform is designed to support future severe weather, QLCS, tropical, flash flood, warning, and IDSS exercises.
+LIX SimOps is a reusable training platform for realistic, synchronized weather operations exercises. The first full scenario is a 2027 Krewe of Endymion DSS exercise using a case-blind replay of the December 14, 2022 LIX severe-weather event.
 
 ## Core roles
 
@@ -13,7 +13,7 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 - **DSS Meteorologist** — owns the simulated partner relationship, event impacts, decisions, and communication.
 - **Facilitator** — controls simulation time, injects, partner messages, team status, and debrief logging.
 
-## Current V0.5 capabilities
+## Current V0.6 capabilities
 
 1. Facilitator creates a live exercise session from a scenario pack.
 2. The server generates a six-character session code.
@@ -25,16 +25,20 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 8. Facilitator can act as a simulated partner and message one team's DSS meteorologist.
 9. DSS replies are timestamped against simulation time and visible to that team plus exercise control.
 10. Exercise events are retained in an in-memory debrief log.
-11. Archived NEXRAD Level II windows can be downloaded from the public archive and preprocessed into a scenario radar cache.
-12. Radar operators can switch product/elevation, step through scans, loop available scans, zoom/pan, and jump back to the latest available scan.
-13. Radar frame metadata is filtered on the backend by simulation time so future scans are never exposed to participant clients.
-14. Mesoanalysts have a synchronized category/product workspace for Environment, Satellite, Lightning, MRMS, Observations, and Guidance.
-15. Meso product frames use the same backend time-gating model, allowing LightningCast, GLM, MRMS, analyses, observations, and guidance to be staged without exposing future data.
-16. The first full scenario is framed around the 2027 Krewe of Endymion parade and exposes route, partner priorities, and exercise weather thresholds directly in the DSS workspace.
-17. Scenario partner messages and injects can release automatically at simulation times, with facilitator controls to release early, skip, restore, or add unscripted messages.
-18. Historical weather data can be remapped onto the exercise date while preserving local clock time, so a real LIX case can run as a 2027 Mardi Gras DRT without changing the storm geography.
-19. Google Classroom is explicitly planned as the exercise launch/resource/debrief layer while LIX SimOps remains authoritative for live simulation timing.
-20. The DSS workspace reserves a configurable link for the coworker-owned mock shift-log Google Form that populates a linked Google Sheet.
+11. Archived NEXRAD Level II windows can be downloaded and rendered into a time-gated radar cache.
+12. Radar operators can switch product/elevation, step through scans, loop available scans, zoom/pan, and jump to the latest available scan.
+13. Radar frame metadata is filtered on the backend so future scans are never exposed.
+14. Mesoanalysts have synchronized Environment, Satellite, Lightning, MRMS, Observations, and Guidance workspaces.
+15. Meso frames use the same backend time-gating model.
+16. The Endymion scenario exposes route, partner priorities, and NWS-derived exercise thresholds directly in DSS.
+17. Partner messages/injects can release automatically by simulation time, with facilitator override.
+18. Historical weather data can be remapped onto the exercise date while preserving local clock time.
+19. Google Classroom is the launch/resource/debrief layer while LIX SimOps remains authoritative for live timing.
+20. The DSS workspace reserves a link for the coworker-owned Google Form → Google Sheet shift log.
+21. The approved **December 14, 2022** source case is defined in a facilitator-only source-case file.
+22. V0.6 includes acquisition tools for KLIX Level II, GOES-16 ABI/GLM, MRMS, and ASOS/METAR observations.
+23. V0.6 stages the exact GOES-16 ABI L1b channels needed to reproduce historical LightningCast with CSPP Geo.
+24. A raw-data inventory tool verifies that the source-case package has been populated before rendering.
 
 ## Exercise support tools
 
@@ -59,14 +63,14 @@ frontend/       React + TypeScript participant/facilitator UI
 backend/        FastAPI + WebSocket API
 simulator/      Simulation engine and scenario/data schemas
 scenarios/      Exercise configuration packs
-scripts/        Data download/build utilities
+scripts/        Data download/build/validation utilities
 docs/           Architecture and operating documentation
 data/           Local/generated data only; raw weather archives stay out of git
 ```
 
 ## Quick start
 
-### Option 1 — Docker Compose
+### Application
 
 ```bash
 cp .env.example .env
@@ -79,90 +83,93 @@ Backend health check: http://localhost:8000/health
 ### Exercise workflow
 
 1. Open Google Classroom and the opening instruction deck.
-2. Open LIX SimOps and enter a facilitator name.
-3. Choose the Mardi Gras scenario and select **Create Session**.
-4. Share the generated session code with participants.
-5. Participants enter the code, select their assigned team and role, and join.
-6. DSS Meteorologists also open the coworker-provided mock shift-log Google Form.
-7. Confirm all three roles are connected for each team from Exercise Control.
-8. Start the simulation clock.
-9. Let automatic partner messages/injects release by simulation time; facilitators can override when needed.
-10. Use the live event log and mock shift-log Sheet during the debrief.
+2. Open LIX SimOps and create the exercise session.
+3. Share the generated code.
+4. Participants join the assigned team and role.
+5. DSS Meteorologists open the coworker-provided mock shift-log Form.
+6. Confirm Radar/Meso/DSS staffing for every team.
+7. Start the simulation clock.
+8. Let automatic partner messages/injects release by simulation time; override only when needed.
+9. Use SimOps logs plus the Google Sheet shift log during debrief.
 
-### Radar-case preparation
+## V0.6 source-case acquisition
 
-Install the separate radar-processing dependencies:
+Install the data-tool dependencies:
 
 ```bash
 pip install -r scripts/requirements-data.txt
 ```
 
-Then fetch the selected historical NEXRAD window and render the scenario cache. See **docs/radar-playback.md** for the exact commands and options.
-
-### Option 2 — local development
-
-Backend:
+Check public AWS availability without downloading:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -e backend
-uvicorn backend.app.main:app --reload
+python scripts/prepare_endymion_case.py --list-only
 ```
 
-Frontend:
+Download the raw source-case inputs:
 
 ```bash
-cd frontend
-npm install
-npm run dev
+python scripts/prepare_endymion_case.py
 ```
 
-## Scenario philosophy
+Inventory the downloaded package:
 
-Scenario configuration should live in `scenarios/<scenario-name>/`. Raw NEXRAD, GOES, MRMS, LightningCast, GLM, or other bulk weather data should **not** be committed to GitHub. Data download and preprocessing tools belong in `scripts/`; generated scenario data belongs in local/object storage.
+```bash
+python scripts/validate_case_inventory.py --strict
+```
 
-See `docs/scenario-authoring.md` for the planned format.
+The approved source-case configuration is:
 
-## Planned milestones
+```text
+scenarios/mardi-gras/source-case.yaml
+```
 
-- **V0.1:** synchronized clock and role workspace foundation
-- **V0.2:** multi-team sessions, presence, facilitator controls, partner/DSS communications
-- **V0.3:** interactive archived radar playback
-- **V0.4:** mesoanalysis/environment workspace
-- **V0.5:** Endymion scenario, automatic timeline, operational DSS references, historical-case time remapping, and external exercise-tool integration
-- **V0.6:** build and validate the December 14, 2022 meteorological data package end-to-end
+The acquisition window is **20:30–22:45 UTC on December 14, 2022**. Participant-facing data are later remapped to **February 6, 2027** while retaining local clock time.
+
+See:
+
+- `docs/v0.6-case-data.md`
+- `docs/lightningcast-reproduction.md`
+- `docs/source-case-timeline.md` — **facilitator-only; reveals the historical case**
+
+## Radar rendering
+
+See `docs/radar-playback.md`.
 
 ## Meso product preparation
 
-Stage scenario-specific environmental images in the directories defined by `scenarios/mardi-gras/meso-products.yaml`, then run:
+Stage participant-ready environmental images in the directories defined by `scenarios/mardi-gras/meso-products.yaml`, then run:
 
 ```bash
 python scripts/build_meso_cache.py \
   --scenario-id mardi-gras-dss-001 \
-  --config scenarios/mardi-gras/meso-products.yaml
+  --config scenarios/mardi-gras/meso-products.yaml \
+  --simulation-date 2027-02-06 \
+  --timezone America/Chicago
 ```
 
-See `docs/meso-workspace.md` for timestamp naming and product details.
+See `docs/meso-workspace.md`.
 
 ## Endymion scenario
 
-The current scenario runs from **2:45–4:30 PM CST on February 6, 2027** at a default **1.5×** simulation speed. That provides 105 minutes of simulated evolution in about 70 minutes of wall-clock time, leaving roughly five minutes within a 75-minute exercise block for startup/pauses.
+The live scenario runs from **2:45–4:30 PM CST on February 6, 2027** at a default **1.5×** simulation speed. That provides 105 simulated minutes in about 70 wall-clock minutes.
 
-The scenario uses an NWS-derived exercise lightning framework:
+Exercise lightning framework:
 
 - 15 miles: elevated monitoring/preparation and lead-time calculations
 - 12 miles: impending threat; protective action beginning/continuing as needed
-- 8 miles: event hold/suspension for the threatened route segment
-- organized convection: consider 30 minutes or more of protective-action lead time
+- 8 miles: hold/suspend threatened operations
+- organized convection: consider 30+ minutes of protective-action lead time
 - resumption with professional real-time lightning support: beyond 8 miles, storm moving away, and no renewed strike threat within 8 miles
 
-These are **exercise defaults based on NWS large-venue guidance**, not claimed City of New Orleans Mardi Gras policy.
+These are exercise defaults based on NWS large-venue guidance, not claimed City of New Orleans Mardi Gras policy.
 
-The approved historical source case for development is **December 14, 2022**. Participant-facing materials should not reveal that source date.
+## Milestones
 
-See:
-
-- `scenarios/mardi-gras/event.yaml`
-- `scenarios/mardi-gras/injects.yaml`
-- `docs/mardi-gras-case-selection.md`
+- **V0.1:** synchronized clock and role workspaces
+- **V0.2:** multi-team sessions and partner/DSS communications
+- **V0.3:** archived radar playback
+- **V0.4:** mesoanalysis/environment workspace
+- **V0.5:** Endymion scenario, automatic timeline, external exercise-tool integration
+- **V0.6:** approved December 14, 2022 source-case acquisition and validation
+- **V0.7:** render GOES/GLM/MRMS/SPC products, reproduce LightningCast, and validate the complete end-to-end exercise package
