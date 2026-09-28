@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from simulator.scenarios.schema import ScenarioConfig
+from simulator.scenarios.schema import ScenarioConfig, ScheduledExerciseEvent
 
 
 SCENARIOS_ROOT = Path(__file__).resolve().parents[3] / "scenarios"
@@ -22,8 +22,29 @@ def list_scenarios() -> list[ScenarioConfig]:
     return scenarios
 
 
-def load_scenario_by_id(scenario_id: str) -> ScenarioConfig:
-    for scenario in list_scenarios():
+def scenario_directory_by_id(scenario_id: str) -> Path:
+    for path in sorted(SCENARIOS_ROOT.glob("*/scenario.yaml")):
+        scenario = load_scenario(path)
         if scenario.id == scenario_id:
-            return scenario
+            return path.parent
     raise KeyError(scenario_id)
+
+
+def load_scenario_by_id(scenario_id: str) -> ScenarioConfig:
+    directory = scenario_directory_by_id(scenario_id)
+    return load_scenario(directory / "scenario.yaml")
+
+
+def load_scheduled_events(scenario: ScenarioConfig) -> list[ScheduledExerciseEvent]:
+    directory = scenario_directory_by_id(scenario.id)
+    path = directory / scenario.injects_file
+    if not path.exists():
+        return []
+
+    with path.open("r", encoding="utf-8") as handle:
+        raw = yaml.safe_load(handle) or {}
+
+    return [
+        ScheduledExerciseEvent.model_validate(item)
+        for item in raw.get("injects", [])
+    ]
