@@ -126,6 +126,10 @@ def main() -> None:
         Path(datasets["nexrad"]["output"]),
         nexrad_time,
     )
+    report["datasets"]["environment"] = summarize_directory(
+        Path(datasets["environment"]["output"]),
+        lambda path: datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc),
+    )
     report["datasets"]["goes_display"] = summarize_directory(
         Path(datasets["goes_display"]["output"]),
         goes_time,
@@ -158,7 +162,7 @@ def main() -> None:
 
     if args.strict:
         failures = []
-        for key in ["nexrad", "goes_display", "glm", "lightningcast_inputs"]:
+        for key in ["nexrad", "goes_display", "glm", "lightningcast_inputs", "environment"]:
             if report["datasets"][key]["status"] != "ok":
                 failures.append(key)
         for product, summary in report["datasets"]["mrms"].items():
