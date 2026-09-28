@@ -63,6 +63,14 @@ def summarize_directory(path: Path, parser) -> dict:
     }
 
 
+def rap_time(path: Path, source_date: str) -> datetime | None:
+    match = RAP_RE.search(path.name)
+    if not match:
+        return None
+    day = datetime.strptime(source_date, "%Y-%m-%d")
+    return day.replace(hour=int(match.group(1)), tzinfo=timezone.utc)
+
+
 def summarize_observations(path: Path, stations: list[str]) -> dict:
     if not path.exists():
         return {"status": "missing", "count": 0, "stations": {}}
@@ -128,7 +136,7 @@ def main() -> None:
     )
     report["datasets"]["environment"] = summarize_directory(
         Path(datasets["environment"]["output"]),
-        lambda path: datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc),
+        lambda path: rap_time(path, config["source_case"]["source_date"]),
     )
     report["datasets"]["goes_display"] = summarize_directory(
         Path(datasets["goes_display"]["output"]),
