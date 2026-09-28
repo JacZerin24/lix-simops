@@ -48,3 +48,12 @@ def load_scheduled_events(scenario: ScenarioConfig) -> list[ScheduledExerciseEve
         ScheduledExerciseEvent.model_validate(item)
         for item in raw.get("injects", [])
     ]
+
+
+def load_event_config(scenario: ScenarioConfig) -> dict:
+    directory = scenario_directory_by_id(scenario.id)
+    path = directory / scenario.event_file
+    if not path.exists():
+        return {}
+    with path.open("r", encoding="utf-8") as handle:
+        return yaml.safe_load(handle) or {}
