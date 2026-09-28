@@ -13,6 +13,7 @@ from .services.meso_data import meso_payload
 from .services.radar_data import CACHE_ROOT, radar_payload
 from .services.scenario_loader import (
     list_scenarios,
+    load_event_config,
     load_scenario_by_id,
     load_scheduled_events,
 )
@@ -77,6 +78,15 @@ def get_session_events(session_code: str) -> list[dict]:
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return session.log
+
+
+@app.get("/api/sessions/{session_code}/event")
+def get_event_config(session_code: str) -> dict:
+    session = manager.get(session_code)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    scenario = load_scenario_by_id(session.scenario_id)
+    return load_event_config(scenario)
 
 
 @app.get("/api/sessions/{session_code}/radar/frames")
