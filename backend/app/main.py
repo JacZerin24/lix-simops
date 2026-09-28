@@ -162,7 +162,11 @@ async def broadcast_presence(session: SessionState) -> None:
 
 
 async def broadcast_schedule(session: SessionState) -> None:
-    await send_to(session, session.schedule_snapshot())
+    await send_to(
+        session,
+        session.schedule_snapshot(),
+        lambda person: person.role == Role.FACILITATOR,
+    )
 
 
 async def send_error(websocket: WebSocket, message: str) -> None:
@@ -258,7 +262,9 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
         participant=participant,
     )
 
-    await websocket.send_json(session.session_snapshot())
+    await websocket.send_json(
+        session.session_snapshot(include_schedule=role == Role.FACILITATOR)
+    )
     history = [event for event in session.log if event_visible_to(event, participant)]
     await websocket.send_json({"type": "event_history", "events": history[-100:]})
     await broadcast_presence(session)
