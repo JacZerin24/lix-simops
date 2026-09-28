@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import secrets
 import string
 from dataclasses import dataclass, field
@@ -42,6 +43,7 @@ class SessionState:
     speed: float = 1.0
     clients: dict[str, ClientConnection] = field(default_factory=dict)
     log: list[dict[str, Any]] = field(default_factory=list)
+    send_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     def clock_snapshot(self) -> dict[str, Any]:
         return {
