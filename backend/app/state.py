@@ -67,6 +67,7 @@ class SessionState:
     sim_time: datetime
     running: bool = False
     speed: float = 1.0
+    default_speed: float = 1.0
     clients: dict[str, ClientConnection] = field(default_factory=dict)
     log: list[dict[str, Any]] = field(default_factory=list)
     schedule: list[ScheduledItem] = field(default_factory=list)
@@ -96,8 +97,8 @@ class SessionState:
             "items": [item.snapshot() for item in self.schedule],
         }
 
-    def session_snapshot(self) -> dict[str, Any]:
-        return {
+    def session_snapshot(self, *, include_schedule: bool = False) -> dict[str, Any]:
+        payload = {
             "type": "session_state",
             "session_code": self.code,
             "scenario_id": self.scenario_id,
@@ -109,13 +110,15 @@ class SessionState:
                 connection.participant.snapshot()
                 for connection in self.clients.values()
             ],
-            "schedule": [item.snapshot() for item in self.schedule],
         }
+        if include_schedule:
+            payload["schedule"] = [item.snapshot() for item in self.schedule]
+        return payload
 
     def reset_clock(self) -> None:
         self.sim_time = self.scenario_start
         self.running = False
-        self.speed = 1.0
+        self.speed = self.default_speed
         self.log.clear()
         for item in self.schedule:
             item.status = "pending"
@@ -168,6 +171,7 @@ class SessionManager:
             scenario_start=scenario_start,
             sim_time=scenario_start,
             speed=default_speed,
+            default_speed=default_speed,
             schedule=schedule,
         )
         self.sessions[code] = state
