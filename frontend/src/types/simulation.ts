@@ -39,3 +39,31 @@ export type ExerciseEvent = {
 };
 
 export type Inject = ExerciseEvent;
+
+
+export type RadarProductSummary = {
+  id: string;
+  label: string;
+  units: string;
+};
+
+export type RadarFrame = {
+  timestamp: string;
+  product: string;
+  elevation: number;
+  asset_url: string;
+  source_key?: string | null;
+};
+
+export type RadarFrameResponse = {
+  available: boolean;
+  scenario_id: string;
+  sim_time: string;
+  radar_site: string | null;
+  range_km?: number;
+  products: RadarProductSummary[];
+  elevations: number[];
+  selected_product: string;
+  selected_elevation: number;
+  frames: RadarFrame[];
+};
