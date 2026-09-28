@@ -1,0 +1,18 @@
+event:
+  name: Mardi Gras Parade Operations
+  type: outdoor_mass_gathering
+  location:
+    name: TBD
+    latitude: null
+    longitude: null
+
+partner:
+  organization: TBD
+  primary_contact_role: Event Command
+
+operations:
+  start_time: TBD
+  end_time: TBD
+  estimated_attendance: TBD
+  sheltering_notes: TBD
+  decision_thresholds: []

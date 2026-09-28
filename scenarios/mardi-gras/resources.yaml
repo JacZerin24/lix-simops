@@ -1,0 +1,24 @@
+resources:
+  radar:
+    primary_site: KLIX
+    enabled_products:
+      - REF
+      - VEL
+      - SRM
+      - CC
+      - ZDR
+
+  meso:
+    tabs:
+      - Environment
+      - Satellite
+      - Lightning
+      - MRMS
+      - Observations
+      - Guidance
+
+  dss:
+    show_event_map: true
+    show_partner_chat: true
+    show_event_schedule: true
+    show_decision_log: true

@@ -1,0 +1,18 @@
+injects:
+  - id: opening-status
+    at_sim_time: "T+00:10:00"
+    title: Event Command Check-In
+    body: "We are preparing to begin operations. What are you seeing and what should we be watching?"
+    audience: dss
+
+  - id: first-weather-question
+    at_sim_time: "T+00:25:00"
+    title: Partner Question
+    body: "We can see storms upstream. How much time do we have before this could affect the event?"
+    audience: dss
+
+  - id: shelter-decision
+    at_sim_time: "manual"
+    title: Decision Point
+    body: "If we shelter now, operations will be delayed. Do you recommend we act now?"
+    audience: dss
