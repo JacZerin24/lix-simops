@@ -23,13 +23,18 @@ class JoinRequest(BaseModel):
     role: Role
 
 
+class SessionCreateRequest(BaseModel):
+    scenario_id: str
+
+
 class ControlAction(BaseModel):
     action: str
     speed: float | None = None
 
 
 class InjectMessage(BaseModel):
-    inject_id: str
+    inject_id: str | None = None
     title: str
     body: str
     audience: str = "all"
+    target_team_id: str | None = None
