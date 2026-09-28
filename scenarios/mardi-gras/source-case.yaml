@@ -1,0 +1,115 @@
+source_case:
+  id: lix-2022-12-14
+  source_date: "2022-12-14"
+  timezone: America/Chicago
+  source_window_utc:
+    start: "20:30"
+    end: "22:45"
+  exercise_mapping:
+    exercise_date: "2027-02-06"
+    simulation_start_local: "14:45"
+    simulation_end_local: "16:30"
+    preserve_local_clock_time: true
+  rationale: >-
+    This window provides lead time before the 3:49 PM CST Marrero/Gretna/Algiers/Arabi
+    EF2 tornado, captures the 3:49–4:06 PM metro tornado, and preserves the operational
+    decision period around Endymion's 4:00 PM exercise start.
+
+anchor_events:
+  - id: killona-montz-ef2
+    start_local: "14:21"
+    end_local: "14:26"
+    rating: EF2
+    note: >-
+      Occurs shortly before the simulation start and provides important prior-event context
+      for facilitators, but should not be revealed to participants as historical information.
+  - id: marrero-arabi-ef2
+    start_local: "15:49"
+    end_local: "16:06"
+    rating: EF2
+    max_wind_mph: 125
+    path_miles: 10.72
+    note: >-
+      Primary metro New Orleans anchor. Timing aligns closely with the 4:00 PM Endymion
+      start decision and the automatic T+65/T+80 partner injects.
+
+datasets:
+  nexrad:
+    status: ready_to_fetch
+    source: NOAA/Unidata NEXRAD Level II public archive
+    radar: KLIX
+    window_utc: ["20:30", "22:45"]
+    output: data/raw/nexrad/20221214
+
+  goes_display:
+    status: ready_to_fetch
+    source: NOAA GOES-16 Open Data on AWS
+    product: ABI-L2-CMIPC
+    channels: [2, 13]
+    purpose:
+      - Daytime visible imagery
+      - Infrared cloud-top evolution
+    output: data/raw/goes/abi-cmi
+
+  glm:
+    status: ready_to_fetch
+    source: NOAA GOES-16 Open Data on AWS
+    product: GLM-L2-LCFA
+    purpose:
+      - Observed lightning
+      - Input for gridded GLM / flash-extent-density display
+    output: data/raw/goes/glm-lcfa
+
+  lightningcast_inputs:
+    status: ready_to_fetch
+    source: NOAA GOES-16 Open Data on AWS
+    product: ABI-L1b-RadC
+    channels: [2, 5, 13, 15]
+    purpose: >-
+      Required ABI predictors for historical LightningCast reproduction with CSPP Geo LightningCast.
+    output: data/raw/goes/lightningcast-inputs
+
+  lightningcast:
+    status: reproduce_from_historical_abi
+    method: CSPP Geo LightningCast
+    note: >-
+      A durable public archive of the experimental December 2022 LightningCast NetCDF stream
+      has not been confirmed. The preferred reproducible path is to run CSPP Geo LightningCast
+      on archived GOES-16 ABI L1b channels 2, 5, 13, and 15.
+
+  mrms:
+    status: ready_to_fetch
+    source: NOAA MRMS Open Data on AWS
+    products:
+      - MESH_00.50
+      - MergedAzShear_0-2kmAGL_00.50
+      - PrecipRate_00.00
+      - MergedReflectivityAtLowestAltitude_00.50
+    output: data/raw/mrms
+
+  surface_observations:
+    status: ready_to_fetch
+    source: Iowa Environmental Mesonet ASOS/METAR archive
+    network: LA_ASOS
+    stations: [MSY, NEW, BTR, ASD, HDC]
+    output: data/raw/observations/asos_20221214.csv
+
+  environment:
+    status: archive_identified
+    source: NOAA Storm Prediction Center Mesoanalysis Archive
+    desired_products:
+      - 100 mb Mixed-Layer CAPE
+      - Effective Bulk Shear
+      - 0-1 km Storm-Relative Helicity
+      - Surface observations
+    note: >-
+      SPC states its hourly mesoanalysis archive is maintained from 2005 to present.
+      Acquisition/rendering into the SimOps image cache is the remaining environment-data task.
+
+participant_case_blindness:
+  hide_source_date: true
+  hide_historical_event_names: true
+  remap_data_to_exercise_date: true
+  facilitator_traceability: >-
+    Raw filenames/source keys retain original timestamps in manifests, but participant-facing
+    timestamps are mapped to February 6, 2027.
