@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -16,6 +18,17 @@ class DatasetConfig(BaseModel):
     observations: bool = True
 
 
+class ScheduledExerciseEvent(BaseModel):
+    id: str
+    at_sim_time: str
+    kind: Literal["inject", "partner_message"] = "inject"
+    title: str = "Exercise Inject"
+    body: str
+    audience: str = "all"
+    target_team_id: str | None = None
+    sender: str = "Event Command"
+
+
 class ScenarioConfig(BaseModel):
     id: str
     name: str
@@ -23,3 +36,6 @@ class ScenarioConfig(BaseModel):
     simulation: SimulationConfig
     datasets: DatasetConfig
     roles: list[str]
+    event_file: str = "event.yaml"
+    injects_file: str = "injects.yaml"
+    resources_file: str = "resources.yaml"

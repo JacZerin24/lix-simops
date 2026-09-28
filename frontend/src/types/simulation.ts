@@ -18,11 +18,25 @@ export type ScenarioSummary = {
   name: string;
 };
 
+export type ScheduledExerciseItem = {
+  id: string;
+  at_sim_time: string;
+  kind: "inject" | "partner_message";
+  title: string;
+  body: string;
+  audience: string;
+  target_team_id?: string | null;
+  sender: string;
+  due_at?: string | null;
+  status: "pending" | "released" | "skipped";
+};
+
 export type SessionState = ClockState & {
   session_code: string;
   scenario_id: string;
   scenario_name: string;
   participants: Participant[];
+  schedule?: ScheduledExerciseItem[];
 };
 
 export type ExerciseEvent = {
@@ -93,4 +107,49 @@ export type MesoFrameResponse = {
   products: MesoProductSummary[];
   selected_product: string;
   frames: MesoFrame[];
+};
+
+
+export type DecisionThreshold = {
+  id: string;
+  hazard: string;
+  threshold: string;
+  action: string;
+  basis: string;
+  exercise_note?: string;
+};
+
+export type EventOperationsConfig = {
+  event?: {
+    name?: string;
+    type?: string;
+    event_date?: string;
+    scheduled_start_local?: string;
+    timezone?: string;
+    primary_operational_area?: string;
+    crowd_note?: string;
+    pre_parade?: {
+      name?: string;
+      location?: string;
+      planning_note?: string;
+    };
+    route?: string[];
+    route_end?: string;
+  };
+  partner?: {
+    organization?: string;
+    primary_contact_role?: string;
+    assumption_note?: string;
+    partner_priorities?: string[];
+  };
+  operations?: {
+    exercise_duration_minutes?: number;
+    simulation_strategy?: string;
+    first_aid_reference?: {
+      basis_year?: number;
+      note?: string;
+      locations?: string[];
+    };
+    decision_thresholds?: DecisionThreshold[];
+  };
 };

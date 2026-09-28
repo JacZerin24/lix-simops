@@ -1,18 +1,134 @@
 event:
-  name: Mardi Gras Parade Operations
-  type: outdoor_mass_gathering
-  location:
-    name: TBD
-    latitude: null
-    longitude: null
+  name: Krewe of Endymion Parade Operations — 2027
+  type: moving_parade_outdoor_mass_gathering
+  event_date: "2027-02-06"
+  scheduled_start_local: "16:00"
+  timezone: America/Chicago
+  primary_operational_area: Mid-City to Caesars Superdome, New Orleans
+  pre_parade:
+    name: Samedi Gras
+    location: Orleans Avenue near the start of the parade route
+    planning_note: Large pre-parade crowd is already present before the first float rolls.
+  route:
+    - City Park Avenue and Orleans Avenue
+    - Southeast on Orleans Avenue to North Carrollton Avenue
+    - Right on North Carrollton Avenue to Canal Street
+    - Left on Canal Street to St. Charles Avenue
+    - Right on St. Charles Avenue to Harmony Circle
+    - Around Harmony Circle to Howard Avenue
+    - Left on Howard Avenue to Loyola Avenue
+    - Right on Loyola Avenue to Girod Street
+    - Left on Girod Street to Caesars Superdome
+  route_end: Caesars Superdome
+  crowd_note: >-
+    Endymion is a large moving event with dense crowds distributed along a multi-mile route,
+    so protective-action lead time and the ability to communicate route-wide are central to the exercise.
 
 partner:
-  organization: TBD
-  primary_contact_role: Event Command
+  organization: New Orleans Mardi Gras Unified Command (exercise)
+  primary_contact_role: City EOC / Parade Operations
+  assumption_note: >-
+    This is an exercise construct based on the City of New Orleans' recent Mardi Gras
+    multi-agency/EOC operations. It is not a representation of a confirmed 2027 command structure.
+  partner_priorities:
+    - Whether the parade can start on time
+    - Whether to hold floats/riders before the route becomes committed
+    - Whether crowds and route personnel need protective-action messaging
+    - Timing of the highest-impact weather relative to the moving parade
+    - When operations can safely resume after a weather hold
 
 operations:
-  start_time: TBD
-  end_time: TBD
-  estimated_attendance: TBD
-  sheltering_notes: TBD
-  decision_thresholds: []
+  exercise_duration_minutes: 75
+  simulation_strategy: >-
+    Approximately 105 minutes of meteorological evolution are run at a default 1.5x speed,
+    leaving time for briefing, decision pauses, and a short immediate recap.
+  first_aid_reference:
+    basis_year: 2026
+    note: >-
+      These are recent Endymion-route planning references from City/NOLA Ready materials.
+      Confirm 2027 locations before the exercise is finalized.
+    locations:
+      - North Hennessey Street and Orleans Avenue
+      - Norman C. Francis Parkway and Canal Street
+      - South Galvez Street and Canal Street
+      - Harmony Circle / Howard Avenue area
+  decision_thresholds:
+    - id: lightning-monitor
+      hazard: lightning
+      threshold: "Lightning detected within 15 miles of any active parade/staging segment"
+      action: >-
+        Elevate monitoring and notify Event Command. Prepare route staff for a possible hold
+        or protective action. For an organized storm moving toward the route, begin lead-time
+        calculations and consider 30 minutes or more for protective action.
+      basis: NWS Lightning Safety Toolkit for Large Venues
+      exercise_note: >-
+        The NWS toolkit allows lightning radii to be modified for venue size and sheltering time.
+        For this moving-route exercise, distance is evaluated to the threatened active route or staging area.
+    - id: lightning-impending
+      hazard: lightning
+      threshold: "Lightning detected within 12 miles of any active parade/staging segment"
+      action: >-
+        Treat the lightning threat as impending. Event Command should ensure staff are positioned
+        for crowd direction and that protective action is beginning or continuing as needed.
+      basis: NWS Lightning Safety Toolkit for Large Venues
+    - id: lightning-suspend
+      hazard: lightning
+      threshold: "Lightning detected within 8 miles of any active parade/staging segment"
+      action: >-
+        Recommend a parade hold/suspension for the threatened segment and direct people toward
+        lightning-safe structures or enclosed vehicles where feasible.
+      basis: NWS Lightning Safety Toolkit for Large Venues
+    - id: lightning-resume
+      hazard: lightning
+      threshold: "Professional meteorologist with real-time lightning data determines all-clear criteria are met"
+      action: >-
+        Resume only when lightning has moved beyond 8 miles, storm motion is carrying activity away,
+        and the threat of new lightning within 8 miles has ended. If professional real-time monitoring
+        is unavailable, use the NWS 30-minute wait after the last observed thunder/lightning.
+      basis: NWS Lightning Safety Toolkit for Large Venues
+    - id: severe-watch
+      hazard: severe thunderstorms/tornadoes
+      threshold: "Severe Thunderstorm Watch or Tornado Watch affects the parade area"
+      action: >-
+        Elevate monitoring, review protective-action options and lead times, and communicate the
+        primary watch hazards and expiration time to Event Command.
+      basis: NWS Lightning Safety Toolkit / Event Ready guidance
+    - id: severe-warning
+      hazard: severe thunderstorms/tornadoes
+      threshold: "Severe Thunderstorm Warning or Tornado Warning threatens an active route segment"
+      action: >-
+        Treat the threat as imminent. Recommend immediate hold/protective action for the affected
+        portion of the route; for tornado threat, prioritize substantial shelter and movement away
+        from exposed outdoor locations.
+      basis: NWS Lightning Safety Toolkit / Event Ready guidance
+    - id: damaging-wind
+      hazard: damaging wind
+      threshold: "Warning-level or otherwise operationally significant wind threat to floats, temporary structures, or crowds"
+      action: >-
+        Escalate immediately to Event Command and use the event's equipment/float limits if known.
+        The simulator intentionally does not invent a City of New Orleans fixed wind cutoff.
+      basis: NWS Event Ready guidance
+    - id: flooding
+      hazard: flash flooding
+      threshold: "Flash Flood Warning, observed street flooding, or rapidly increasing rainfall threat along the route"
+      action: >-
+        Flag route-access, responder-mobility, and crowd-movement impacts and recommend a hold or
+        reroute decision when safe passage cannot be maintained.
+      basis: NWS Event Ready guidance
+
+research_sources:
+  - title: Krewe of Endymion official site
+    url: https://endymion.org/
+    supports: 2027 date/time and Samedi Gras context
+  - title: Mardi Gras New Orleans — Endymion route
+    url: https://www.mardigrasneworleans.com/parades/krewe-of-endymion
+    supports: current Mid-City route description
+  - title: City of New Orleans 2026 Mardi Gras public safety plan
+    url: https://nola.gov/next/mayors-office/news/articles/february-2026/2026-02-02-city-of-new-orleans-announces-public-safety-and-preparedness-efforts-for-mardi-gras/
+    supports: EOC/multi-agency operations and Endymion first-aid planning references
+  - title: NWS Lightning Safety Toolkit for Large Venues
+    url: https://www.weather.gov/media/safety/lightning/Lightning_Safety_Toolkit_Outdoor_Venues.pdf
+    supports: 15/12/8-mile lightning framework, evacuation lead-time, watch/warning, and resumption guidance
+  - title: NWS Event Ready Guide
+    url: https://www.weather.gov/media/crh/eventready/Event_Ready_Guide.pdf
+    supports: hazard thresholds, shelter/evacuation planning, and lead-time considerations

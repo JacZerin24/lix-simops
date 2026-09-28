@@ -23,7 +23,7 @@ def test_session_can_be_created_from_scenario() -> None:
     payload = response.json()
     assert len(payload["session_code"]) == 6
     assert payload["scenario_id"] == "mardi-gras-dss-001"
-    assert payload["scenario_name"] == "Mardi Gras Severe Weather DSS Exercise"
+    assert payload["scenario_name"] == "2027 Endymion Severe Weather DSS Exercise"
     assert payload["running"] is False
 
 

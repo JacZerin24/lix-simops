@@ -11,10 +11,15 @@ from fastapi.staticfiles import StaticFiles
 from .models import Role, SessionCreateRequest
 from .services.meso_data import meso_payload
 from .services.radar_data import CACHE_ROOT, radar_payload
-from .services.scenario_loader import list_scenarios, load_scenario_by_id
-from .state import ClientConnection, Participant, SessionState, manager
+from .services.scenario_loader import (
+    list_scenarios,
+    load_event_config,
+    load_scenario_by_id,
+    load_scheduled_events,
+)
+from .state import ClientConnection, Participant, ScheduledItem, SessionState, manager
 
-app = FastAPI(title="LIX SimOps API", version="0.4.0")
+app = FastAPI(title="LIX SimOps API", version="0.5.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -54,6 +59,7 @@ def create_session(request: SessionCreateRequest) -> dict:
         scenario_name=scenario.name,
         scenario_start=start,
         default_speed=scenario.simulation.default_speed,
+        scheduled_events=load_scheduled_events(scenario),
     )
     return session.session_snapshot()
 
@@ -72,6 +78,15 @@ def get_session_events(session_code: str) -> list[dict]:
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return session.log
+
+
+@app.get("/api/sessions/{session_code}/event")
+def get_event_config(session_code: str) -> dict:
+    session = manager.get(session_code)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    scenario = load_scenario_by_id(session.scenario_id)
+    return load_event_config(scenario)
 
 
 @app.get("/api/sessions/{session_code}/radar/frames")
@@ -105,12 +120,13 @@ def event_visible_to(event: dict, participant: Participant) -> bool:
     if event_type == "inject":
         target_team_id = event.get("target_team_id")
         audience = event.get("audience", "all")
-        if target_team_id and target_team_id != participant.team_id:
+        if target_team_id and target_team_id not in {"*", participant.team_id}:
             return False
         return audience == "all" or audience == participant.role.value
 
     if event_type == "partner_message":
-        return participant.role == Role.DSS and event.get("team_id") == participant.team_id
+        target_team = event.get("team_id")
+        return participant.role == Role.DSS and target_team in {"*", participant.team_id}
 
     if event_type in {"dss_response", "team_message"}:
         return event.get("team_id") == participant.team_id
@@ -145,8 +161,61 @@ async def broadcast_presence(session: SessionState) -> None:
     await send_to(session, session.presence_snapshot())
 
 
+async def broadcast_schedule(session: SessionState) -> None:
+    await send_to(
+        session,
+        session.schedule_snapshot(),
+        lambda person: person.role == Role.FACILITATOR,
+    )
+
+
 async def send_error(websocket: WebSocket, message: str) -> None:
     await websocket.send_json({"type": "error", "message": message})
+
+
+async def release_scheduled_item(session: SessionState, item: ScheduledItem) -> None:
+    if item.status != "pending":
+        return
+
+    definition = item.definition
+    item.status = "released"
+
+    if definition.kind == "partner_message":
+        payload = session.record(
+            {
+                "type": "partner_message",
+                "event_id": uuid4().hex,
+                "scheduled_id": definition.id,
+                "scheduled": True,
+                "scheduled_for": item.due_at.isoformat() if item.due_at else None,
+                "team_id": definition.target_team_id or "*",
+                "sender": definition.sender or "Event Command",
+                "body": definition.body,
+                "sim_time": session.sim_time.isoformat(),
+            }
+        )
+    else:
+        payload = session.record(
+            {
+                "type": "inject",
+                "event_id": uuid4().hex,
+                "scheduled_id": definition.id,
+                "scheduled": True,
+                "scheduled_for": item.due_at.isoformat() if item.due_at else None,
+                "title": definition.title or "Exercise Inject",
+                "body": definition.body,
+                "audience": definition.audience,
+                "target_team_id": definition.target_team_id,
+                "sim_time": session.sim_time.isoformat(),
+            }
+        )
+
+    await send_to(
+        session,
+        payload,
+        lambda person: event_visible_to(payload, person),
+    )
+    await broadcast_schedule(session)
 
 
 @app.websocket("/ws/{session_code}")
@@ -193,7 +262,9 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
         participant=participant,
     )
 
-    await websocket.send_json(session.session_snapshot())
+    await websocket.send_json(
+        session.session_snapshot(include_schedule=role == Role.FACILITATOR)
+    )
     history = [event for event in session.log if event_visible_to(event, participant)]
     await websocket.send_json({"type": "event_history", "events": history[-100:]})
     await broadcast_presence(session)
@@ -215,6 +286,8 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     session.running = False
                 elif action == "reset":
                     session.reset_clock()
+                    await send_to(session, {"type": "event_history", "events": []})
+                    await broadcast_schedule(session)
                 elif action == "speed":
                     session.speed = max(0.25, min(float(message.get("speed", 1.0)), 8.0))
                 else:
@@ -222,6 +295,38 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     continue
 
                 await broadcast_clock(session)
+
+            elif kind == "scheduled_event_control":
+                if role != Role.FACILITATOR:
+                    await send_error(websocket, "Only facilitators can override the schedule")
+                    continue
+
+                item_id = str(message.get("item_id", "")).strip()
+                action = str(message.get("action", "")).strip()
+                item = session.scheduled_item(item_id)
+                if item is None:
+                    await send_error(websocket, "Scheduled event not found")
+                    continue
+
+                if action == "release_now":
+                    if item.status == "skipped":
+                        item.status = "pending"
+                    await release_scheduled_item(session, item)
+                elif action == "skip":
+                    if item.status == "released":
+                        await send_error(websocket, "Released events cannot be skipped")
+                        continue
+                    item.status = "skipped"
+                    await broadcast_schedule(session)
+                elif action == "restore":
+                    if item.status == "released":
+                        await send_error(websocket, "Released events cannot be restored")
+                        continue
+                    item.status = "pending"
+                    await broadcast_schedule(session)
+                else:
+                    await send_error(websocket, "Unknown schedule override")
+                    continue
 
             elif kind == "inject":
                 if role != Role.FACILITATOR:
@@ -276,8 +381,7 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                 await send_to(
                     session,
                     payload,
-                    lambda person: person.role == Role.FACILITATOR
-                    or (person.role == Role.DSS and person.team_id == target_team),
+                    lambda person: event_visible_to(payload, person),
                 )
 
             elif kind == "dss_response":
@@ -352,6 +456,8 @@ async def start_clock_task() -> None:
             for session in manager.all():
                 if session.running and session.speed > 0:
                     session.sim_time += timedelta(seconds=session.speed)
+                    for item in session.due_items():
+                        await release_scheduled_item(session, item)
                     if session.clients:
                         await broadcast_clock(session)
 

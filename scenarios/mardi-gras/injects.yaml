@@ -1,18 +1,92 @@
 injects:
-  - id: opening-status
-    at_sim_time: "T+00:10:00"
-    title: Event Command Check-In
-    body: "We are preparing to begin operations. What are you seeing and what should we be watching?"
-    audience: dss
+  - id: operations-checkin
+    at_sim_time: "T+00:05:00"
+    kind: partner_message
+    title: Operations Check-In
+    sender: Mardi Gras Unified Command
+    target_team_id: "*"
+    body: >-
+      Samedi Gras is active and crowds are building along the route. Riders and support crews
+      are moving into position. Give us your current weather picture and the main thing we should
+      be watching before the 4 PM parade start.
 
-  - id: first-weather-question
-    at_sim_time: "T+00:25:00"
-    title: Partner Question
-    body: "We can see storms upstream. How much time do we have before this could affect the event?"
-    audience: dss
+  - id: prestart-confidence
+    at_sim_time: "T+00:20:00"
+    kind: partner_message
+    title: Parade Start Confidence
+    sender: Mardi Gras Unified Command
+    target_team_id: "*"
+    body: >-
+      We are about an hour from the scheduled start and need to make staffing and staging decisions.
+      Are you still comfortable with a 4 PM roll, and when do you want our next decision point?
 
-  - id: shelter-decision
+  - id: route-lead-time
+    at_sim_time: "T+00:35:00"
+    kind: partner_message
+    title: Protective-Action Lead Time
+    sender: Mardi Gras Unified Command
+    target_team_id: "*"
+    body: >-
+      If we need to hold the parade or push route-wide safety messaging, we need meaningful lead time.
+      Based on what you are seeing, when would you want us to act rather than wait for a warning?
+
+  - id: lightning-framework
+    at_sim_time: "T+00:42:00"
+    kind: inject
+    title: Exercise Reminder — Lightning Decision Framework
+    audience: dss
+    body: >-
+      Use the exercise lightning framework as appropriate: 15 miles = elevated monitoring/preparation,
+      12 miles = impending threat/protective action underway as needed, 8 miles = suspend/hold.
+      For organized convection moving toward the route, account for 30 minutes or more of lead time.
+
+  - id: commit-to-route
+    at_sim_time: "T+00:50:00"
+    kind: partner_message
+    title: Commit-to-Route Decision
+    sender: Mardi Gras Unified Command
+    target_team_id: "*"
+    body: >-
+      The first floats are nearly ready to roll and once we commit the parade to the route our options
+      narrow quickly. Do you recommend we start on time, delay, or take another action? Give us the
+      expected timing and your confidence.
+
+  - id: immediate-decision
+    at_sim_time: "T+01:05:00"
+    kind: partner_message
+    title: Immediate Command Decision
+    sender: Mardi Gras Unified Command
+    target_team_id: "*"
+    body: >-
+      We need a clear recommendation now. What is the most significant threat to the route over the
+      next 30 minutes, what areas are most exposed, and what action should Unified Command take?
+
+  - id: active-hold
+    at_sim_time: "T+01:20:00"
+    kind: partner_message
+    title: Operations During Hold
+    sender: Mardi Gras Unified Command
+    target_team_id: "*"
+    body: >-
+      Assume the parade is currently being held. What should we tell route personnel and first-aid/public
+      safety partners right now, and what weather information will determine whether the hold continues?
+
+  - id: recovery-question
+    at_sim_time: "T+01:35:00"
+    kind: partner_message
+    title: Resume Operations?
+    sender: Mardi Gras Unified Command
+    target_team_id: "*"
+    body: >-
+      Conditions at the route appear to be improving. Can we resume operations? Tell us what criteria
+      you are using, whether another threat is approaching, and how confident you are in the all-clear.
+
+  - id: facilitator-contingency
     at_sim_time: "manual"
-    title: Decision Point
-    body: "If we shelter now, operations will be delayed. Do you recommend we act now?"
-    audience: dss
+    kind: partner_message
+    title: Facilitator Contingency
+    sender: Mardi Gras Unified Command
+    target_team_id: "*"
+    body: >-
+      The crowd is getting restless and parade leadership is asking whether the weather concern is
+      significant enough to justify a continued delay. Give us a concise recommendation and why.

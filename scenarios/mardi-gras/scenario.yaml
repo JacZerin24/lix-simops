@@ -1,10 +1,10 @@
 id: mardi-gras-dss-001
-name: Mardi Gras Severe Weather DSS Exercise
+name: 2027 Endymion Severe Weather DSS Exercise
 timezone: America/Chicago
 
 simulation:
-  start: "2027-02-01T17:00:00Z"
-  end: "2027-02-01T21:00:00Z"
+  start: "2027-02-06T20:45:00Z"
+  end: "2027-02-06T22:30:00Z"
   default_speed: 1.5
 
 roles:

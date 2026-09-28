@@ -1,4 +1,4 @@
-import type { MesoFrameResponse, RadarFrameResponse, ScenarioSummary, SessionState } from "../types/simulation";
+import type { EventOperationsConfig, MesoFrameResponse, RadarFrameResponse, ScenarioSummary, SessionState } from "../types/simulation";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -68,4 +68,15 @@ export async function getMesoFrames(
         : `${API_BASE}${frame.asset_url}`,
     })),
   };
+}
+
+
+export async function getEventOperations(
+  sessionCode: string,
+): Promise<EventOperationsConfig> {
+  const response = await fetch(
+    `${API_BASE}/api/sessions/${encodeURIComponent(sessionCode)}/event`,
+  );
+  if (!response.ok) throw new Error("Unable to load event operations");
+  return response.json();
 }

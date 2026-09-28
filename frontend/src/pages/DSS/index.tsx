@@ -1,8 +1,10 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
-import type { ExerciseEvent } from "../../types/simulation";
+import { getEventOperations } from "../../services/api";
+import type { EventOperationsConfig, ExerciseEvent } from "../../types/simulation";
 
 type Props = {
+  sessionCode: string;
   events: ExerciseEvent[];
   onRespond: (body: string) => void;
 };
@@ -12,10 +14,31 @@ function simTime(value?: string) {
   return `${new Date(value).toISOString().slice(11, 16)}Z`;
 }
 
-export function DSS({ events, onRespond }: Props) {
+export function DSS({ sessionCode, events, onRespond }: Props) {
   const [body, setBody] = useState("");
+  const [operations, setOperations] = useState<EventOperationsConfig | null>(null);
+  const [opsTab, setOpsTab] = useState<"overview" | "thresholds" | "route">("overview");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    getEventOperations(sessionCode)
+      .then((payload) => {
+        setOperations(payload);
+        setError("");
+      })
+      .catch((reason) =>
+        setError(reason instanceof Error ? reason.message : "Unable to load event operations"),
+      );
+  }, [sessionCode]);
+
   const chat = events.filter(
     (event) => event.type === "partner_message" || event.type === "dss_response",
+  );
+
+  const thresholds = operations?.operations?.decision_thresholds ?? [];
+  const priorityThresholds = useMemo(
+    () => thresholds.filter((item) => item.hazard === "lightning"),
+    [thresholds],
   );
 
   const submit = (event: FormEvent) => {
@@ -69,11 +92,96 @@ export function DSS({ events, onRespond }: Props) {
           </form>
         </div>
 
-        <div className="subpanel">
+        <div className="subpanel dss-ops">
           <h3>Event Operations</h3>
-          <p className="muted">
-            Venue map, parade schedule, sheltering information, thresholds, and decision aids will be loaded from the scenario pack in the next milestone.
-          </p>
+          {error && <div className="error-text">{error}</div>}
+
+          <div className="ops-tabs">
+            <button
+              className={opsTab === "overview" ? "ops-tab active" : "ops-tab"}
+              onClick={() => setOpsTab("overview")}
+            >
+              Overview
+            </button>
+            <button
+              className={opsTab === "thresholds" ? "ops-tab active" : "ops-tab"}
+              onClick={() => setOpsTab("thresholds")}
+            >
+              Thresholds
+            </button>
+            <button
+              className={opsTab === "route" ? "ops-tab active" : "ops-tab"}
+              onClick={() => setOpsTab("route")}
+            >
+              Route
+            </button>
+          </div>
+
+          {opsTab === "overview" && (
+            <div className="ops-content">
+              <h4>{operations?.event?.name ?? "Mardi Gras Parade Operations"}</h4>
+              <dl className="ops-facts">
+                <div>
+                  <dt>Scheduled start</dt>
+                  <dd>{operations?.event?.scheduled_start_local ?? "TBD"} local</dd>
+                </div>
+                <div>
+                  <dt>Operational area</dt>
+                  <dd>{operations?.event?.primary_operational_area ?? "TBD"}</dd>
+                </div>
+                <div>
+                  <dt>Partner</dt>
+                  <dd>{operations?.partner?.organization ?? "Event Command"}</dd>
+                </div>
+              </dl>
+
+              {operations?.event?.crowd_note && <p>{operations.event.crowd_note}</p>}
+
+              <h4>Lightning quick reference</h4>
+              <div className="threshold-cards compact">
+                {priorityThresholds.map((item) => (
+                  <article className="threshold-card" key={item.id}>
+                    <strong>{item.threshold}</strong>
+                    <p>{item.action}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {opsTab === "thresholds" && (
+            <div className="ops-content threshold-cards">
+              {thresholds.map((item) => (
+                <article className="threshold-card" key={item.id}>
+                  <span>{item.hazard}</span>
+                  <strong>{item.threshold}</strong>
+                  <p>{item.action}</p>
+                  <small>{item.basis}</small>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {opsTab === "route" && (
+            <div className="ops-content">
+              <h4>Endymion route</h4>
+              <ol className="route-list">
+                {(operations?.event?.route ?? []).map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+
+              <h4>Recent first-aid planning reference</h4>
+              <p className="muted">
+                {operations?.operations?.first_aid_reference?.note}
+              </p>
+              <ul>
+                {(operations?.operations?.first_aid_reference?.locations ?? []).map((location) => (
+                  <li key={location}>{location}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </section>

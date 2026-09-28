@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 from pathlib import Path
 
 from simulator.radar.preprocessing import build_radar_cache
@@ -28,12 +29,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--event-lat", type=float)
     parser.add_argument("--event-lon", type=float)
     parser.add_argument("--event-label", default="Event")
+    parser.add_argument(
+        "--simulation-date",
+        help="Optional exercise date YYYY-MM-DD. Preserves historical local clock time.",
+    )
+    parser.add_argument("--timezone", default="America/Chicago")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     output_root = Path("data/cache") / args.scenario_id
+    simulation_date = (
+        datetime.strptime(args.simulation_date, "%Y-%m-%d").date()
+        if args.simulation_date
+        else None
+    )
     manifest = build_radar_cache(
         input_dir=args.input,
         output_root=output_root,
@@ -44,6 +55,8 @@ def main() -> None:
         event_lat=args.event_lat,
         event_lon=args.event_lon,
         event_label=args.event_label,
+        simulation_date=simulation_date,
+        timezone_name=args.timezone,
     )
     print(
         f"Built {len(manifest.frames)} radar frames for "
