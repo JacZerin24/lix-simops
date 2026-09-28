@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 import re
 
@@ -13,7 +13,7 @@ from botocore.config import Config
 TIME_RE = re.compile(r"_(\d{8})-(\d{6})")
 
 
-def parse_clock(value: str) -> datetime.time:
+def parse_clock(value: str) -> time:
     return datetime.strptime(value, "%H:%M").time()
 
 
