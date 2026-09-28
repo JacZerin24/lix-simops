@@ -142,6 +142,17 @@ export type EventOperationsConfig = {
     assumption_note?: string;
     partner_priorities?: string[];
   };
+  communications?: {
+    mock_shift_log?: {
+      owner?: string;
+      implementation?: string;
+      form_url?: string | null;
+      participant_role?: string;
+      required_use?: string;
+      recommended_fields?: string[];
+      note?: string;
+    };
+  };
   operations?: {
     exercise_duration_minutes?: number;
     simulation_strategy?: string;
