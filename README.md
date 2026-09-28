@@ -13,7 +13,7 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 - **DSS Meteorologist** — owns the simulated partner relationship, event impacts, decisions, and communication.
 - **Facilitator** — controls simulation time, injects, partner messages, team status, and debrief logging.
 
-## Current V0.4 capabilities
+## Current V0.5 capabilities
 
 1. Facilitator creates a live exercise session from a scenario pack.
 2. The server generates a six-character session code.
@@ -30,6 +30,9 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 13. Radar frame metadata is filtered on the backend by simulation time so future scans are never exposed to participant clients.
 14. Mesoanalysts have a synchronized category/product workspace for Environment, Satellite, Lightning, MRMS, Observations, and Guidance.
 15. Meso product frames use the same backend time-gating model, allowing LightningCast, GLM, MRMS, analyses, observations, and guidance to be staged without exposing future data.
+16. The first full scenario is framed around the 2027 Krewe of Endymion parade and exposes route, partner priorities, and exercise weather thresholds directly in the DSS workspace.
+17. Scenario partner messages and injects can release automatically at simulation times, with facilitator controls to release early, skip, restore, or add unscripted messages.
+18. Historical weather data can be remapped onto the exercise date while preserving local clock time, so a real LIX case can run as a 2027 Mardi Gras DRT without changing the storm geography.
 
 ## Repository layout
 
@@ -107,7 +110,7 @@ See `docs/scenario-authoring.md` for the planned format.
 - **V0.2:** multi-team sessions, presence, facilitator controls, partner/DSS communications
 - **V0.3:** interactive archived radar playback
 - **V0.4:** mesoanalysis/environment workspace
-- **V0.5:** complete Mardi Gras exercise scenario and debrief package
+- **V0.5:** Endymion scenario, automatic timeline, operational DSS references, and historical-case time remapping
 
 
 ## Meso product preparation
@@ -121,3 +124,23 @@ python scripts/build_meso_cache.py \
 ```
 
 See `docs/meso-workspace.md` for timestamp naming and product details.
+
+
+## Endymion scenario
+
+The current scenario runs from **2:45–4:30 PM CST on February 6, 2027** at a default **1.5×** simulation speed. That provides 105 minutes of simulated evolution in about 70 minutes of wall-clock time, leaving roughly five minutes within a 75-minute exercise block for startup/pauses.
+
+The scenario uses an NWS-derived exercise lightning framework:
+
+- 15 miles: elevated monitoring/preparation and lead-time calculations
+- 12 miles: impending threat; protective action beginning/continuing as needed
+- 8 miles: event hold/suspension for the threatened route segment
+- organized convection: consider 30 minutes or more of protective-action lead time
+- resumption with professional real-time lightning support: beyond 8 miles, storm moving away, and no renewed strike threat within 8 miles
+
+These are **exercise defaults based on NWS large-venue guidance**, not claimed City of New Orleans Mardi Gras policy.
+
+See:
+- `scenarios/mardi-gras/event.yaml`
+- `scenarios/mardi-gras/injects.yaml`
+- `docs/mardi-gras-case-selection.md`
