@@ -1,0 +1,90 @@
+products:
+  - id: mlcape
+    label: MLCAPE
+    category: Environment
+    units: J/kg
+    description: Instability available to the evolving convective threat.
+    source_dir: data/raw/meso/mlcape
+    pattern: "*.png"
+
+  - id: effective_bulk_shear
+    label: Effective Bulk Shear
+    category: Environment
+    units: kt
+    description: Deep-layer shear context for storm organization and persistence.
+    source_dir: data/raw/meso/effective_bulk_shear
+    pattern: "*.png"
+
+  - id: srh_0_1km
+    label: 0–1 km SRH
+    category: Environment
+    units: m²/s²
+    description: Low-level hodograph context for rotating convection.
+    source_dir: data/raw/meso/srh_0_1km
+    pattern: "*.png"
+
+  - id: goes_ir
+    label: GOES Infrared
+    category: Satellite
+    description: Cloud-top evolution and upstream convective development.
+    source_dir: data/raw/meso/goes_ir
+    pattern: "*.png"
+
+  - id: goes_vis
+    label: GOES Visible
+    category: Satellite
+    description: Daytime storm development and boundary structure.
+    source_dir: data/raw/meso/goes_vis
+    pattern: "*.png"
+
+  - id: lightningcast
+    label: LightningCast
+    category: Lightning
+    units: "%"
+    description: Probabilistic guidance for lightning initiation and near-term lightning threat.
+    source_dir: data/raw/meso/lightningcast
+    pattern: "*.png"
+
+  - id: glm_fed
+    label: GLM Flash Extent Density
+    category: Lightning
+    description: Observed total-lightning activity and trends.
+    source_dir: data/raw/meso/glm_fed
+    pattern: "*.png"
+
+  - id: mrms_mesh
+    label: MRMS MESH
+    category: MRMS
+    units: in
+    description: Multi-radar hail-size estimate for severe-weather situational awareness.
+    source_dir: data/raw/meso/mrms_mesh
+    pattern: "*.png"
+
+  - id: mrms_azshear
+    label: MRMS Azimuthal Shear
+    category: MRMS
+    description: Multi-radar rotation signal for tracking strengthening circulations.
+    source_dir: data/raw/meso/mrms_azshear
+    pattern: "*.png"
+
+  - id: mrms_precip_rate
+    label: MRMS Precipitation Rate
+    category: MRMS
+    units: in/hr
+    description: Rain-rate context for outdoor operations and localized flooding concerns.
+    source_dir: data/raw/meso/mrms_precip_rate
+    pattern: "*.png"
+
+  - id: surface_obs
+    label: Surface Observations
+    category: Observations
+    description: Temperature, dewpoint, wind, pressure, and boundary evolution.
+    source_dir: data/raw/meso/surface_obs
+    pattern: "*.png"
+
+  - id: forecast_guidance
+    label: Forecast Guidance
+    category: Guidance
+    description: Scenario-specific CAM, ensemble, or probabilistic guidance selected by the exercise team.
+    source_dir: data/raw/meso/forecast_guidance
+    pattern: "*.png"
