@@ -37,6 +37,32 @@ partner:
     - Timing of the highest-impact weather relative to the moving parade
     - When operations can safely resume after a weather hold
 
+
+communications:
+  mock_shift_log:
+    owner: Facilitator team / coworker
+    implementation: Google Form responses populate a linked Google Sheet
+    form_url: null
+    participant_role: dss
+    required_use: >-
+      The DSS Meteorologist should submit a shift-log entry for each meaningful communication
+      to or from Mardi Gras Unified Command / the event coordinator, including recommendations,
+      timing updates, changes in confidence, holds, and all-clear guidance.
+    recommended_fields:
+      - Simulation time
+      - Team
+      - Direction (outbound to partner / inbound from partner)
+      - Partner or contact
+      - Communication method
+      - Message or request summary
+      - DSS recommendation / response
+      - Key timing or confidence information
+      - Follow-up needed / next update time
+      - Initials
+    note: >-
+      The simulator does not own the Google Form or Sheet. The coworker facilitating the exercise
+      will build and maintain them; this scenario only provides a place to link the final form.
+
 operations:
   exercise_duration_minutes: 75
   simulation_strategy: >-
