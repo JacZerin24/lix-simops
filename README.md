@@ -13,7 +13,7 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 - **DSS Meteorologist** — owns the simulated partner relationship, event impacts, decisions, and communication.
 - **Facilitator** — controls simulation time, injects, partner messages, team status, and debrief logging.
 
-## Current V0.3 capabilities
+## Current V0.4 capabilities
 
 1. Facilitator creates a live exercise session from a scenario pack.
 2. The server generates a six-character session code.
@@ -28,6 +28,8 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 11. Archived NEXRAD Level II windows can be downloaded from the public archive and preprocessed into a scenario radar cache.
 12. Radar operators can switch product/elevation, step through scans, loop available scans, zoom/pan, and jump back to the latest available scan.
 13. Radar frame metadata is filtered on the backend by simulation time so future scans are never exposed to participant clients.
+14. Mesoanalysts have a synchronized category/product workspace for Environment, Satellite, Lightning, MRMS, Observations, and Guidance.
+15. Meso product frames use the same backend time-gating model, allowing LightningCast, GLM, MRMS, analyses, observations, and guidance to be staged without exposing future data.
 
 ## Repository layout
 
@@ -106,3 +108,16 @@ See `docs/scenario-authoring.md` for the planned format.
 - **V0.3:** interactive archived radar playback
 - **V0.4:** mesoanalysis/environment workspace
 - **V0.5:** complete Mardi Gras exercise scenario and debrief package
+
+
+## Meso product preparation
+
+Stage scenario-specific environmental images in the directories defined by `scenarios/mardi-gras/meso-products.yaml`, then run:
+
+```bash
+python scripts/build_meso_cache.py \
+  --scenario-id mardi-gras-dss-001 \
+  --config scenarios/mardi-gras/meso-products.yaml
+```
+
+See `docs/meso-workspace.md` for timestamp naming and product details.
