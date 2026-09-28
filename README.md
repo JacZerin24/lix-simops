@@ -13,7 +13,7 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 - **DSS Meteorologist** — owns the simulated partner relationship, event impacts, decisions, and communication.
 - **Facilitator** — controls simulation time, injects, partner messages, team status, and debrief logging.
 
-## Current V0.2 capabilities
+## Current V0.3 capabilities
 
 1. Facilitator creates a live exercise session from a scenario pack.
 2. The server generates a six-character session code.
@@ -25,15 +25,16 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 8. Facilitator can act as a simulated partner and message one team's DSS meteorologist.
 9. DSS replies are timestamped against simulation time and visible to that team plus exercise control.
 10. Exercise events are retained in an in-memory debrief log.
-
-Meteorological data viewers are layered onto this operations framework in the next milestones.
+11. Archived NEXRAD Level II windows can be downloaded from the public archive and preprocessed into a scenario radar cache.
+12. Radar operators can switch product/elevation, step through scans, loop available scans, zoom/pan, and jump back to the latest available scan.
+13. Radar frame metadata is filtered on the backend by simulation time so future scans are never exposed to participant clients.
 
 ## Repository layout
 
 ```text
 frontend/       React + TypeScript participant/facilitator UI
 backend/        FastAPI + WebSocket API
-simulator/      Simulation engine and scenario schema
+simulator/      Simulation engine and scenario/data schemas
 scenarios/      Exercise configuration packs
 scripts/        Data download/build utilities
 docs/           Architecture and operating documentation
@@ -62,6 +63,16 @@ Backend health check: http://localhost:8000/health
 6. Start the simulation clock.
 7. Use Partner Control and Exercise Injects to drive the exercise.
 8. Use the live event log during the debrief.
+
+### Radar-case preparation
+
+Install the separate radar-processing dependencies:
+
+```bash
+pip install -r scripts/requirements-data.txt
+```
+
+Then fetch the selected historical NEXRAD window and render the scenario cache. See **docs/radar-playback.md** for the exact commands and options.
 
 ### Option 2 — local development
 
