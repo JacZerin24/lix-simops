@@ -14,6 +14,7 @@ import type {
   Participant,
   Role,
   ScenarioSummary,
+  ScheduledExerciseItem,
 } from "./types/simulation";
 
 type InjectDraft = {
@@ -46,6 +47,7 @@ function App() {
   });
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [events, setEvents] = useState<ExerciseEvent[]>([]);
+  const [schedule, setSchedule] = useState<ScheduledExerciseItem[]>([]);
   const [connected, setConnected] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -87,6 +89,7 @@ function App() {
         });
         setScenarioName(msg.scenario_name);
         setParticipants(msg.participants ?? []);
+        setSchedule(msg.schedule ?? []);
       } else if (msg.type === "clock") {
         setClock({
           sim_time: msg.sim_time,
@@ -95,6 +98,8 @@ function App() {
         });
       } else if (msg.type === "presence") {
         setParticipants(msg.participants ?? []);
+      } else if (msg.type === "schedule") {
+        setSchedule(msg.items ?? []);
       } else if (msg.type === "event_history") {
         setEvents(msg.events ?? []);
       } else if (exerciseEventTypes.has(msg.type)) {
@@ -136,6 +141,7 @@ function App() {
     setError("");
     setEvents([]);
     setParticipants([]);
+    setSchedule([]);
     setActiveSessionCode(sessionCode.trim().toUpperCase());
   };
 
@@ -159,6 +165,7 @@ function App() {
       setScenarioName(created.scenario_name);
       setEvents([]);
       setParticipants([]);
+      setSchedule(created.schedule ?? []);
       setActiveSessionCode(created.session_code);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to create session");
@@ -172,6 +179,7 @@ function App() {
     setConnected(false);
     setParticipants([]);
     setEvents([]);
+    setSchedule([]);
     setScenarioName("");
     setError("");
     if (role === "facilitator") {
@@ -199,6 +207,13 @@ function App() {
 
   const sendDssResponse = (body: string) => {
     send({ type: "dss_response", body });
+  };
+
+  const controlScheduledEvent = (
+    itemId: string,
+    action: "release_now" | "skip" | "restore",
+  ) => {
+    send({ type: "scheduled_event_control", item_id: itemId, action });
   };
 
   if (!activeSessionCode) {
@@ -264,9 +279,11 @@ function App() {
           scenarioName={scenarioName}
           participants={participants}
           events={events}
+          schedule={schedule}
           onControl={sendControl}
           onInject={sendInject}
           onPartnerMessage={sendPartnerMessage}
+          onScheduleControl={controlScheduledEvent}
         />
       ) : (
         <section className="workspace">
