@@ -1,12 +1,12 @@
 # Mesoanalyst workspace
 
-V0.4 adds a time-gated environmental/product workspace for the Mesoanalyst role.
+LIX SimOps uses a time-gated environmental/product workspace for the Mesoanalyst role.
 
 The simulator intentionally uses a **generic product manifest** rather than hard-coding one archive source. This allows a scenario to combine internal exports, NOAA archives, LightningCast imagery, MRMS products, satellite images, surface analyses, and model guidance in one synchronized interface.
 
 ## Categories
 
-The initial Mardi Gras scenario template includes:
+The Endymion scenario template includes:
 
 - Environment
 - Satellite
@@ -34,7 +34,7 @@ YYYYMMDDTHHMMSSZ
 Example:
 
 ```text
-data/raw/meso/lightningcast/lightningcast_20260311T184500Z.png
+data/raw/meso/lightningcast/lightningcast_20221214T214500Z.png
 ```
 
 ## Build the cache
@@ -42,8 +42,12 @@ data/raw/meso/lightningcast/lightningcast_20260311T184500Z.png
 ```bash
 python scripts/build_meso_cache.py \
   --scenario-id mardi-gras-dss-001 \
-  --config scenarios/mardi-gras/meso-products.yaml
+  --config scenarios/mardi-gras/meso-products.yaml \
+  --simulation-date 2027-02-06 \
+  --timezone America/Chicago
 ```
+
+As with radar, `--simulation-date` preserves the source product's local clock time while remapping it to the Endymion exercise date.
 
 This writes:
 
