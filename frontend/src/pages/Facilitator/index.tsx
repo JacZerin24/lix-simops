@@ -1,6 +1,10 @@
 import { FormEvent, useMemo, useState } from "react";
 
-import type { ExerciseEvent, Participant } from "../../types/simulation";
+import type {
+  ExerciseEvent,
+  Participant,
+  ScheduledExerciseItem,
+} from "../../types/simulation";
 
 type InjectDraft = {
   title: string;
@@ -14,9 +18,14 @@ type Props = {
   scenarioName: string;
   participants: Participant[];
   events: ExerciseEvent[];
+  schedule: ScheduledExerciseItem[];
   onControl: (action: string, speed?: number) => void;
   onInject: (draft: InjectDraft) => void;
   onPartnerMessage: (teamId: string, sender: string, body: string) => void;
+  onScheduleControl: (
+    itemId: string,
+    action: "release_now" | "skip" | "restore",
+  ) => void;
 };
 
 const roleLabels = {
@@ -25,8 +34,8 @@ const roleLabels = {
   dss: "DSS",
 } as const;
 
-function simTime(value?: string) {
-  if (!value) return "";
+function simTime(value?: string | null) {
+  if (!value) return "Manual";
   return `${new Date(value).toISOString().slice(11, 16)}Z`;
 }
 
@@ -35,9 +44,11 @@ export function Facilitator({
   scenarioName,
   participants,
   events,
+  schedule,
   onControl,
   onInject,
   onPartnerMessage,
+  onScheduleControl,
 }: Props) {
   const participantTeams = useMemo(
     () =>
@@ -101,7 +112,7 @@ export function Facilitator({
         <div className="controls">
           <button onClick={() => onControl("start")}>Start / Resume</button>
           <button onClick={() => onControl("pause")}>Pause</button>
-          <button onClick={() => onControl("reset")}>Reset Clock</button>
+          <button onClick={() => onControl("reset")}>Reset Exercise</button>
           {[0.5, 1, 1.5, 2, 4].map((speed) => (
             <button key={speed} onClick={() => onControl("speed", speed)}>
               {speed}×
@@ -134,11 +145,58 @@ export function Facilitator({
         </div>
       </div>
 
+      <div className="panel">
+        <h2>Automatic Scenario Timeline</h2>
+        <p className="muted">
+          Pending items release automatically when the simulation clock reaches their scheduled time.
+          Exercise control can release an item early, skip it, or restore a skipped item.
+        </p>
+        <div className="schedule-list">
+          {schedule.length === 0 ? (
+            <p className="muted">No scheduled events are configured for this scenario.</p>
+          ) : (
+            schedule.map((item) => (
+              <article className={`schedule-row ${item.status}`} key={item.id}>
+                <div className="schedule-time">
+                  <strong>{simTime(item.due_at)}</strong>
+                  <span>{item.at_sim_time}</span>
+                </div>
+                <div className="schedule-copy">
+                  <div className="schedule-title">
+                    <strong>{item.title}</strong>
+                    <span>{item.kind === "partner_message" ? "Partner" : "Inject"}</span>
+                    <span className={`schedule-status ${item.status}`}>{item.status}</span>
+                  </div>
+                  <p>{item.body}</p>
+                </div>
+                <div className="schedule-actions">
+                  {item.status !== "released" && (
+                    <button onClick={() => onScheduleControl(item.id, "release_now")}>
+                      Release now
+                    </button>
+                  )}
+                  {item.status === "pending" && (
+                    <button onClick={() => onScheduleControl(item.id, "skip")}>
+                      Skip
+                    </button>
+                  )}
+                  {item.status === "skipped" && (
+                    <button onClick={() => onScheduleControl(item.id, "restore")}>
+                      Restore
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </div>
+
       <div className="facilitator-columns">
         <form className="panel" onSubmit={submitPartner}>
           <h2>Partner Control</h2>
           <p className="muted">
-            Messages are delivered only to the selected team's DSS meteorologist and are logged for debrief.
+            Use this for unscripted follow-ups. Scheduled partner messages are handled by the timeline above.
           </p>
           <div className="form-grid">
             <label>
@@ -165,7 +223,7 @@ export function Facilitator({
         </form>
 
         <form className="panel" onSubmit={submitInject}>
-          <h2>Exercise Inject</h2>
+          <h2>Unscripted Exercise Inject</h2>
           <p className="muted">
             Release information to all participants, one role, or one specific team.
           </p>
@@ -214,7 +272,11 @@ export function Facilitator({
               <article className="event-row" key={event.event_id ?? index}>
                 <span className="event-time">{simTime(event.sim_time)}</span>
                 <strong>{event.type.replace("_", " ")}</strong>
-                <span>{event.team_id ?? event.target_team_id ?? "All teams"}</span>
+                <span>
+                  {(event.team_id === "*" ? "All teams" : event.team_id)
+                    ?? event.target_team_id
+                    ?? "All teams"}
+                </span>
                 <p>{event.body}</p>
               </article>
             ))
