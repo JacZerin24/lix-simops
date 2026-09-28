@@ -270,7 +270,7 @@ function App() {
         />
       ) : (
         <section className="workspace">
-          {role === "radar" && <RadarOperator />}
+          {role === "radar" && <RadarOperator sessionCode={activeSessionCode} />}
           {role === "mesoanalyst" && <Mesoanalyst />}
           {role === "dss" && <DSS events={events} onRespond={sendDssResponse} />}
           <ExerciseFeed events={events} />
