@@ -13,18 +13,20 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 - **DSS Meteorologist** — owns the simulated partner relationship, event impacts, decisions, and communication.
 - **Facilitator** — controls simulation time, injects, partner messages, team status, and debrief logging.
 
-## V0.1 goal
+## Current V0.2 capabilities
 
-The first milestone is the multiplayer simulation framework:
+1. Facilitator creates a live exercise session from a scenario pack.
+2. The server generates a six-character session code.
+3. Participants join a team as Radar, Mesoanalyst, or DSS.
+4. All clients share one synchronized simulation clock.
+5. Facilitator can start, pause, reset, and change playback speed.
+6. Facilitator sees live team/role connection status.
+7. Facilitator can release all-office, role-specific, or team-specific injects.
+8. Facilitator can act as a simulated partner and message one team's DSS meteorologist.
+9. DSS replies are timestamped against simulation time and visible to that team plus exercise control.
+10. Exercise events are retained in an in-memory debrief log.
 
-1. Facilitator creates/runs a session.
-2. Participants join a team and select a role.
-3. All clients share one synchronized simulated clock.
-4. Facilitator can start, pause, resume, and change playback speed.
-5. Facilitator can release exercise injects.
-6. Team and exercise events are logged for debrief.
-
-Meteorological data viewers are layered on top of that foundation in later milestones.
+Meteorological data viewers are layered onto this operations framework in the next milestones.
 
 ## Repository layout
 
@@ -49,6 +51,17 @@ docker compose up --build
 
 Frontend: http://localhost:5173  
 Backend health check: http://localhost:8000/health
+
+### Exercise workflow
+
+1. Open the frontend and enter a facilitator name.
+2. Choose the Mardi Gras scenario and select **Create Session**.
+3. Share the generated session code with participants.
+4. Participants enter the code, select their assigned team and role, and join.
+5. Confirm all three roles are connected for each team from Exercise Control.
+6. Start the simulation clock.
+7. Use Partner Control and Exercise Injects to drive the exercise.
+8. Use the live event log during the debrief.
 
 ### Option 2 — local development
 
@@ -77,8 +90,8 @@ See `docs/scenario-authoring.md` for the planned format.
 
 ## Planned milestones
 
-- **V0.1:** synchronized sessions, roles, facilitator controls, injects
-- **V0.2:** DSS workspace and partner communications
+- **V0.1:** synchronized clock and role workspace foundation
+- **V0.2:** multi-team sessions, presence, facilitator controls, partner/DSS communications
 - **V0.3:** interactive archived radar playback
 - **V0.4:** mesoanalysis/environment workspace
-- **V0.5:** complete Mardi Gras exercise scenario
+- **V0.5:** complete Mardi Gras exercise scenario and debrief package

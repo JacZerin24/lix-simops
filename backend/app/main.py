@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta
+from uuid import uuid4
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from .state import session
+from .models import Role, SessionCreateRequest
+from .services.scenario_loader import list_scenarios, load_scenario_by_id
+from .state import ClientConnection, Participant, SessionState, manager
 
-app = FastAPI(title="LIX SimOps API", version="0.1.0")
+app = FastAPI(title="LIX SimOps API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,27 +27,144 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/api/session")
-def get_session() -> dict:
-    return session.snapshot()
+@app.get("/api/scenarios")
+def get_scenarios() -> list[dict[str, str]]:
+    return [{"id": scenario.id, "name": scenario.name} for scenario in list_scenarios()]
 
 
-async def broadcast(payload: dict) -> None:
-    dead: list[WebSocket] = []
-    for client in list(session.clients):
-        try:
-            await client.send_json(payload)
-        except Exception:
-            dead.append(client)
-    for client in dead:
-        session.clients.discard(client)
+@app.post("/api/sessions")
+def create_session(request: SessionCreateRequest) -> dict:
+    try:
+        scenario = load_scenario_by_id(request.scenario_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Scenario not found") from exc
+
+    start = datetime.fromisoformat(scenario.simulation.start.replace("Z", "+00:00"))
+    session = manager.create(
+        scenario_id=scenario.id,
+        scenario_name=scenario.name,
+        scenario_start=start,
+        default_speed=scenario.simulation.default_speed,
+    )
+    return session.session_snapshot()
 
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket) -> None:
+@app.get("/api/sessions/{session_code}")
+def get_session(session_code: str) -> dict:
+    session = manager.get(session_code)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session.session_snapshot()
+
+
+@app.get("/api/sessions/{session_code}/events")
+def get_session_events(session_code: str) -> list[dict]:
+    session = manager.get(session_code)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session.log
+
+
+def event_visible_to(event: dict, participant: Participant) -> bool:
+    if participant.role == Role.FACILITATOR:
+        return True
+
+    event_type = event.get("type")
+    if event_type == "inject":
+        target_team_id = event.get("target_team_id")
+        audience = event.get("audience", "all")
+        if target_team_id and target_team_id != participant.team_id:
+            return False
+        return audience == "all" or audience == participant.role.value
+
+    if event_type == "partner_message":
+        return participant.role == Role.DSS and event.get("team_id") == participant.team_id
+
+    if event_type in {"dss_response", "team_message"}:
+        return event.get("team_id") == participant.team_id
+
+    return True
+
+
+async def send_to(
+    session: SessionState,
+    payload: dict,
+    predicate=None,
+) -> None:
+    dead: list[str] = []
+    async with session.send_lock:
+        for participant_id, connection in list(session.clients.items()):
+            if predicate and not predicate(connection.participant):
+                continue
+            try:
+                await connection.websocket.send_json(payload)
+            except Exception:
+                dead.append(participant_id)
+
+    for participant_id in dead:
+        session.clients.pop(participant_id, None)
+
+
+async def broadcast_clock(session: SessionState) -> None:
+    await send_to(session, session.clock_snapshot())
+
+
+async def broadcast_presence(session: SessionState) -> None:
+    await send_to(session, session.presence_snapshot())
+
+
+async def send_error(websocket: WebSocket, message: str) -> None:
+    await websocket.send_json({"type": "error", "message": message})
+
+
+@app.websocket("/ws/{session_code}")
+async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
+    session = manager.get(session_code)
     await websocket.accept()
-    session.clients.add(websocket)
-    await websocket.send_json(session.snapshot())
+
+    if session is None:
+        await send_error(websocket, "Session not found")
+        await websocket.close(code=4404)
+        return
+
+    display_name = (websocket.query_params.get("display_name") or "").strip()
+    team_id = (websocket.query_params.get("team_id") or "").strip()
+    raw_role = (websocket.query_params.get("role") or "").strip()
+
+    try:
+        role = Role(raw_role)
+    except ValueError:
+        await send_error(websocket, "Invalid role")
+        await websocket.close(code=4400)
+        return
+
+    if not display_name:
+        await send_error(websocket, "Display name is required")
+        await websocket.close(code=4400)
+        return
+
+    if role == Role.FACILITATOR:
+        team_id = "FACILITATOR"
+    elif not team_id:
+        await send_error(websocket, "Team is required")
+        await websocket.close(code=4400)
+        return
+
+    participant = Participant(
+        id=uuid4().hex,
+        display_name=display_name,
+        team_id=team_id,
+        role=role,
+    )
+    session.clients[participant.id] = ClientConnection(
+        websocket=websocket,
+        participant=participant,
+    )
+
+    await websocket.send_json(session.session_snapshot())
+    history = [event for event in session.log if event_visible_to(event, participant)]
+    await websocket.send_json({"type": "event_history", "events": history[-100:]})
+    await broadcast_presence(session)
 
     try:
         while True:
@@ -52,38 +172,144 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             kind = message.get("type")
 
             if kind == "control":
+                if role != Role.FACILITATOR:
+                    await send_error(websocket, "Only facilitators can control the simulation")
+                    continue
+
                 action = message.get("action")
                 if action == "start":
                     session.running = True
                 elif action == "pause":
                     session.running = False
+                elif action == "reset":
+                    session.reset_clock()
                 elif action == "speed":
-                    session.speed = max(0.0, min(float(message.get("speed", 1.0)), 8.0))
-                await broadcast(session.snapshot())
+                    session.speed = max(0.25, min(float(message.get("speed", 1.0)), 8.0))
+                else:
+                    await send_error(websocket, "Unknown control action")
+                    continue
+
+                await broadcast_clock(session)
 
             elif kind == "inject":
-                payload = {
-                    "type": "inject",
-                    "title": message.get("title", "Exercise inject"),
-                    "body": message.get("body", ""),
-                    "audience": message.get("audience", "all"),
-                }
-                session.log.append(payload)
-                await broadcast(payload)
+                if role != Role.FACILITATOR:
+                    await send_error(websocket, "Only facilitators can release injects")
+                    continue
+
+                body = str(message.get("body", "")).strip()
+                if not body:
+                    await send_error(websocket, "Inject body is required")
+                    continue
+
+                payload = session.record(
+                    {
+                        "type": "inject",
+                        "event_id": uuid4().hex,
+                        "title": str(message.get("title", "Exercise inject")).strip()
+                        or "Exercise inject",
+                        "body": body,
+                        "audience": message.get("audience", "all"),
+                        "target_team_id": message.get("target_team_id"),
+                        "sim_time": session.sim_time.isoformat(),
+                    }
+                )
+                await send_to(
+                    session,
+                    payload,
+                    lambda person: event_visible_to(payload, person),
+                )
+
+            elif kind == "partner_message":
+                if role != Role.FACILITATOR:
+                    await send_error(websocket, "Only facilitators can send partner messages")
+                    continue
+
+                target_team = str(message.get("team_id", "")).strip()
+                body = str(message.get("body", "")).strip()
+                if not target_team or not body:
+                    await send_error(websocket, "Partner message requires a team and message")
+                    continue
+
+                payload = session.record(
+                    {
+                        "type": "partner_message",
+                        "event_id": uuid4().hex,
+                        "team_id": target_team,
+                        "sender": str(message.get("sender", "Event Command")).strip()
+                        or "Event Command",
+                        "body": body,
+                        "sim_time": session.sim_time.isoformat(),
+                    }
+                )
+                await send_to(
+                    session,
+                    payload,
+                    lambda person: person.role == Role.FACILITATOR
+                    or (person.role == Role.DSS and person.team_id == target_team),
+                )
+
+            elif kind == "dss_response":
+                if role != Role.DSS:
+                    await send_error(websocket, "Only the DSS role can send partner responses")
+                    continue
+
+                body = str(message.get("body", "")).strip()
+                if not body:
+                    await send_error(websocket, "Response body is required")
+                    continue
+
+                payload = session.record(
+                    {
+                        "type": "dss_response",
+                        "event_id": uuid4().hex,
+                        "team_id": participant.team_id,
+                        "sender": participant.display_name,
+                        "body": body,
+                        "sim_time": session.sim_time.isoformat(),
+                    }
+                )
+                await send_to(
+                    session,
+                    payload,
+                    lambda person: person.role == Role.FACILITATOR
+                    or person.team_id == participant.team_id,
+                )
 
             elif kind == "team_message":
-                payload = {
-                    "type": "team_message",
-                    "team_id": message.get("team_id"),
-                    "role": message.get("role"),
-                    "body": message.get("body", ""),
-                    "sim_time": session.sim_time.isoformat(),
-                }
-                session.log.append(payload)
-                await broadcast(payload)
+                if role == Role.FACILITATOR:
+                    await send_error(websocket, "Facilitators should use injects or partner messages")
+                    continue
+
+                body = str(message.get("body", "")).strip()
+                if not body:
+                    continue
+
+                payload = session.record(
+                    {
+                        "type": "team_message",
+                        "event_id": uuid4().hex,
+                        "team_id": participant.team_id,
+                        "role": participant.role.value,
+                        "sender": participant.display_name,
+                        "body": body,
+                        "sim_time": session.sim_time.isoformat(),
+                    }
+                )
+                await send_to(
+                    session,
+                    payload,
+                    lambda person: person.role == Role.FACILITATOR
+                    or person.team_id == participant.team_id,
+                )
+
+            else:
+                await send_error(websocket, "Unknown message type")
 
     except WebSocketDisconnect:
-        session.clients.discard(websocket)
+        pass
+    finally:
+        session.clients.pop(participant.id, None)
+        await broadcast_presence(session)
 
 
 @app.on_event("startup")
@@ -91,8 +317,10 @@ async def start_clock_task() -> None:
     async def ticker() -> None:
         while True:
             await asyncio.sleep(1)
-            if session.running and session.speed > 0:
-                session.sim_time += timedelta(seconds=session.speed)
-                await broadcast(session.snapshot())
+            for session in manager.all():
+                if session.running and session.speed > 0:
+                    session.sim_time += timedelta(seconds=session.speed)
+                    if session.clients:
+                        await broadcast_clock(session)
 
     asyncio.create_task(ticker())
