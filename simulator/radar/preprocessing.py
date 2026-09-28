@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+from simulator.time_mapping import remap_timestamp_to_simulation_date
 
 from .manifest import RadarFrame, RadarManifest, RadarProduct
 from .products import RADAR_PRODUCTS, RADAR_RENDER_CONFIG
@@ -50,8 +53,14 @@ def build_radar_cache(
     event_lat: float | None = None,
     event_lon: float | None = None,
     event_label: str = "Event",
+    simulation_date: date | None = None,
+    timezone_name: str = "America/Chicago",
 ) -> RadarManifest:
     """Render archived NEXRAD Level II volumes into time-gated web assets.
+
+    When simulation_date is supplied, source data keep their local clock time but
+    are mapped onto the exercise date. This lets a real historical LIX case be
+    presented as a Mardi Gras DRT without exposing the source date.
 
     Py-ART/Cartopy/Matplotlib are imported lazily so the web backend does not
     need the heavy radar-processing dependency stack.
@@ -74,9 +83,35 @@ def build_radar_cache(
         if path.is_file() and "MDM" not in path.name
     )
 
+    parsed_files: list[tuple[Path, datetime]] = []
     for source in radar_files:
         try:
-            timestamp = timestamp_from_filename(source)
+            parsed_files.append((source, timestamp_from_filename(source)))
+        except ValueError as exc:
+            print(f"Skipping {source.name}: {exc}")
+
+    if not parsed_files:
+        raise ValueError(f"No parseable NEXRAD volumes found in {input_dir}")
+
+    zone = ZoneInfo(timezone_name)
+    source_base_date = min(
+        timestamp.astimezone(zone).date()
+        for _, timestamp in parsed_files
+    )
+
+    for source, source_timestamp in parsed_files:
+        timestamp = (
+            remap_timestamp_to_simulation_date(
+                source_timestamp,
+                source_base_date=source_base_date,
+                simulation_base_date=simulation_date,
+                timezone_name=timezone_name,
+            )
+            if simulation_date
+            else source_timestamp
+        )
+
+        try:
             radar = pyart.io.read_nexrad_archive(str(source))
         except Exception as exc:
             print(f"Skipping {source.name}: {exc}")
@@ -115,7 +150,8 @@ def build_radar_cache(
                         cmap=config["cmap"],
                         title=(
                             f"{radar_site} {RADAR_PRODUCTS[product_id]} "
-                            f"{actual_elevation:.1f}° — {timestamp:%Y-%m-%d %H:%M:%SZ}"
+                            f"{actual_elevation:.1f}° — "
+                            f"{timestamp.astimezone(zone):%H:%M:%S %Z}"
                         ),
                         colorbar_flag=True,
                         embellish=True,
