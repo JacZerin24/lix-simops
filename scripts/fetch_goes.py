@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 import re
 
@@ -13,7 +13,7 @@ from botocore.config import Config
 START_RE = re.compile(r"_s(\d{4})(\d{3})(\d{2})(\d{2})(\d{2})(\d)")
 
 
-def parse_clock(value: str) -> datetime.time:
+def parse_clock(value: str) -> time:
     return datetime.strptime(value, "%H:%M").time()
 
 
@@ -91,7 +91,7 @@ def main() -> None:
                     if not any(f"C{channel:02d}" in name for channel in args.channels):
                         continue
                 selected.append((key, int(item.get("Size", 0))))
-        current_hour += __import__("datetime").timedelta(hours=1)
+        current_hour += timedelta(hours=1)
 
     selected = sorted(set(selected))
     if not selected:
