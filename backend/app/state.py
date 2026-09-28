@@ -4,8 +4,10 @@ import asyncio
 import secrets
 import string
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
+
+from simulator.scenarios.schema import ScheduledExerciseEvent
 
 from .models import Role
 
@@ -33,6 +35,30 @@ class ClientConnection:
 
 
 @dataclass
+class ScheduledItem:
+    definition: ScheduledExerciseEvent
+    due_at: datetime | None
+    status: str = "pending"
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            **self.definition.model_dump(),
+            "due_at": self.due_at.isoformat() if self.due_at else None,
+            "status": self.status,
+        }
+
+
+def resolve_schedule_time(spec: str, scenario_start: datetime) -> datetime | None:
+    value = spec.strip()
+    if value.lower() == "manual":
+        return None
+    if value.startswith("T+"):
+        hours, minutes, seconds = (int(part) for part in value[2:].split(":"))
+        return scenario_start + timedelta(hours=hours, minutes=minutes, seconds=seconds)
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+@dataclass
 class SessionState:
     code: str
     scenario_id: str
@@ -43,6 +69,7 @@ class SessionState:
     speed: float = 1.0
     clients: dict[str, ClientConnection] = field(default_factory=dict)
     log: list[dict[str, Any]] = field(default_factory=list)
+    schedule: list[ScheduledItem] = field(default_factory=list)
     send_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     def clock_snapshot(self) -> dict[str, Any]:
@@ -63,6 +90,12 @@ class SessionState:
             ],
         }
 
+    def schedule_snapshot(self) -> dict[str, Any]:
+        return {
+            "type": "schedule",
+            "items": [item.snapshot() for item in self.schedule],
+        }
+
     def session_snapshot(self) -> dict[str, Any]:
         return {
             "type": "session_state",
@@ -76,16 +109,35 @@ class SessionState:
                 connection.participant.snapshot()
                 for connection in self.clients.values()
             ],
+            "schedule": [item.snapshot() for item in self.schedule],
         }
 
     def reset_clock(self) -> None:
         self.sim_time = self.scenario_start
         self.running = False
         self.speed = 1.0
+        self.log.clear()
+        for item in self.schedule:
+            item.status = "pending"
 
     def record(self, event: dict[str, Any]) -> dict[str, Any]:
         self.log.append(event)
         return event
+
+    def scheduled_item(self, item_id: str) -> ScheduledItem | None:
+        return next(
+            (item for item in self.schedule if item.definition.id == item_id),
+            None,
+        )
+
+    def due_items(self) -> list[ScheduledItem]:
+        return [
+            item
+            for item in self.schedule
+            if item.status == "pending"
+            and item.due_at is not None
+            and item.due_at <= self.sim_time
+        ]
 
 
 class SessionManager:
@@ -99,8 +151,16 @@ class SessionManager:
         scenario_name: str,
         scenario_start: datetime,
         default_speed: float,
+        scheduled_events: list[ScheduledExerciseEvent] | None = None,
     ) -> SessionState:
         code = self._new_code()
+        schedule = [
+            ScheduledItem(
+                definition=definition,
+                due_at=resolve_schedule_time(definition.at_sim_time, scenario_start),
+            )
+            for definition in (scheduled_events or [])
+        ]
         state = SessionState(
             code=code,
             scenario_id=scenario_id,
@@ -108,6 +168,7 @@ class SessionManager:
             scenario_start=scenario_start,
             sim_time=scenario_start,
             speed=default_speed,
+            schedule=schedule,
         )
         self.sessions[code] = state
         return state
