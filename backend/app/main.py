@@ -19,7 +19,7 @@ from .services.scenario_loader import (
 )
 from .state import ClientConnection, Participant, ScheduledItem, SessionState, manager
 
-app = FastAPI(title="LIX SimOps API", version="0.5.0")
+app = FastAPI(title="LIX SimOps API", version="0.8.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -59,6 +59,7 @@ def create_session(request: SessionCreateRequest) -> dict:
         scenario_name=scenario.name,
         scenario_start=start,
         default_speed=scenario.simulation.default_speed,
+        timezone=scenario.timezone,
         scheduled_events=load_scheduled_events(scenario),
     )
     return session.session_snapshot()
