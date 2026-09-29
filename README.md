@@ -13,32 +13,25 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 - **DSS Meteorologist** — owns the simulated partner relationship, event impacts, decisions, and communication.
 - **Facilitator** — controls simulation time, injects, partner messages, team status, and debrief logging.
 
-## Current V0.6 capabilities
+## Current V0.7 capabilities
 
 1. Facilitator creates a live exercise session from a scenario pack.
-2. The server generates a six-character session code.
-3. Participants join a team as Radar, Mesoanalyst, or DSS.
-4. All clients share one synchronized simulation clock.
-5. Facilitator can start, pause, reset, and change playback speed.
-6. Facilitator sees live team/role connection status.
-7. Facilitator can release all-office, role-specific, or team-specific injects.
-8. Facilitator can act as a simulated partner and message one team's DSS meteorologist.
-9. DSS replies are timestamped against simulation time and visible to that team plus exercise control.
-10. Exercise events are retained in an in-memory debrief log.
-11. Archived NEXRAD Level II windows can be downloaded and rendered into a time-gated radar cache.
-12. Radar operators can switch product/elevation, step through scans, loop available scans, zoom/pan, and jump to the latest available scan.
-13. Radar frame metadata is filtered on the backend so future scans are never exposed.
-14. Mesoanalysts have synchronized Environment, Satellite, Lightning, MRMS, Observations, and Guidance workspaces.
-15. Meso frames use the same backend time-gating model.
-16. The Endymion scenario exposes route, partner priorities, and NWS-derived exercise thresholds directly in DSS.
-17. Partner messages/injects can release automatically by simulation time, with facilitator override.
-18. Historical weather data can be remapped onto the exercise date while preserving local clock time.
-19. Google Classroom is the launch/resource/debrief layer while LIX SimOps remains authoritative for live timing.
-20. The DSS workspace reserves a link for the coworker-owned Google Form → Google Sheet shift log.
-21. The approved **December 14, 2022** source case is defined in a facilitator-only source-case file.
-22. V0.6 includes acquisition tools for KLIX Level II, GOES-16 ABI/GLM, MRMS, and ASOS/METAR observations.
-23. V0.6 stages the exact GOES-16 ABI L1b channels needed to reproduce historical LightningCast with CSPP Geo.
-24. A raw-data inventory tool verifies that the source-case package has been populated before rendering.
+2. Participants join teams as Radar, Mesoanalyst, or DSS and share one synchronized simulation clock.
+3. Facilitators can start, pause, reset, change playback speed, see team staffing, and override automatic injects.
+4. Partner messages and DSS responses are timestamped against simulation time and retained for debrief.
+5. Archived KLIX Level II radar can be downloaded, rendered, time-remapped, and replayed without exposing future scans.
+6. The Meso workspace supports Environment, Satellite, Lightning, MRMS, Observations, and Guidance products.
+7. The Endymion scenario exposes route, partner priorities, and NWS-derived exercise thresholds directly in DSS.
+8. Google Classroom is the participant launch/resource/debrief layer while LIX SimOps remains authoritative for live timing.
+9. The DSS workspace reserves a link for the coworker-owned Google Form → Google Sheet shift log.
+10. The approved December 14, 2022 source case is defined in a facilitator-only source-case file.
+11. Public-source acquisition exists for NEXRAD, GOES-16 ABI/GLM, MRMS, RAP, and ASOS/METAR observations.
+12. A public-archive smoke workflow verifies that the required December 14 source families are still available before case development.
+13. GOES visible/IR, GLM flash density, MRMS, RAP environmental fields, and surface observations can be rendered into the meso workspace.
+14. RAP 90-mb MLCAPE, 0–6 km bulk shear, and 0–1 km SRH are used as the environment fallback for this case rather than depending on the likely December 2022 SPC mesoanalysis image gap.
+15. LightningCast inputs are staged from archived GOES-16 ABI C02/C05/C13/C15, validated scan-by-scan, and ready for external CSPP Geo processing.
+16. Historical source keys remain server-side and are no longer exposed through participant radar/meso APIs.
+17. A final validator checks exercise-date remapping, required product coverage, and participant asset paths before rehearsal.
 
 ## Exercise support tools
 
@@ -48,7 +41,7 @@ The Endymion exercise deliberately uses three systems together:
 - **Google Classroom** — opening briefing, PowerPoint, reference materials, participant links, and post-exercise reflection.
 - **Mock Shift Log** — coworker-owned Google Form feeding a Google Sheet; each DSS Meteorologist logs meaningful external communication.
 
-Operational injects should remain in LIX SimOps rather than Classroom because the DRT can pause or change playback speed.
+Operational injects remain in LIX SimOps because the DRT can pause or change playback speed.
 
 See:
 
@@ -63,14 +56,12 @@ frontend/       React + TypeScript participant/facilitator UI
 backend/        FastAPI + WebSocket API
 simulator/      Simulation engine and scenario/data schemas
 scenarios/      Exercise configuration packs
-scripts/        Data download/build/validation utilities
+scripts/        Data download/render/build/validation utilities
 docs/           Architecture and operating documentation
 data/           Local/generated data only; raw weather archives stay out of git
 ```
 
-## Quick start
-
-### Application
+## Application quick start
 
 ```bash
 cp .env.example .env
@@ -80,11 +71,11 @@ docker compose up --build
 Frontend: http://localhost:5173  
 Backend health check: http://localhost:8000/health
 
-### Exercise workflow
+## Exercise workflow
 
 1. Open Google Classroom and the opening instruction deck.
 2. Open LIX SimOps and create the exercise session.
-3. Share the generated code.
+3. Share the generated session code.
 4. Participants join the assigned team and role.
 5. DSS Meteorologists open the coworker-provided mock shift-log Form.
 6. Confirm Radar/Meso/DSS staffing for every team.
@@ -92,63 +83,56 @@ Backend health check: http://localhost:8000/health
 8. Let automatic partner messages/injects release by simulation time; override only when needed.
 9. Use SimOps logs plus the Google Sheet shift log during debrief.
 
-## V0.6 source-case acquisition
+## Build the Endymion weather package
 
-Install the data-tool dependencies:
+Install the data dependencies:
 
 ```bash
 pip install -r scripts/requirements-data.txt
 ```
 
-Check public AWS availability without downloading:
+Confirm the public archives:
 
 ```bash
-python scripts/prepare_endymion_case.py --list-only
+python scripts/check_case_archives.py
 ```
 
-Download the raw source-case inputs:
+Acquire the raw source-case inputs:
 
 ```bash
 python scripts/prepare_endymion_case.py
 ```
 
-Inventory the downloaded package:
+Validate the raw inventory:
 
 ```bash
 python scripts/validate_case_inventory.py --strict
 ```
 
-The approved source-case configuration is:
+Render all locally reproducible meso products and build the time-remapped cache:
 
-```text
-scenarios/mardi-gras/source-case.yaml
+```bash
+python scripts/build_endymion_meso_inputs.py
 ```
 
-The acquisition window is **20:30–22:45 UTC on December 14, 2022**. Participant-facing data are later remapped to **February 6, 2027** while retaining local clock time.
+Build radar, meso products, and run the final case validator:
+
+```bash
+python scripts/build_endymion_case.py
+```
+
+Once CSPP Geo LightningCast output has been staged, require it as part of the final validation:
+
+```bash
+python scripts/build_endymion_case.py --require-lightningcast
+```
 
 See:
 
 - `docs/v0.6-case-data.md`
+- `docs/v0.7-rendered-case.md`
 - `docs/lightningcast-reproduction.md`
 - `docs/source-case-timeline.md` — **facilitator-only; reveals the historical case**
-
-## Radar rendering
-
-See `docs/radar-playback.md`.
-
-## Meso product preparation
-
-Stage participant-ready environmental images in the directories defined by `scenarios/mardi-gras/meso-products.yaml`, then run:
-
-```bash
-python scripts/build_meso_cache.py \
-  --scenario-id mardi-gras-dss-001 \
-  --config scenarios/mardi-gras/meso-products.yaml \
-  --simulation-date 2027-02-06 \
-  --timezone America/Chicago
-```
-
-See `docs/meso-workspace.md`.
 
 ## Endymion scenario
 
@@ -172,4 +156,5 @@ These are exercise defaults based on NWS large-venue guidance, not claimed City 
 - **V0.4:** mesoanalysis/environment workspace
 - **V0.5:** Endymion scenario, automatic timeline, external exercise-tool integration
 - **V0.6:** approved December 14, 2022 source-case acquisition and validation
-- **V0.7:** render GOES/GLM/MRMS/SPC products, reproduce LightningCast, and validate the complete end-to-end exercise package
+- **V0.7:** participant-product rendering, RAP environment fallback, case-blindness hardening, and end-to-end cache validation
+- **V0.8:** execute the full local source-case build, add CSPP LightningCast output, rehearse the complete exercise, and tune inject timing from the actual rendered data
