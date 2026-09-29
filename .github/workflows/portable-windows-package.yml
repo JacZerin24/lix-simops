@@ -81,11 +81,14 @@ jobs:
           if (Test-Path "$dest\BUILD_INFO.txt") {
             throw "Portable runtime contains facilitator-only BUILD_INFO.txt"
           }
-          $leaks = Get-ChildItem $dest -Recurse -File |
-            Select-String -SimpleMatch "2021-05-12" -List
+          $files = Get-ChildItem $dest -Recurse -File
+          $leaks = @()
+          foreach ($needle in @("2021-05-12", "20210512", "2021132")) {
+            $leaks += $files | Select-String -SimpleMatch $needle -List
+          }
           if ($leaks) {
-            $leaks | ForEach-Object { Write-Host $_.Path }
-            throw "Portable runtime contains the historical source date"
+            $leaks | Select-Object -ExpandProperty Path -Unique | ForEach-Object { Write-Host $_ }
+            throw "Portable runtime contains historical source-case identifiers"
           }
 
       - name: Build offline Python wheelhouse
