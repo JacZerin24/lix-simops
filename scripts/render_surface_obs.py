@@ -38,6 +38,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-age-minutes", type=int, default=45)
     parser.add_argument("--domain", nargs=4, type=float)
     parser.add_argument("--timezone", default="America/Chicago")
+    parser.add_argument("--simulation-date")
+    parser.add_argument("--local-time-offset-minutes", type=int, default=0)
     return parser.parse_args()
 
 
@@ -149,7 +151,7 @@ def main() -> None:
                 )
 
         ax.set_title("Surface Observations — Temp / Dewpoint (°F)", loc="left", fontweight="bold")
-        ax.set_title(local_time_label(valid_time, args.timezone), loc="right")
+        ax.set_title(local_time_label(valid_time, args.timezone, args.simulation_date, args.local_time_offset_minutes), loc="right")
         destination = args.output / f"surface_obs_{timestamp_token(valid_time)}.png"
         fig.savefig(destination, dpi=130, bbox_inches="tight")
         plt.close(fig)
