@@ -13,6 +13,7 @@ import yaml
 NEXRAD_RE = re.compile(r"([A-Z0-9]{4})(\d{8})_(\d{6})")
 GOES_RE = re.compile(r"_s(\d{4})(\d{3})(\d{2})(\d{2})(\d{2})(\d)")
 MRMS_RE = re.compile(r"_(\d{8})-(\d{6})")
+RAP_RE = re.compile(r"rap\\.t(\\d{2})z")
 
 
 def nexrad_time(path: Path) -> datetime | None:
