@@ -19,10 +19,10 @@ def test_endymion_scenario_links_source_case() -> None:
 def test_source_case_defines_required_raw_datasets() -> None:
     payload = load_source_case()
 
-    assert payload["source_case"]["source_date"] == "2022-12-14"
+    assert payload["source_case"]["source_date"] == "2021-05-12"
     assert payload["source_case"]["source_window_utc"] == {
-        "start": "20:30",
-        "end": "22:45",
+        "start": "06:00",
+        "end": "07:45",
     }
 
     datasets = payload["datasets"]
@@ -40,7 +40,7 @@ def test_environment_fallback_is_official_rap_analysis() -> None:
 
     assert environment["status"] == "rap_fallback_selected"
     assert environment["source"] == "NOAA Rapid Refresh Open Data on AWS"
-    assert environment["cycles_utc"] == [20, 21, 22]
+    assert environment["cycles_utc"] == [5, 6, 7]
     assert "RAP 90-mb Mixed-Layer CAPE" in environment["derived_products"]
     assert "RAP 0-6 km Bulk Shear" in environment["derived_products"]
     assert "RAP 0-1 km Storm-Relative Helicity" in environment["derived_products"]
@@ -51,7 +51,10 @@ def test_primary_tornado_anchor_matches_exercise_decision_period() -> None:
 
     primary = next(
         item for item in payload["anchor_events"]
-        if item["id"] == "marrero-arabi-ef2"
+        if item["id"] == "new-orleans-ef0"
     )
-    assert primary["start_local"] == "15:49"
-    assert primary["end_local"] == "16:06"
+    assert primary["start_local"] == "02:05"
+    assert primary["end_local"] == "02:12"
+    assert primary["mapped_start_local"] == "15:50"
+    assert primary["mapped_end_local"] == "15:57"
+    assert payload["source_case"]["exercise_mapping"]["local_time_offset_minutes"] == 825
