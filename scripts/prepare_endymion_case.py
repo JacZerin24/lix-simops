@@ -26,6 +26,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="List matching AWS objects for GOES/MRMS without downloading them.",
     )
+    parser.add_argument(
+        "--skip-lightningcast-inputs",
+        action="store_true",
+        help="Skip the ~2 GiB ABI L1b C02/C05/C13/C15 package when only building the non-LightningCast exercise cache.",
+    )
     return parser.parse_args()
 
 
@@ -49,10 +54,15 @@ def main() -> None:
         args.dry_run,
     )
 
-    for product, channels, output in [
+    goes_requests = [
         ("ABI-L2-CMIPC", ["2", "13"], "data/raw/goes/abi-cmi"),
-        ("ABI-L1b-RadC", ["2", "5", "13", "15"], "data/raw/goes/lightningcast-inputs"),
-    ]:
+    ]
+    if not args.skip_lightningcast_inputs:
+        goes_requests.append(
+            ("ABI-L1b-RadC", ["2", "5", "13", "15"], "data/raw/goes/lightningcast-inputs")
+        )
+
+    for product, channels, output in goes_requests:
         command = [
             PYTHON,
             "scripts/fetch_goes.py",
