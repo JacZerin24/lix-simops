@@ -49,7 +49,7 @@ products:
   - id: glm_flash_density
     label: GLM Flash Density
     category: Satellite / Lightning
-    description: Five-minute observed GLM flash-centroid density; not true Flash Extent Density.
+    description: Five-minute observed GLM flash-centroid density with approximate 8/12/15-mile event-area reference rings; evaluate the entire moving route, not only the center point. Not true Flash Extent Density.
     source_dir: data/raw/meso/glm_flash_density
     pattern: "*.png"
 
