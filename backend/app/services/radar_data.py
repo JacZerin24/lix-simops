@@ -36,6 +36,9 @@ def radar_payload(
             "scenario_id": session.scenario_id,
             "sim_time": session.sim_time.isoformat(),
             "radar_site": None,
+            "radar_latitude": None,
+            "radar_longitude": None,
+            "radar_altitude_m": None,
             "products": [],
             "elevations": [],
             "selected_product": requested_product or "REF",
@@ -76,12 +79,19 @@ def radar_payload(
         "scenario_id": session.scenario_id,
         "sim_time": session.sim_time.isoformat(),
         "radar_site": manifest.radar_site,
+        "radar_latitude": manifest.radar_latitude,
+        "radar_longitude": manifest.radar_longitude,
+        "radar_altitude_m": manifest.radar_altitude_m,
         "range_km": manifest.range_km,
         "products": [
             {
                 "id": product.id,
                 "label": product.label,
                 "units": product.units,
+                "vmin": product.vmin,
+                "vmax": product.vmax,
+                "cmap": product.cmap,
+                "palette": product.palette,
             }
             for product in manifest.products
         ],
@@ -94,6 +104,26 @@ def radar_payload(
                 "product": frame.product,
                 "elevation": frame.elevation,
                 "asset_url": f"{scenario_root}/{frame.asset.lstrip('/')}",
+                "source_key": frame.source_key,
+                "data_url": (
+                    f"{scenario_root}/{frame.data.asset.lstrip('/')}"
+                    if frame.data is not None
+                    else None
+                ),
+                "grid": (
+                    {
+                        "azimuth_bins": frame.data.azimuth_bins,
+                        "range_bins": frame.data.range_bins,
+                        "range_start_m": frame.data.range_start_m,
+                        "range_step_m": frame.data.range_step_m,
+                        "value_min": frame.data.value_min,
+                        "value_max": frame.data.value_max,
+                        "nodata": frame.data.nodata,
+                        "actual_elevation": frame.data.actual_elevation,
+                    }
+                    if frame.data is not None
+                    else None
+                ),
             }
             for frame in frames
         ],
