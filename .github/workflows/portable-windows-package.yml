@@ -111,8 +111,8 @@ jobs:
             Start-Sleep -Seconds 4
             $health = Invoke-WebRequest "http://127.0.0.1:8765/health" -UseBasicParsing
             if ($health.StatusCode -ne 200) { throw "Health endpoint failed." }
-            $home = Invoke-WebRequest "http://127.0.0.1:8765/" -UseBasicParsing
-            if ($home.StatusCode -ne 200 -or $home.Content -notmatch "LIX SimOps") {
+            $homeResponse = Invoke-WebRequest "http://127.0.0.1:8765/" -UseBasicParsing
+            if ($homeResponse.StatusCode -ne 200 -or $homeResponse.Content -notmatch "LIX SimOps") {
               throw "Prebuilt frontend was not served by FastAPI."
             }
           }
