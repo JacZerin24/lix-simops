@@ -52,6 +52,8 @@ function App() {
   const [events, setEvents] = useState<ExerciseEvent[]>([]);
   const [schedule, setSchedule] = useState<ScheduledExerciseItem[]>([]);
   const [connected, setConnected] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [reconnectNonce, setReconnectNonce] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const socketRef = useRef<WebSocket | null>(null);
@@ -68,6 +70,8 @@ function App() {
   useEffect(() => {
     if (!activeSessionCode) return;
 
+    let disposed = false;
+    let retryTimer: number | undefined;
     const socket = createSimulationSocket({
       sessionCode: activeSessionCode,
       displayName,
@@ -79,9 +83,19 @@ function App() {
 
     socket.addEventListener("open", () => {
       setConnected(true);
+      setReconnecting(false);
       setError("");
     });
-    socket.addEventListener("close", () => setConnected(false));
+    socket.addEventListener("close", () => {
+      setConnected(false);
+      if (!disposed) {
+        setReconnecting(true);
+        retryTimer = window.setTimeout(
+          () => setReconnectNonce((value) => value + 1),
+          2000,
+        );
+      }
+    });
     socket.addEventListener("message", (event) => {
       const msg = JSON.parse(event.data);
 
@@ -90,17 +104,19 @@ function App() {
           sim_time: msg.sim_time,
           running: msg.running,
           speed: msg.speed,
+          scenario_end: msg.scenario_end,
         });
         setScenarioName(msg.scenario_name);
         setTimezone(msg.timezone ?? "America/Chicago");
         setParticipants(msg.participants ?? []);
         setSchedule(msg.schedule ?? []);
       } else if (msg.type === "clock") {
-        setClock({
+        setClock((current) => ({
           sim_time: msg.sim_time,
           running: msg.running,
           speed: msg.speed,
-        });
+          scenario_end: msg.scenario_end ?? current.scenario_end,
+        }));
       } else if (msg.type === "presence") {
         setParticipants(msg.participants ?? []);
       } else if (msg.type === "schedule") {
@@ -115,10 +131,12 @@ function App() {
     });
 
     return () => {
+      disposed = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
       socketRef.current = null;
       socket.close();
     };
-  }, [activeSessionCode]);
+  }, [activeSessionCode, reconnectNonce]);
 
   const displayTime = useMemo(
     () => formatSimDateTime(clock.sim_time, timezone),
@@ -177,6 +195,12 @@ function App() {
       setSessionCode(created.session_code);
       setScenarioName(created.scenario_name);
       setTimezone(created.timezone ?? "America/Chicago");
+      setClock({
+        sim_time: created.sim_time,
+        running: created.running,
+        speed: created.speed,
+        scenario_end: created.scenario_end,
+      });
       setEvents([]);
       setParticipants([]);
       setSchedule(created.schedule ?? []);
@@ -191,6 +215,8 @@ function App() {
   const leave = () => {
     setActiveSessionCode(null);
     setConnected(false);
+    setReconnecting(false);
+    setReconnectNonce(0);
     setParticipants([]);
     setEvents([]);
     setSchedule([]);
@@ -202,6 +228,12 @@ function App() {
       setTeamId("Team 1");
     }
   };
+
+  const exerciseComplete = Boolean(
+    clock.scenario_end
+      && new Date(clock.sim_time).getTime() >= new Date(clock.scenario_end).getTime()
+      && !clock.running,
+  );
 
   const sendControl = (action: string, speed?: number) => {
     send({ type: "control", action, speed });
@@ -282,7 +314,7 @@ function App() {
             </details>
           )}
           <div className={connected ? "status good" : "status bad"}>
-            {connected ? "Connected" : "Disconnected"}
+            {connected ? "Connected" : reconnecting ? "Reconnecting…" : "Disconnected"}
           </div>
           <button onClick={leave}>Leave Session</button>
         </div>
@@ -293,7 +325,13 @@ function App() {
       <section className="clockbar">
         <strong>SIM TIME</strong>
         <span>{displayTime}</span>
-        <span>{clock.running ? `▶ ${clock.speed}×` : "⏸ PAUSED"}</span>
+        <span>
+          {exerciseComplete
+            ? "■ EXERCISE COMPLETE"
+            : clock.running
+              ? `▶ ${clock.speed}×`
+              : "⏸ PAUSED"}
+        </span>
       </section>
 
       {role === "facilitator" ? (
@@ -304,6 +342,8 @@ function App() {
           events={events}
           schedule={schedule}
           timezone={timezone}
+          running={clock.running}
+          speed={clock.speed}
           onControl={sendControl}
           onInject={sendInject}
           onPartnerMessage={sendPartnerMessage}
