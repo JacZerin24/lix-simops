@@ -62,6 +62,24 @@ Participant manifests use mapped timestamps and do not expose source keys.
 Optionally provide `--event-lat`, `--event-lon`, and `--event-label` to
 mark a DSS reference location on every rendered frame.
 
+## Participant controls
+
+The radar workspace is designed for GR2-style rapid interrogation while keeping
+the case time-gated:
+
+- **Left / Right Arrow** — previous / next scan
+- **Up / Down Arrow** — higher / lower elevation
+- **1 / 2 / 3 / 4** — REF / VEL / CC / ZDR
+- **Space** — start or pause loop
+- **Home** — jump to latest available scan
+- **+ / -** — zoom
+- **0** — reset pan/zoom
+- **F** — fullscreen radar canvas
+- Mouse wheel zoom and click-drag pan are also supported.
+
+CC and ZDR use the exercise team's GR/GR2Analyst palette files rather than
+generic Matplotlib color scales.
+
 ## Notes
 
 - Raw radar volumes and rendered frames are intentionally excluded from Git.
