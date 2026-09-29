@@ -2,95 +2,80 @@
 
 ## Exercise target
 
-The first full LIX SimOps exercise is framed as **Krewe of Endymion parade operations on February 6, 2027**, with the parade scheduled to begin at 4:00 PM local time.
+The first full LIX SimOps exercise is framed as **Krewe of Endymion parade
+operations on February 6, 2027**, with the parade scheduled to begin at
+4:00 PM local time.
 
-The simulator can preserve the local clock time of a real historical case while mapping the archived data onto the 2027 exercise date. This keeps the meteorology spatially authentic to the LIX area while preventing the source date from giving the case away.
+The simulator can map a historical LIX case onto the 2027 exercise date and
+apply a facilitator-only local-time offset. This keeps the meteorology
+spatially authentic while preventing the source date/time from giving away
+the case.
 
-## Primary candidate — December 14, 2022
+## Selected case — May 12, 2021
 
-**Recommendation: use this as the first case, pending final exercise-team approval.**
+The selected hidden source case is the **May 12, 2021 New Orleans EF0
+tornado**.
 
-NWS New Orleans/Baton Rouge documents several supercells and embedded tornadoes across southeast Louisiana and southern Mississippi during the late afternoon and evening. Six tornadoes were confirmed, including two EF2 tornadoes in the New Orleans metro area.
+Why it was selected:
 
-The Marrero–Gretna–Algiers–Arabi EF2 is especially well aligned with the Endymion scenario:
+- the severe-weather threat was not an obvious high-end cancellation signal
+  the day before
+- the convective line evolved quickly as it reached the New Orleans metro
+- the tornado directly affected New Orleans, including Uptown/CBD/Algiers
+- KLIX Level II, GOES-16 ABI, GLM, MRMS, RAP, and surface observations are
+  available from the modern satellite/lightning era
+- the event creates a useful displaced-real-time problem: teams must detect
+  a deteriorating threat and communicate a consequential recommendation
+  rather than simply act on an obvious high-end outlook
 
-- Tornado began near Marrero at **3:49 PM CST**
-- Tornado ended near Chalmette at **4:06 PM CST**
-- Track length: **10.72 miles**
-- Maximum estimated wind: **125 mph**
-- Six injuries, no fatalities
-- The storm crossed the Mississippi River and affected multiple portions of metro New Orleans
+Historical anchor:
 
-That timing is unusually useful because the most consequential part of the historical event occurs almost exactly at Endymion's 4:00 PM scheduled start. A displaced-real-time window beginning around 2:45 PM CST gives teams time to monitor the environment, communicate rising concern, and make a pre-start recommendation before the highest-impact portion of the case.
+- tornado start: **2:05 AM CDT**
+- tornado end: **2:12 AM CDT**
+- rating: **EF0**
+- estimated peak wind: **85 mph**
+- path length: about **5.26 miles**
 
-Sources:
+Facilitator references:
 
-- NWS LIX event review: https://www.weather.gov/lix/121422severe
-- NWS LIX Marrero-to-Arabi tornado survey: https://www.weather.gov/lix/marrerotornado12142022
+- https://ready.nola.gov/incident/may-12-tornado/
+- https://nola.gov/next/mayors-office/news/articles/2021/may-2021/city-of-new-orleans-responds-to-possible-overnight-tornado/
 
-## Alternate — March 22, 2022
+## Why December 14, 2022 was replaced
 
-This event produced an EF3 tornado from the Gretna/Harvey area through Arabi and into New Orleans East from roughly **7:21–7:38 PM CDT**.
+The December 14, 2022 metro tornado case aligned naturally with a 4 PM
+Endymion start, but the event carried a **Day-2 Enhanced Risk**. That weakens
+the exercise premise because a large outdoor parade could plausibly have
+been cancelled or substantially altered before the DRT begins.
 
-Advantages:
-
-- Direct metro New Orleans impact
-- Strong radar signal and high-consequence decision environment
-- Useful if the exercise should emphasize an event already underway rather than a pre-parade start decision
-
-Disadvantage:
-
-- The time of day is much later than the 4 PM Endymion start and would require a larger time shift.
-
-Sources:
-
-- https://www.weather.gov/lix/03222022severe
-- https://www.weather.gov/lix/arabitornado03222022
-
-## Alternate — April 10, 2024
-
-This event featured a severe convective line, multiple tornadoes, damaging wind, and extensive New Orleans metro flash flooding.
-
-Advantages:
-
-- Strong multi-hazard exercise potential
-- Excellent for combining radar, mesoanalysis, severe-weather DSS, and route-access flooding impacts
-
-Disadvantage:
-
-- Primary impacts occurred during the morning/early afternoon, so it is less naturally aligned with Endymion's late-afternoon start.
-- The broader multi-hazard scope may distract from the first simulator exercise's intended lightning/severe-weather focus.
-
-Source:
-
-- https://www.weather.gov/lix/041024_severeandflood
-
-## Data availability considerations
-
-For the primary candidate, the intended scenario package should include:
-
-- KLIX Level II radar
-- GOES ABI imagery
-- GOES GLM
-- LightningCast if an archived product can be obtained or recreated from archived GOES imagery
-- MRMS products where archived data are available
-- Surface observations
-- Environmental analyses/guidance appropriate to the case
-- Historical watches/warnings, time-shifted for exercise presentation where useful
+The May 2021 case better supports the intended training question: **what do
+teams do when the threat becomes materially worse during operations?**
 
 ## Time mapping
 
-When building a scenario cache, use the simulator's time-remapping options so that historical data keep their original **local clock time** but are presented on the exercise date.
+The May 2021 source window is **06:00–07:45 UTC**, corresponding to
+**1:00–2:45 AM CDT**.
 
-Example for a December 14, 2022 case mapped to Endymion 2027:
+The simulator applies a facilitator-only **+825 minute (13 h 45 min)** local
+time shift before mapping the data to February 6, 2027:
+
+- 1:00 AM source -> 2:45 PM exercise start
+- 2:05 AM source -> 3:50 PM exercise tornado onset
+- 2:12 AM source -> 3:57 PM exercise tornado end
+- 2:45 AM source -> 4:30 PM exercise end
+
+Example:
 
 ```bash
 python scripts/build_radar_cache.py \
   --scenario-id mardi-gras-dss-001 \
-  --input data/raw/nexrad/20221214 \
+  --input data/raw/nexrad/20210512 \
   --site KLIX \
   --simulation-date 2027-02-06 \
-  --timezone America/Chicago
+  --timezone America/Chicago \
+  --local-time-offset-minutes 825
 ```
 
-The source filename remains available to facilitators in the manifest for traceability, but participant-facing timestamps use the exercise date/time.
+Historical source filenames remain in facilitator-controlled raw storage.
+Participant-facing manifests use only the mapped exercise timestamps and
+omit historical source keys.
