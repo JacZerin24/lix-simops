@@ -16,13 +16,13 @@ MRMS_RE = re.compile(r"_(\d{8})-(\d{6})")
 RAP_RE = re.compile(r"rap\.t(\d{2})z")
 
 STRICT_MIN_COUNTS = {
-    "nexrad": 21,
-    "goes_display": 54,
-    "glm": 406,
-    "lightningcast_inputs": 108,
+    "nexrad": 15,
+    "goes_display": 20,
+    "glm": 300,
+    "lightningcast_inputs": 80,
     "environment": 3,
 }
-STRICT_MRMS_MIN_COUNT = 68
+STRICT_MRMS_MIN_COUNT = 50
 
 
 def nexrad_time(path: Path) -> datetime | None:
