@@ -139,7 +139,7 @@ def main() -> None:
                 "--network", "LA_ASOS",
                 "--stations", "MSY", "NEW", "BTR", "ASD", "HDC",
                 "--date", date,
-                "--start", start,
+                "--start", "05:15",
                 "--end", end,
                 "--output", "data/raw/observations/asos_20210512.csv",
             ],
