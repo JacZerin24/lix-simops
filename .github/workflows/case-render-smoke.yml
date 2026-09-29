@@ -39,3 +39,15 @@ jobs:
               print(f"{product}: {config['cmap']} -> {getattr(resolved, 'name', resolved)}")
           PY
       - run: python scripts/smoke_render_case.py
+
+      - name: Upload render smoke previews
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-smoke-preview
+          path: |
+            .render-smoke/out
+            data/cache/render-smoke-radar/radar/frames
+          if-no-files-found: warn
+          retention-days: 3
+          compression-level: 6
