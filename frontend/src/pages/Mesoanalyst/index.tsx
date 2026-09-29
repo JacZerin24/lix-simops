@@ -2,17 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 
 import { getMesoFrames } from "../../services/api";
 import type { MesoFrameResponse } from "../../types/simulation";
+import { formatSimTime } from "../../utils/simTime";
 
 type Props = {
   sessionCode: string;
+  timezone: string;
 };
 
-function frameTime(value?: string) {
-  if (!value) return "No valid frame";
-  return new Date(value).toISOString().replace("T", " ").slice(0, 19) + "Z";
-}
-
-export function Mesoanalyst({ sessionCode }: Props) {
+export function Mesoanalyst({ sessionCode, timezone }: Props) {
   const [product, setProduct] = useState("");
   const [category, setCategory] = useState("");
   const [data, setData] = useState<MesoFrameResponse | null>(null);
@@ -103,7 +100,7 @@ export function Mesoanalyst({ sessionCode }: Props) {
           </p>
         </div>
         <div className="meso-frame-status">
-          <span>{frameTime(frame?.timestamp)}</span>
+          <span>{formatSimTime(frame?.timestamp, timezone, true)}</span>
           <strong>
             {frames.length ? `${selectedIndex + 1} / ${frames.length} available frames` : "No frame available"}
           </strong>
@@ -221,7 +218,7 @@ export function Mesoanalyst({ sessionCode }: Props) {
           <div className="meso-canvas">
             <img
               src={frame.asset_url}
-              alt={`${selectedProduct?.label ?? product} at ${frameTime(frame.timestamp)}`}
+              alt={`${selectedProduct?.label ?? product} at ${formatSimTime(frame.timestamp, timezone, true)}`}
               draggable={false}
             />
           </div>
