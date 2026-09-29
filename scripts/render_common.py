@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -18,8 +18,36 @@ def parse_domain(values):
     return west, east, south, north
 
 
-def local_time_label(timestamp: datetime, timezone_name: str = "America/Chicago") -> str:
-    local = timestamp.astimezone(ZoneInfo(timezone_name))
+def display_timestamp(
+    timestamp: datetime,
+    timezone_name: str = "America/Chicago",
+    simulation_date: str | None = None,
+    local_time_offset_minutes: int = 0,
+) -> datetime:
+    zone = ZoneInfo(timezone_name)
+    local = timestamp.astimezone(zone) + timedelta(minutes=local_time_offset_minutes)
+    if simulation_date:
+        target_date = date.fromisoformat(simulation_date)
+        local = datetime.combine(
+            target_date,
+            local.timetz().replace(tzinfo=None),
+            tzinfo=zone,
+        )
+    return local
+
+
+def local_time_label(
+    timestamp: datetime,
+    timezone_name: str = "America/Chicago",
+    simulation_date: str | None = None,
+    local_time_offset_minutes: int = 0,
+) -> str:
+    local = display_timestamp(
+        timestamp,
+        timezone_name,
+        simulation_date,
+        local_time_offset_minutes,
+    )
     return local.strftime("%I:%M %p %Z").lstrip("0")
 
 
