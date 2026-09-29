@@ -4,7 +4,7 @@ Role-based displaced-real-time weather operations and DSS training simulator for
 
 ## Purpose
 
-LIX SimOps is a reusable training platform for realistic, synchronized weather operations exercises. The first full scenario is a 2027 Krewe of Endymion DSS exercise using a case-blind replay of the December 14, 2022 LIX severe-weather event.
+LIX SimOps is a reusable training platform for realistic, synchronized weather operations exercises. The first full scenario is a 2027 Krewe of Endymion DSS exercise using a case-blind replay of the May 12, 2021 LIX severe-weather event.
 
 ## Core roles
 
@@ -24,11 +24,11 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 7. The Endymion scenario exposes route, partner priorities, and NWS-derived exercise thresholds directly in DSS.
 8. Google Classroom is the participant launch/resource/debrief layer while LIX SimOps remains authoritative for live timing.
 9. The DSS workspace reserves a link for the coworker-owned Google Form → Google Sheet shift log.
-10. The approved December 14, 2022 source case is defined in a facilitator-only source-case file.
+10. The approved May 12, 2021 source case is defined in a facilitator-only source-case file.
 11. Public-source acquisition exists for NEXRAD, GOES-16 ABI/GLM, MRMS, RAP, and ASOS/METAR observations.
 12. A public-archive smoke workflow verifies that the required December 14 source families are still available before case development.
-13. GOES visible/IR, GLM flash density, MRMS, RAP environmental fields, and surface observations can be rendered into the meso workspace.
-14. RAP 90-mb MLCAPE, 0–6 km bulk shear, and 0–1 km SRH are used as the environment fallback for this case rather than depending on the likely December 2022 SPC mesoanalysis image gap.
+13. GOES IR, GLM flash density, MRMS, RAP environmental fields, and surface observations can be rendered into the meso workspace.
+14. RAP 90-mb MLCAPE, 0–6 km bulk shear, and 0–1 km SRH provide the environmental analysis for this case.
 15. LightningCast inputs are staged from archived GOES-16 ABI C02/C05/C13/C15, validated scan-by-scan, and ready for external CSPP Geo processing.
 16. Historical source keys remain server-side and are no longer exposed through participant radar/meso APIs.
 17. A final validator checks exact exercise-date remapping, required product coverage, expected frame depth, referenced asset existence, and historical-source-key removal before rehearsal.
@@ -161,6 +161,6 @@ These are exercise defaults based on NWS large-venue guidance, not claimed City 
 - **V0.3:** archived radar playback
 - **V0.4:** mesoanalysis/environment workspace
 - **V0.5:** Endymion scenario, automatic timeline, external exercise-tool integration
-- **V0.6:** approved December 14, 2022 source-case acquisition and validation
+- **V0.6:** approved May 12, 2021 source-case acquisition and validation
 - **V0.7:** participant-product rendering, RAP environment fallback, case-blindness hardening, and end-to-end cache validation
 - **V0.8:** execute the full local source-case build, add CSPP LightningCast output, rehearse the complete exercise, and tune inject timing from the actual rendered data
