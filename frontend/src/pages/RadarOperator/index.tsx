@@ -2,17 +2,14 @@ import { PointerEvent, useEffect, useRef, useState } from "react";
 
 import { getRadarFrames } from "../../services/api";
 import type { RadarFrameResponse } from "../../types/simulation";
+import { formatSimTime } from "../../utils/simTime";
 
 type Props = {
   sessionCode: string;
+  timezone: string;
 };
 
-function frameTime(value?: string) {
-  if (!value) return "No scan";
-  return new Date(value).toISOString().replace("T", " ").slice(0, 19) + "Z";
-}
-
-export function RadarOperator({ sessionCode }: Props) {
+export function RadarOperator({ sessionCode, timezone }: Props) {
   const [product, setProduct] = useState("REF");
   const [elevation, setElevation] = useState(0.5);
   const [data, setData] = useState<RadarFrameResponse | null>(null);
@@ -136,7 +133,7 @@ export function RadarOperator({ sessionCode }: Props) {
           </p>
         </div>
         <div className="radar-scan-status">
-          <span>{frameTime(frame?.timestamp)}</span>
+          <span>{formatSimTime(frame?.timestamp, timezone, true)}</span>
           <strong>
             {frames.length ? `${selectedIndex + 1} / ${frames.length} available scans` : "No scans available"}
           </strong>
@@ -244,7 +241,7 @@ export function RadarOperator({ sessionCode }: Props) {
           >
             <img
               src={frame.asset_url}
-              alt={`${data.radar_site ?? "Radar"} ${product} ${elevation.toFixed(1)} degree at ${frameTime(frame.timestamp)}`}
+              alt={`${data.radar_site ?? "Radar"} ${product} ${elevation.toFixed(1)} degree at ${formatSimTime(frame.timestamp, timezone, true)}`}
               draggable={false}
               style={{
                 transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
