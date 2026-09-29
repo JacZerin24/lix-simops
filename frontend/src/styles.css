@@ -757,3 +757,21 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .duplicate-role {
   color: #ffd48a;
 }
+
+
+.dss-context-callout {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  background: #13243a;
+  border: 1px solid #304b6c;
+  border-radius: 8px;
+}
+.dss-context-callout span { color: #b5c7d9; font-size: 0.9rem; }
+.dss-context-callout p { margin: 3px 0 0; color: #d7e3ef; }
+.partner-priority-list {
+  margin-top: 6px;
+  padding-left: 20px;
+}
+.partner-priority-list li { margin-bottom: 6px; }
