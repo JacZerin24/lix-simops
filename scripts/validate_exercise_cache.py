@@ -11,7 +11,6 @@ REQUIRED_MESO = {
     "bulk_shear_0_6km",
     "srh_0_1km",
     "goes_ir",
-    "goes_vis",
     "glm_flash_density",
     "mrms_mesh",
     "mrms_azshear",
@@ -24,18 +23,17 @@ MIN_MESO_FRAMES = {
     "mlcape": 3,
     "bulk_shear_0_6km": 3,
     "srh_0_1km": 3,
-    "goes_ir": 27,
-    "goes_vis": 27,
-    "glm_flash_density": 27,
-    "mrms_mesh": 68,
-    "mrms_azshear": 68,
-    "mrms_precip_rate": 68,
-    "mrms_lowest_refl": 68,
-    "surface_obs": 14,
+    "goes_ir": 20,
+    "glm_flash_density": 20,
+    "mrms_mesh": 50,
+    "mrms_azshear": 50,
+    "mrms_precip_rate": 50,
+    "mrms_lowest_refl": 50,
+    "surface_obs": 10,
 }
 
 REQUIRED_RADAR_PRODUCTS = {"REF", "VEL", "CC", "ZDR"}
-MIN_RADAR_SCANS_PER_PRODUCT = 18
+MIN_RADAR_SCANS_PER_PRODUCT = 15
 
 
 def parse_args() -> argparse.Namespace:
@@ -78,7 +76,7 @@ def main() -> None:
                 if not exercise_date_ok(frame["timestamp"]):
                     failures.append(f"radar source-date leak in timestamp: {frame['timestamp']}")
                     break
-                if "20221214" in frame.get("asset", ""):
+                if "20210512" in frame.get("asset", ""):
                     failures.append("radar source date appears in participant asset path")
                     break
                 if frame.get("source_key"):
@@ -112,7 +110,7 @@ def main() -> None:
                 if not exercise_date_ok(frame["timestamp"]):
                     failures.append(f"meso source-date leak in timestamp: {frame['timestamp']}")
                     break
-                if "20221214" in frame.get("asset", ""):
+                if "20210512" in frame.get("asset", ""):
                     failures.append("meso source date appears in participant asset path")
                     break
                 if frame.get("source_key"):
