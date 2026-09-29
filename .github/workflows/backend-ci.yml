@@ -15,4 +15,8 @@ jobs:
           python-version: "3.12"
       - run: pip install -e "backend[dev]"
       - run: python -m compileall scripts simulator
+      - name: Smoke test executable cache builders
+        run: |
+          python scripts/build_radar_cache.py --help > /dev/null
+          python scripts/build_meso_cache.py --help > /dev/null
       - run: pytest backend/tests
