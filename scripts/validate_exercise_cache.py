@@ -4,8 +4,13 @@ import argparse
 from datetime import datetime, timedelta
 import json
 from pathlib import Path
+import sys
 
-import yaml
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from backend.app.services.scenario_loader import load_scenario_by_id
 
 
 REQUIRED_MESO = {
@@ -68,14 +73,12 @@ def main() -> None:
     root = args.cache_root / args.scenario_id
     failures = []
 
-    scenario_path = Path("scenarios/mardi-gras/scenario.yaml")
-    with scenario_path.open("r", encoding="utf-8") as handle:
-        scenario = yaml.safe_load(handle)
+    scenario = load_scenario_by_id(args.scenario_id)
     scenario_start = datetime.fromisoformat(
-        scenario["simulation"]["start"].replace("Z", "+00:00")
+        scenario.simulation.start.replace("Z", "+00:00")
     )
     scenario_end = datetime.fromisoformat(
-        scenario["simulation"]["end"].replace("Z", "+00:00")
+        scenario.simulation.end.replace("Z", "+00:00")
     )
 
     if args.scope in {"all", "radar"}:
