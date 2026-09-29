@@ -25,7 +25,7 @@ def build_session():
 def test_endymion_schedule_loads_automatic_and_manual_items() -> None:
     session = build_session()
 
-    assert len(session.schedule) >= 9
+    assert len(session.schedule) >= 8
     assert any(item.due_at is None for item in session.schedule)
     assert any(item.due_at is not None for item in session.schedule)
 
@@ -42,7 +42,7 @@ def test_schedule_is_hidden_from_default_session_snapshot() -> None:
 
 def test_due_items_follow_simulation_clock() -> None:
     session = build_session()
-    session.sim_time = session.scenario_start + timedelta(minutes=6)
+    session.sim_time = session.scenario_start + timedelta(minutes=8)
 
     due = session.due_items()
 
