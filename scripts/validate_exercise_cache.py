@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 from pathlib import Path
+
+import yaml
 
 
 REQUIRED_MESO = {
@@ -66,6 +68,16 @@ def main() -> None:
     root = args.cache_root / args.scenario_id
     failures = []
 
+    scenario_path = Path("scenarios/mardi-gras/scenario.yaml")
+    with scenario_path.open("r", encoding="utf-8") as handle:
+        scenario = yaml.safe_load(handle)
+    scenario_start = datetime.fromisoformat(
+        scenario["simulation"]["start"].replace("Z", "+00:00")
+    )
+    scenario_end = datetime.fromisoformat(
+        scenario["simulation"]["end"].replace("Z", "+00:00")
+    )
+
     if args.scope in {"all", "radar"}:
         radar_path = root / "radar" / "manifest.json"
         if not radar_path.exists():
@@ -86,6 +98,10 @@ def main() -> None:
                 if frame.get("source_key"):
                     failures.append("radar participant manifest exposes historical source_key")
                     break
+                frame_time = datetime.fromisoformat(frame["timestamp"].replace("Z", "+00:00"))
+                if frame_time > scenario_end:
+                    failures.append(f"radar frame after scenario end: {frame['timestamp']}")
+                    break
                 radar_times.setdefault(frame["product"], set()).add(frame["timestamp"])
                 if not (root / frame["asset"]).is_file():
                     failures.append(f"radar asset missing: {frame['asset']}")
@@ -101,6 +117,23 @@ def main() -> None:
                         f"radar {product} has only {scan_count} scan times; "
                         f"expected at least {MIN_RADAR_SCANS_PER_PRODUCT}"
                     )
+                else:
+                    first_scan = min(
+                        datetime.fromisoformat(value.replace("Z", "+00:00"))
+                        for value in radar_times[product]
+                    )
+                    last_scan = max(
+                        datetime.fromisoformat(value.replace("Z", "+00:00"))
+                        for value in radar_times[product]
+                    )
+                    if first_scan > scenario_start + timedelta(minutes=10):
+                        failures.append(
+                            f"radar {product} first scan is too late: {first_scan.isoformat()}"
+                        )
+                    if last_scan < scenario_end - timedelta(minutes=5):
+                        failures.append(
+                            f"radar {product} ends too early: {last_scan.isoformat()}"
+                        )
 
     if args.scope in {"all", "meso"}:
         meso_path = root / "meso" / "manifest.json"
@@ -111,6 +144,10 @@ def main() -> None:
             counts = {}
             for frame in meso.get("frames", []):
                 counts[frame["product"]] = counts.get(frame["product"], 0) + 1
+                frame_time = datetime.fromisoformat(frame["timestamp"].replace("Z", "+00:00"))
+                if frame_time > scenario_end:
+                    failures.append(f"meso frame after scenario end: {frame['timestamp']}")
+                    break
                 if not exercise_date_ok(frame["timestamp"]):
                     failures.append(f"meso source-date leak in timestamp: {frame['timestamp']}")
                     break
