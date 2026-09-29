@@ -28,17 +28,21 @@ FIRST LAUNCH
 5. Your browser should open http://localhost:8000.
 6. Keep the black START_SIMOPS window open while using the exercise.
 
+START_SIMOPS.bat uses localhost-only mode for routine QA, which avoids requesting
+LAN access from Windows. For a later IT-approved multi-computer network test,
+START_SIMOPS_LAN.bat listens on the computer's network interfaces.
+
 STOPPING SIMOPS
 ---------------
 Click the START_SIMOPS command window and press Ctrl+C.
 
 OTHER WORKSTATIONS
 ------------------
-The server listens on port 8000. Other computers can use
+For a later network test, use START_SIMOPS_LAN.bat. Other computers can use
 http://HOST-IP:8000 only if the office network and Windows security policy
-allow those computers to reach the host. Do not disable enterprise firewall
-or security controls to make this work; test with the local ITO/IT-approved
-network path before the workshop.
+allow those computers to reach the host. Windows or endpoint security may
+require IT approval for inbound access. Do not disable enterprise firewall
+or security controls to make this work.
 
 PACKAGE CONTENTS
 ----------------
