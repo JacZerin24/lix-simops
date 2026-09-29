@@ -6,9 +6,14 @@ import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
 from zoneinfo import ZoneInfo
 
 import yaml
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from simulator.meso.manifest import MesoFrame, MesoManifest, MesoProduct
 from simulator.time_mapping import remap_timestamp_to_simulation_date
