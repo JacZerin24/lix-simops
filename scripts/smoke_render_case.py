@@ -50,16 +50,17 @@ def main() -> None:
     WORK.mkdir(parents=True)
     s3 = s3_client()
 
-    goes_keys = list_keys(
-        s3,
-        "noaa-goes16",
-        "ABI-L2-CMIPC/2022/348/20/OR_ABI-L2-CMIPC-M6C13_G16_",
-        1,
-    )
-    if not goes_keys:
-        raise SystemExit("No representative GOES C13 file.")
     goes_dir = WORK / "goes"
-    download(s3, "noaa-goes16", goes_keys[0], goes_dir)
+    for channel in (2, 13):
+        goes_keys = list_keys(
+            s3,
+            "noaa-goes16",
+            f"ABI-L2-CMIPC/2022/348/20/OR_ABI-L2-CMIPC-M6C{channel:02d}_G16_",
+            1,
+        )
+        if not goes_keys:
+            raise SystemExit(f"No representative GOES C{channel:02d} file.")
+        download(s3, "noaa-goes16", goes_keys[0], goes_dir)
 
     glm_keys = list_keys(
         s3,
@@ -118,6 +119,13 @@ def main() -> None:
     run([
         PYTHON, "scripts/render_goes.py",
         "--input", str(goes_dir),
+        "--output", str(WORK / "out" / "goes_vis"),
+        "--channel", "2",
+        "--domain", *domain,
+    ])
+    run([
+        PYTHON, "scripts/render_goes.py",
+        "--input", str(goes_dir),
         "--output", str(WORK / "out" / "goes_ir"),
         "--channel", "13",
         "--domain", *domain,
@@ -147,8 +155,8 @@ def main() -> None:
     print(f"Rendered {len(radar_pngs)} radar and {len(pngs)} meso smoke-test images.")
     if len(radar_pngs) < 1:
         raise SystemExit("Expected at least one rendered KLIX radar image.")
-    if len(pngs) < 6:
-        raise SystemExit("Expected GOES, GLM, MRMS, and three RAP environment images.")
+    if len(pngs) < 7:
+        raise SystemExit("Expected visible/IR GOES, GLM, MRMS, and three RAP environment images.")
 
 
 if __name__ == "__main__":
