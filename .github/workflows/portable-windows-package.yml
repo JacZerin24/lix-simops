@@ -133,6 +133,11 @@ jobs:
             }
           }
 
+      - name: Test actual portable launcher preflight
+        shell: cmd
+        working-directory: portable-build\LIX-SimOps
+        run: START_SIMOPS.bat CHECK
+
       - name: Create portable ZIP
         shell: pwsh
         run: |
