@@ -13,7 +13,7 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 - **DSS Meteorologist** — owns the simulated partner relationship, event impacts, decisions, and communication.
 - **Facilitator** — controls simulation time, injects, partner messages, team status, and debrief logging.
 
-## Current V0.7 capabilities
+## Current V0.8 branch capabilities
 
 1. Facilitator creates a live exercise session from a scenario pack.
 2. Participants join teams as Radar, Mesoanalyst, or DSS and share one synchronized simulation clock.
@@ -31,7 +31,11 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 14. RAP 90-mb MLCAPE, 0–6 km bulk shear, and 0–1 km SRH are used as the environment fallback for this case rather than depending on the likely December 2022 SPC mesoanalysis image gap.
 15. LightningCast inputs are staged from archived GOES-16 ABI C02/C05/C13/C15, validated scan-by-scan, and ready for external CSPP Geo processing.
 16. Historical source keys remain server-side and are no longer exposed through participant radar/meso APIs.
-17. A final validator checks exercise-date remapping, required product coverage, and participant asset paths before rehearsal.
+17. A final validator checks exact exercise-date remapping, required product coverage, expected frame depth, referenced asset existence, and historical-source-key removal before rehearsal.
+18. Participant radar/meso imagery is served through session-aware endpoints so future frames cannot be fetched by bypassing the UI.
+19. Facilitator control uses a random per-session access key separate from the participant session code.
+20. The exercise clock stops automatically at the configured scenario end.
+21. The frontend proxies API/WebSocket traffic to the backend for reliable multi-workstation LAN operation.
 
 ## Exercise support tools
 
@@ -68,15 +72,17 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Frontend: http://localhost:5173  
-Backend health check: http://localhost:8000/health
+Frontend on the host: http://localhost:5173  
+Backend health check on the host: http://localhost:8000/health
+
+For a multi-workstation rehearsal, participants should open `http://HOST-IP:5173` using the SimOps host computer's LAN address. The frontend proxies API and WebSocket traffic to the backend, so participant browsers do not need a separate backend URL.
 
 ## Exercise workflow
 
 1. Open Google Classroom and the opening instruction deck.
 2. Open LIX SimOps and create the exercise session.
-3. Share the generated session code.
-4. Participants join the assigned team and role.
+3. Keep the generated facilitator access key private; share only the six-character session code with participants.
+4. Participants join the assigned team and role. Additional facilitators need both the session code and facilitator access key.
 5. DSS Meteorologists open the coworker-provided mock shift-log Form.
 6. Confirm Radar/Meso/DSS staffing for every team.
 7. Start the simulation clock.
