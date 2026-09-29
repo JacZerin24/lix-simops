@@ -69,6 +69,12 @@ jobs:
           Copy-Item ".case\cache\mardi-gras-dss-001" "$dest\data\cache\mardi-gras-dss-001" -Recurse
           # BUILD_INFO and source-case.yaml intentionally stay out of the portable
           # participant runtime because they reveal the historical source case.
+          @(
+            "scenario=mardi-gras-dss-001"
+            "exercise_date=2027-02-06"
+            "case_run_id=$env:CASE_RUN_ID"
+            "app_commit=$env:GITHUB_SHA"
+          ) | Set-Content "$dest\PACKAGE_INFO.txt"
 
       - name: Reject historical source-case leakage
         shell: pwsh
