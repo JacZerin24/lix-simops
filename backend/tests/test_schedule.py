@@ -10,11 +10,13 @@ from backend.app.state import SessionManager
 def build_session():
     scenario = load_scenario_by_id("mardi-gras-dss-001")
     start = datetime.fromisoformat(scenario.simulation.start.replace("Z", "+00:00"))
+    end = datetime.fromisoformat(scenario.simulation.end.replace("Z", "+00:00"))
     manager = SessionManager()
     return manager.create(
         scenario_id=scenario.id,
         scenario_name=scenario.name,
         scenario_start=start,
+        scenario_end=end,
         default_speed=scenario.simulation.default_speed,
         scheduled_events=load_scheduled_events(scenario),
     )
@@ -61,3 +63,9 @@ def test_reset_restores_scenario_speed_and_pending_schedule() -> None:
     assert session.speed == 1.5
     assert session.log == []
     assert all(item.status == "pending" for item in session.schedule)
+
+
+def test_session_tracks_configured_scenario_end() -> None:
+    session = build_session()
+
+    assert session.scenario_end == datetime(2027, 2, 6, 22, 30, tzinfo=timezone.utc)
