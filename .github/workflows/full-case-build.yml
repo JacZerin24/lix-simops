@@ -411,11 +411,14 @@ jobs:
       - name: Assemble participant cache
         run: |
           mkdir -p data/cache/mardi-gras-dss-001/radar/frames
+          mkdir -p data/cache/mardi-gras-dss-001/radar/data
           mkdir -p data/cache/mardi-gras-dss-001
 
           for product in REF VEL CC ZDR; do
             cp -a ".stage/radar-${product}/cache/mardi-gras-dss-001/radar/frames/${product}" \
               data/cache/mardi-gras-dss-001/radar/frames/
+            cp -a ".stage/radar-${product}/cache/mardi-gras-dss-001/radar/data/${product}" \
+              data/cache/mardi-gras-dss-001/radar/data/
           done
 
           tar -xzf .stage/meso-cache/endymion-meso-cache.tar.gz \
