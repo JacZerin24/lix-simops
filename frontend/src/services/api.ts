@@ -43,6 +43,11 @@ export async function getRadarFrames(
       asset_url: frame.asset_url.startsWith("http")
         ? frame.asset_url
         : `${API_BASE}${frame.asset_url}`,
+      data_url: frame.data_url
+        ? frame.data_url.startsWith("http")
+          ? frame.data_url
+          : `${API_BASE}${frame.data_url}`
+        : null,
     })),
   };
 }
