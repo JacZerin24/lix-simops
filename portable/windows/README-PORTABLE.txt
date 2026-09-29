@@ -22,8 +22,9 @@ FIRST LAUNCH
 ------------
 1. Extract the entire ZIP to a writable folder.
 2. Double-click START_SIMOPS.bat.
-3. The first launch creates a private .venv folder and installs Python
-   dependencies from the bundled wheelhouse. Nothing is installed system-wide.
+3. The first launch creates a private Python environment under
+   %LOCALAPPDATA%\LIX-SimOps and installs Python dependencies from the bundled
+   wheelhouse. Nothing is installed system-wide.
 4. The bundled Endymion weather cache is validated automatically.
 5. Your browser should open http://localhost:8000.
 6. Keep the black START_SIMOPS window open while using the exercise.
