@@ -34,6 +34,12 @@ def parse_args() -> argparse.Namespace:
         help="Optional exercise date YYYY-MM-DD. Preserves historical local clock time.",
     )
     parser.add_argument("--timezone", default="America/Chicago")
+    parser.add_argument(
+        "--local-time-offset-minutes",
+        type=int,
+        default=0,
+        help="Shift the displaced case clock after remapping to the simulation date.",
+    )
     return parser.parse_args()
 
 
@@ -57,9 +63,11 @@ def main() -> None:
         event_label=args.event_label,
         simulation_date=simulation_date,
         timezone_name=args.timezone,
+        local_time_offset_minutes=args.local_time_offset_minutes,
     )
+    data_frames = sum(frame.data is not None for frame in manifest.frames)
     print(
-        f"Built {len(manifest.frames)} radar frames for "
+        f"Built {len(manifest.frames)} radar frames ({data_frames} data-aware) for "
         f"{manifest.radar_site} at {output_root / 'radar'}"
     )
 
