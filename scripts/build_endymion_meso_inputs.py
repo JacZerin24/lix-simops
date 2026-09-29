@@ -37,16 +37,6 @@ def main() -> None:
         [
             PYTHON, "scripts/render_goes.py",
             "--input", "data/raw/goes/abi-cmi",
-            "--output", "data/raw/meso/goes_vis",
-            "--channel", "2",
-            "--domain", *DOMAIN,
-        ],
-        args.dry_run,
-    )
-    run(
-        [
-            PYTHON, "scripts/render_goes.py",
-            "--input", "data/raw/goes/abi-cmi",
             "--output", "data/raw/meso/goes_ir",
             "--channel", "13",
             "--domain", *DOMAIN,
@@ -74,7 +64,7 @@ def main() -> None:
     run(
         [
             PYTHON, "scripts/render_rap_environment.py",
-            "--input", "data/raw/rap/20221214",
+            "--input", "data/raw/rap/20210512",
             "--output-root", "data/raw/meso",
             "--domain", *DOMAIN,
         ],
@@ -83,10 +73,10 @@ def main() -> None:
     run(
         [
             PYTHON, "scripts/render_surface_obs.py",
-            "--input", "data/raw/observations/asos_20221214.csv",
+            "--input", "data/raw/observations/asos_20210512.csv",
             "--output", "data/raw/meso/surface_obs",
-            "--start", "2022-12-14T20:30Z",
-            "--end", "2022-12-14T22:45Z",
+            "--start", "2021-05-12T06:00Z",
+            "--end", "2021-05-12T07:45Z",
             "--domain", *DOMAIN,
         ],
         args.dry_run,
@@ -100,6 +90,7 @@ def main() -> None:
                 "--config", "scenarios/mardi-gras/meso-products.yaml",
                 "--simulation-date", "2027-02-06",
                 "--timezone", "America/Chicago",
+                "--local-time-offset-minutes", "825",
             ],
             args.dry_run,
         )
