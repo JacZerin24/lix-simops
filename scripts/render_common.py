@@ -20,7 +20,7 @@ def parse_domain(values):
 
 def local_time_label(timestamp: datetime, timezone_name: str = "America/Chicago") -> str:
     local = timestamp.astimezone(ZoneInfo(timezone_name))
-    return local.strftime("%-I:%M %p %Z")
+    return local.strftime("%I:%M %p %Z").lstrip("0")
 
 
 def timestamp_token(timestamp: datetime) -> str:
