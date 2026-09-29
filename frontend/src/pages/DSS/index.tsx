@@ -159,6 +159,25 @@ export function DSS({ sessionCode, timezone, events, onRespond }: Props) {
 
               {operations?.event?.crowd_note && <p>{operations.event.crowd_note}</p>}
 
+              {operations?.event?.pre_parade && (
+                <div className="dss-context-callout">
+                  <strong>{operations.event.pre_parade.name}</strong>
+                  <span>{operations.event.pre_parade.location}</span>
+                  <p>{operations.event.pre_parade.planning_note}</p>
+                </div>
+              )}
+
+              {(operations?.partner?.partner_priorities?.length ?? 0) > 0 && (
+                <>
+                  <h4>Partner priorities</h4>
+                  <ul className="partner-priority-list">
+                    {operations?.partner?.partner_priorities?.map((priority) => (
+                      <li key={priority}>{priority}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
               <h4>Lightning quick reference</h4>
               <div className="threshold-cards compact">
                 {priorityThresholds.map((item) => (
