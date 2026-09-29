@@ -217,7 +217,7 @@ jobs:
             --network LA_ASOS \
             --stations MSY NEW BTR ASD HDC \
             --date 2021-05-12 \
-            --start 06:00 \
+            --start 05:15 \
             --end 07:45 \
             --output data/raw/observations/asos_20210512.csv
 
@@ -263,8 +263,10 @@ jobs:
         run: |
           test "$(find data/raw/meso/glm_flash_density -type f -name '*.png' | wc -l)" -ge 20
           test "$(find data/raw/meso/mlcape -type f -name '*.png' | wc -l)" -ge 3
+          test "$(find data/raw/meso/bulk_shear_0_3km -type f -name '*.png' | wc -l)" -ge 3
           test "$(find data/raw/meso/bulk_shear_0_6km -type f -name '*.png' | wc -l)" -ge 3
           test "$(find data/raw/meso/srh_0_1km -type f -name '*.png' | wc -l)" -ge 3
+          test "$(find data/raw/meso/srh_0_3km -type f -name '*.png' | wc -l)" -ge 3
           test "$(find data/raw/meso/surface_obs -type f -name '*.png' | wc -l)" -ge 10
 
       - name: Package supporting meso stage
@@ -272,8 +274,10 @@ jobs:
           tar -czf supporting-meso.tar.gz -C data/raw/meso \
             glm_flash_density \
             mlcape \
+            bulk_shear_0_3km \
             bulk_shear_0_6km \
             srh_0_1km \
+            srh_0_3km \
             surface_obs
 
       - uses: actions/upload-artifact@v4
