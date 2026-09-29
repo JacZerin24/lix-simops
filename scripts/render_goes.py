@@ -25,6 +25,48 @@ def file_time(path: Path) -> datetime:
     )
 
 
+def projected_domain_slices(*, x, y, geos, domain, height):
+    import cartopy.crs as ccrs
+    import numpy as np
+
+    west, east, south, north = domain
+    edge = np.linspace(0.0, 1.0, 41)
+    lons = np.concatenate([
+        west + (east - west) * edge,
+        west + (east - west) * edge,
+        np.full_like(edge, west),
+        np.full_like(edge, east),
+    ])
+    lats = np.concatenate([
+        np.full_like(edge, south),
+        np.full_like(edge, north),
+        south + (north - south) * edge,
+        south + (north - south) * edge,
+    ])
+
+    points = geos.transform_points(ccrs.PlateCarree(), lons, lats)
+    finite = np.isfinite(points[:, 0]) & np.isfinite(points[:, 1])
+    if not finite.any():
+        raise ValueError("Requested domain does not intersect the GOES projection.")
+
+    x_min = points[finite, 0].min() / height
+    x_max = points[finite, 0].max() / height
+    y_min = points[finite, 1].min() / height
+    y_max = points[finite, 1].max() / height
+
+    x_idx = np.where((x >= x_min) & (x <= x_max))[0]
+    y_idx = np.where((y >= y_min) & (y <= y_max))[0]
+    if x_idx.size == 0 or y_idx.size == 0:
+        raise ValueError("Requested domain does not intersect the GOES scan grid.")
+
+    # Add a small one-pixel margin so pcolormesh cleanly covers the map edges.
+    x0 = max(int(x_idx.min()) - 1, 0)
+    x1 = min(int(x_idx.max()) + 2, len(x))
+    y0 = max(int(y_idx.min()) - 1, 0)
+    y1 = min(int(y_idx.max()) + 2, len(y))
+    return slice(y0, y1), slice(x0, x1)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Render GOES ABI CMIP files for SimOps.")
     parser.add_argument("--input", required=True, type=Path)
@@ -56,9 +98,8 @@ def main() -> None:
             if "CMI" not in ds:
                 print(f"Skipping {source.name}: no CMI variable")
                 continue
-            data = ds["CMI"].squeeze().values
-            x = ds["x"].values
-            y = ds["y"].values
+            x_full = ds["x"].values
+            y_full = ds["y"].values
             projection = ds["goes_imager_projection"].attrs
             height = float(projection["perspective_point_height"])
             lon0 = float(projection["longitude_of_projection_origin"])
@@ -68,6 +109,17 @@ def main() -> None:
                 satellite_height=height,
                 sweep_axis=sweep,
             )
+
+            y_slice, x_slice = projected_domain_slices(
+                x=x_full,
+                y=y_full,
+                geos=geos,
+                domain=domain,
+                height=height,
+            )
+            x = x_full[x_slice]
+            y = y_full[y_slice]
+            data = ds["CMI"].squeeze().isel(y=y_slice, x=x_slice).values
 
             fig = plt.figure(figsize=(10, 8), constrained_layout=True)
             ax = plt.axes(projection=ccrs.PlateCarree())
