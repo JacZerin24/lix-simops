@@ -17,6 +17,7 @@ if str(ROOT) not in sys.path:
 
 from simulator.meso.manifest import MesoFrame, MesoManifest, MesoProduct
 from simulator.time_mapping import remap_timestamp_to_simulation_date
+from backend.app.services.scenario_loader import load_scenario_by_id
 
 
 TIME_RE = re.compile(r"(\d{8})[T_\-]?(\d{6})Z?")
@@ -69,6 +70,10 @@ def main() -> None:
         else None
     )
     zone = ZoneInfo(args.timezone)
+    scenario = load_scenario_by_id(args.scenario_id)
+    scenario_end = datetime.fromisoformat(
+        scenario.simulation.end.replace("Z", "+00:00")
+    )
 
     products: list[MesoProduct] = []
     source_items: list[tuple[MesoProduct, Path, datetime]] = []
@@ -123,6 +128,13 @@ def main() -> None:
             if simulation_date and source_base_date
             else source_timestamp
         )
+
+        if timestamp > scenario_end:
+            print(
+                f"{product.id}: skipping {source.name}; mapped timestamp "
+                f"{timestamp.isoformat()} is after scenario end"
+            )
+            continue
 
         destination_dir = frame_root / product.id
         destination_dir.mkdir(parents=True, exist_ok=True)
