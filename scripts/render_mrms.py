@@ -27,11 +27,11 @@ PRODUCTS = {
     "MergedAzShear_0-2kmAGL_00.50": {
         "label": "MRMS 0–2 km Azimuthal Shear",
         "units": "s⁻¹",
-        "cmap": "coolwarm",
-        "vmin": -0.02,
-        "vmax": 0.02,
+        "cmap": "RdBu_r",
+        "vmin": -0.015,
+        "vmax": 0.015,
         "scale": 1.0,
-        "mask_abs_below": 0.001,
+        "mask_abs_below": 0.003,
     },
     "PrecipRate_00.00": {
         "label": "MRMS Precipitation Rate",
@@ -40,7 +40,7 @@ PRODUCTS = {
         "vmin": 0.0,
         "vmax": 4.0,
         "scale": 1.0 / 25.4,
-        "mask_below": 0.01,
+        "mask_below": 0.05,
     },
     "MergedReflectivityAtLowestAltitude_00.50": {
         "label": "MRMS Reflectivity at Lowest Altitude",
