@@ -114,6 +114,18 @@ The DSS tester should make realistic entries for:
 
 Compare the Google Sheet timestamps/messages with the SimOps event log.
 
+### Final package freeze
+
+Within the final week before the workshop:
+1. run the final Full Endymion Case Build from the approved feature/release commit
+2. build the portable Windows package from that exact case run ID
+3. download and retain a local copy rather than relying only on Actions retention
+4. launch that exact package once on the intended host computer
+5. do not rebuild the package after the final rehearsal unless a specific fix is required
+
+The final case and portable artifacts are retained for 45 days so the workshop does not
+depend on a two-week Actions expiration window.
+
 ## Day-of-room setup
 
 Recommended per team:
