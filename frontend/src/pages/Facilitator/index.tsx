@@ -155,7 +155,7 @@ export function Facilitator({
           <button
             className="danger-action"
             onClick={() => {
-              if (window.confirm("Reset the exercise clock, timeline, and SimOps event log?")) {
+              if (window.confirm("Reset the exercise clock, timeline, and SimOps event log? External Shift Log entries will NOT be cleared.")) {
                 onControl("reset");
               }
             }}
