@@ -23,7 +23,7 @@ Facilitators remain outside the teams. One facilitator should primarily watch ex
    when LightningCast has been staged.
 3. If LightningCast is not yet available, run the validator without that flag and explicitly decide whether the exercise can proceed using GLM plus the other tools.
 4. Open several radar and meso frames manually and visually inspect:
-   - no December 2022 date is visible
+   - no May 2021 source date/time is visible
    - local valid times make sense
    - maps cover the intended LIX/New Orleans domain
    - product color scales are useful
@@ -46,7 +46,7 @@ Verify the live links to:
 - coworker-owned Shift Log Google Form
 - approved reference resources
 
-Do not post the source-case timeline or any material identifying December 14, 2022.
+Do not post the source-case timeline or any material identifying May 12, 2021.
 
 ### Shift log
 
@@ -72,7 +72,7 @@ Run at least one complete rehearsal with three devices/browsers acting as one te
 - Open the mock Shift Log on the DSS device.
 - Verify simulation time starts at 2:45 PM CST.
 - Confirm Radar and Meso show no future frames.
-- Confirm participant APIs/UI do not expose the 2022 source date.
+- Confirm participant APIs/UI do not expose the 2021 source date or historical clock time.
 
 ### During rehearsal
 
