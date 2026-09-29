@@ -268,7 +268,7 @@ def build_radar_cache(
                         title=(
                             f"{radar_site} {RADAR_PRODUCTS[product_id]} "
                             f"{actual_elevation:.1f}° — "
-                            f"{timestamp.astimezone(zone):%H:%M:%S %Z}"
+                            timestamp.astimezone(zone).strftime("%I:%M:%S %p %Z").lstrip("0")
                         ),
                         colorbar_flag=True,
                         embellish=True,
