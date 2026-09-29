@@ -65,6 +65,30 @@ docs/           Architecture and operating documentation
 data/           Local/generated data only; raw weather archives stay out of git
 ```
 
+## Portable Windows quick start
+
+For managed Windows computers where Docker/Node installation is unavailable, use the
+**Build Portable Windows SimOps** GitHub Actions artifact. That package contains the
+prebuilt React frontend, the validated Endymion weather cache, and an offline Python
+wheelhouse for 64-bit Python 3.13.
+
+After extracting the ZIP, double-click:
+
+```text
+START_SIMOPS.bat
+```
+
+The launcher creates a private `.venv` inside the extracted folder, installs only from
+the bundled wheelhouse, validates the case cache, starts FastAPI on port 8000, and opens:
+
+```text
+http://localhost:8000
+```
+
+No Docker, Node/npm, system-wide Python package installation, or administrator credentials
+are required. LAN clients can use `http://HOST-IP:8000` only when the office network and
+endpoint-security policy permit inbound access to that host.
+
 ## Application quick start
 
 ```bash
