@@ -1,11 +1,12 @@
 import type { ExerciseEvent } from "../types/simulation";
+import { formatSimTime } from "../utils/simTime";
 
-function simTime(value?: string) {
-  if (!value) return "";
-  return `${new Date(value).toISOString().slice(11, 16)}Z`;
-}
+type Props = {
+  events: ExerciseEvent[];
+  timezone: string;
+};
 
-export function ExerciseFeed({ events }: { events: ExerciseEvent[] }) {
+export function ExerciseFeed({ events, timezone }: Props) {
   const injects = events.filter((event) => event.type === "inject");
 
   return (
@@ -18,7 +19,7 @@ export function ExerciseFeed({ events }: { events: ExerciseEvent[] }) {
           <article className="inject" key={inject.event_id ?? index}>
             <div className="chat-meta">
               <strong>{inject.title ?? "Exercise Inject"}</strong>
-              <span>{simTime(inject.sim_time)}</span>
+              <span>{formatSimTime(inject.sim_time, timezone)}</span>
             </div>
             <p>{inject.body}</p>
           </article>

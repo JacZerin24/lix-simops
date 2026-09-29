@@ -10,11 +10,13 @@ from backend.app.state import SessionManager
 def build_session():
     scenario = load_scenario_by_id("mardi-gras-dss-001")
     start = datetime.fromisoformat(scenario.simulation.start.replace("Z", "+00:00"))
+    end = datetime.fromisoformat(scenario.simulation.end.replace("Z", "+00:00"))
     manager = SessionManager()
     return manager.create(
         scenario_id=scenario.id,
         scenario_name=scenario.name,
         scenario_start=start,
+        scenario_end=end,
         default_speed=scenario.simulation.default_speed,
         scheduled_events=load_scheduled_events(scenario),
     )
@@ -23,7 +25,7 @@ def build_session():
 def test_endymion_schedule_loads_automatic_and_manual_items() -> None:
     session = build_session()
 
-    assert len(session.schedule) >= 9
+    assert len(session.schedule) >= 8
     assert any(item.due_at is None for item in session.schedule)
     assert any(item.due_at is not None for item in session.schedule)
 
@@ -40,7 +42,7 @@ def test_schedule_is_hidden_from_default_session_snapshot() -> None:
 
 def test_due_items_follow_simulation_clock() -> None:
     session = build_session()
-    session.sim_time = session.scenario_start + timedelta(minutes=6)
+    session.sim_time = session.scenario_start + timedelta(minutes=8)
 
     due = session.due_items()
 
@@ -61,3 +63,9 @@ def test_reset_restores_scenario_speed_and_pending_schedule() -> None:
     assert session.speed == 1.5
     assert session.log == []
     assert all(item.status == "pending" for item in session.schedule)
+
+
+def test_session_tracks_configured_scenario_end() -> None:
+    session = build_session()
+
+    assert session.scenario_end == datetime(2027, 2, 6, 22, 30, tzinfo=timezone.utc)

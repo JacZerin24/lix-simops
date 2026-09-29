@@ -64,7 +64,10 @@ class SessionState:
     scenario_id: str
     scenario_name: str
     scenario_start: datetime
+    scenario_end: datetime
     sim_time: datetime
+    facilitator_token: str
+    timezone: str = "America/Chicago"
     running: bool = False
     speed: float = 1.0
     default_speed: float = 1.0
@@ -80,6 +83,7 @@ class SessionState:
             "sim_time": self.sim_time.isoformat(),
             "running": self.running,
             "speed": self.speed,
+            "scenario_end": self.scenario_end.isoformat(),
         }
 
     def presence_snapshot(self) -> dict[str, Any]:
@@ -103,9 +107,11 @@ class SessionState:
             "session_code": self.code,
             "scenario_id": self.scenario_id,
             "scenario_name": self.scenario_name,
+            "timezone": self.timezone,
             "sim_time": self.sim_time.isoformat(),
             "running": self.running,
             "speed": self.speed,
+            "scenario_end": self.scenario_end.isoformat(),
             "participants": [
                 connection.participant.snapshot()
                 for connection in self.clients.values()
@@ -153,7 +159,9 @@ class SessionManager:
         scenario_id: str,
         scenario_name: str,
         scenario_start: datetime,
+        scenario_end: datetime,
         default_speed: float,
+        timezone: str = "America/Chicago",
         scheduled_events: list[ScheduledExerciseEvent] | None = None,
     ) -> SessionState:
         code = self._new_code()
@@ -169,7 +177,10 @@ class SessionManager:
             scenario_id=scenario_id,
             scenario_name=scenario_name,
             scenario_start=scenario_start,
+            scenario_end=scenario_end,
             sim_time=scenario_start,
+            facilitator_token=secrets.token_urlsafe(18),
+            timezone=timezone,
             speed=default_speed,
             default_speed=default_speed,
             schedule=schedule,
@@ -184,7 +195,8 @@ class SessionManager:
         return list(self.sessions.values())
 
     def _new_code(self) -> str:
-        alphabet = string.ascii_uppercase + string.digits
+        # Omit visually ambiguous I/O/0/1 for projector and verbal session-code sharing.
+        alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         while True:
             code = "".join(secrets.choice(alphabet) for _ in range(6))
             if code not in self.sessions:

@@ -8,6 +8,7 @@ import { Mesoanalyst } from "./pages/Mesoanalyst";
 import { RadarOperator } from "./pages/RadarOperator";
 import { createSession, listScenarios } from "./services/api";
 import { createSimulationSocket } from "./services/socket";
+import { formatSimDateTime } from "./utils/simTime";
 import type {
   ClockState,
   ExerciseEvent,
@@ -23,6 +24,8 @@ type InjectDraft = {
   audience: string;
   target_team_id?: string;
 };
+
+const SESSION_STORAGE_KEY = "lix-simops-connection";
 
 const exerciseEventTypes = new Set([
   "inject",
@@ -40,6 +43,8 @@ function App() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [scenarioId, setScenarioId] = useState("");
   const [scenarioName, setScenarioName] = useState("");
+  const [timezone, setTimezone] = useState("America/Chicago");
+  const [facilitatorToken, setFacilitatorToken] = useState("");
   const [clock, setClock] = useState<ClockState>({
     sim_time: new Date().toISOString(),
     running: false,
@@ -49,11 +54,34 @@ function App() {
   const [events, setEvents] = useState<ExerciseEvent[]>([]);
   const [schedule, setSchedule] = useState<ScheduledExerciseItem[]>([]);
   const [connected, setConnected] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [reconnectNonce, setReconnectNonce] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (saved) {
+        const connection = JSON.parse(saved);
+        if (
+          connection.sessionCode
+          && connection.displayName
+          && connection.role
+        ) {
+          setDisplayName(connection.displayName);
+          setSessionCode(connection.sessionCode);
+          setTeamId(connection.teamId ?? "Team 1");
+          setRole(connection.role as Role);
+          setFacilitatorToken(connection.facilitatorToken ?? "");
+          setActiveSessionCode(connection.sessionCode);
+        }
+      }
+    } catch {
+      window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    }
+
     listScenarios()
       .then((items) => {
         setScenarios(items);
@@ -65,19 +93,47 @@ function App() {
   useEffect(() => {
     if (!activeSessionCode) return;
 
+    window.sessionStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({
+        sessionCode: activeSessionCode,
+        displayName,
+        teamId,
+        role,
+        facilitatorToken: role === "facilitator" ? facilitatorToken : "",
+      }),
+    );
+
+    let disposed = false;
+    let retryTimer: number | undefined;
     const socket = createSimulationSocket({
       sessionCode: activeSessionCode,
       displayName,
       teamId,
       role,
+      facilitatorToken: role === "facilitator" ? facilitatorToken : undefined,
     });
     socketRef.current = socket;
 
     socket.addEventListener("open", () => {
       setConnected(true);
+      setReconnecting(false);
       setError("");
     });
-    socket.addEventListener("close", () => setConnected(false));
+    socket.addEventListener("close", (event) => {
+      setConnected(false);
+      if ([4400, 4403, 4404].includes(event.code)) {
+        setReconnecting(false);
+        return;
+      }
+      if (!disposed) {
+        setReconnecting(true);
+        retryTimer = window.setTimeout(
+          () => setReconnectNonce((value) => value + 1),
+          2000,
+        );
+      }
+    });
     socket.addEventListener("message", (event) => {
       const msg = JSON.parse(event.data);
 
@@ -86,16 +142,19 @@ function App() {
           sim_time: msg.sim_time,
           running: msg.running,
           speed: msg.speed,
+          scenario_end: msg.scenario_end,
         });
         setScenarioName(msg.scenario_name);
+        setTimezone(msg.timezone ?? "America/Chicago");
         setParticipants(msg.participants ?? []);
         setSchedule(msg.schedule ?? []);
       } else if (msg.type === "clock") {
-        setClock({
+        setClock((current) => ({
           sim_time: msg.sim_time,
           running: msg.running,
           speed: msg.speed,
-        });
+          scenario_end: msg.scenario_end ?? current.scenario_end,
+        }));
       } else if (msg.type === "presence") {
         setParticipants(msg.participants ?? []);
       } else if (msg.type === "schedule") {
@@ -110,14 +169,16 @@ function App() {
     });
 
     return () => {
+      disposed = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
       socketRef.current = null;
       socket.close();
     };
-  }, [activeSessionCode]);
+  }, [activeSessionCode, reconnectNonce]);
 
   const displayTime = useMemo(
-    () => new Date(clock.sim_time).toISOString().replace("T", " ").slice(0, 19) + "Z",
-    [clock.sim_time],
+    () => formatSimDateTime(clock.sim_time, timezone),
+    [clock.sim_time, timezone],
   );
 
   const send = (payload: object) => {
@@ -136,6 +197,10 @@ function App() {
     }
     if (!sessionCode.trim()) {
       setError("Enter the exercise session code.");
+      return;
+    }
+    if (role === "facilitator" && !facilitatorToken.trim()) {
+      setError("Enter the facilitator access key.");
       return;
     }
     setError("");
@@ -159,10 +224,21 @@ function App() {
     setError("");
     try {
       const created = await createSession(scenarioId);
+      if (!created.facilitator_token) {
+        throw new Error("Exercise server did not return a facilitator access key.");
+      }
+      setFacilitatorToken(created.facilitator_token);
       setRole("facilitator");
       setTeamId("FACILITATOR");
       setSessionCode(created.session_code);
       setScenarioName(created.scenario_name);
+      setTimezone(created.timezone ?? "America/Chicago");
+      setClock({
+        sim_time: created.sim_time,
+        running: created.running,
+        speed: created.speed,
+        scenario_end: created.scenario_end,
+      });
       setEvents([]);
       setParticipants([]);
       setSchedule(created.schedule ?? []);
@@ -177,16 +253,26 @@ function App() {
   const leave = () => {
     setActiveSessionCode(null);
     setConnected(false);
+    setReconnecting(false);
+    setReconnectNonce(0);
     setParticipants([]);
     setEvents([]);
     setSchedule([]);
     setScenarioName("");
+    setFacilitatorToken("");
     setError("");
+    window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
     if (role === "facilitator") {
       setRole("radar");
       setTeamId("Team 1");
     }
   };
+
+  const exerciseComplete = Boolean(
+    clock.scenario_end
+      && new Date(clock.sim_time).getTime() >= new Date(clock.scenario_end).getTime()
+      && !clock.running,
+  );
 
   const sendControl = (action: string, speed?: number) => {
     send({ type: "control", action, speed });
@@ -233,6 +319,7 @@ function App() {
           teamId={teamId}
           role={role}
           scenarioId={scenarioId}
+          facilitatorToken={facilitatorToken}
           busy={busy}
           error={error}
           onDisplayNameChange={setDisplayName}
@@ -240,6 +327,7 @@ function App() {
           onTeamChange={setTeamId}
           onRoleChange={setRole}
           onScenarioChange={setScenarioId}
+          onFacilitatorTokenChange={setFacilitatorToken}
           onJoin={join}
           onCreate={createExercise}
         />
@@ -258,8 +346,14 @@ function App() {
           </p>
         </div>
         <div className="header-actions">
+          {role === "facilitator" && facilitatorToken && (
+            <details>
+              <summary>Facilitator key</summary>
+              <code>{facilitatorToken}</code>
+            </details>
+          )}
           <div className={connected ? "status good" : "status bad"}>
-            {connected ? "Connected" : "Disconnected"}
+            {connected ? "Connected" : reconnecting ? "Reconnecting…" : "Disconnected"}
           </div>
           <button onClick={leave}>Leave Session</button>
         </div>
@@ -270,7 +364,13 @@ function App() {
       <section className="clockbar">
         <strong>SIM TIME</strong>
         <span>{displayTime}</span>
-        <span>{clock.running ? `▶ ${clock.speed}×` : "⏸ PAUSED"}</span>
+        <span>
+          {exerciseComplete
+            ? "■ EXERCISE COMPLETE"
+            : clock.running
+              ? `▶ ${clock.speed}×`
+              : "⏸ PAUSED"}
+        </span>
       </section>
 
       {role === "facilitator" ? (
@@ -280,6 +380,9 @@ function App() {
           participants={participants}
           events={events}
           schedule={schedule}
+          timezone={timezone}
+          running={clock.running}
+          speed={clock.speed}
           onControl={sendControl}
           onInject={sendInject}
           onPartnerMessage={sendPartnerMessage}
@@ -287,10 +390,10 @@ function App() {
         />
       ) : (
         <section className="workspace">
-          {role === "radar" && <RadarOperator sessionCode={activeSessionCode} />}
-          {role === "mesoanalyst" && <Mesoanalyst sessionCode={activeSessionCode} />}
-          {role === "dss" && <DSS sessionCode={activeSessionCode} events={events} onRespond={sendDssResponse} />}
-          <ExerciseFeed events={events} />
+          {role === "radar" && <RadarOperator sessionCode={activeSessionCode} timezone={timezone} />}
+          {role === "mesoanalyst" && <Mesoanalyst sessionCode={activeSessionCode} timezone={timezone} />}
+          {role === "dss" && <DSS sessionCode={activeSessionCode} timezone={timezone} events={events} onRespond={sendDssResponse} />}
+          <ExerciseFeed events={events} timezone={timezone} />
         </section>
       )}
     </main>

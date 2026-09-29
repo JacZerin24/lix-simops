@@ -13,6 +13,11 @@ from .products import RADAR_PRODUCTS, RADAR_RENDER_CONFIG
 
 
 NEXRAD_TIME_RE = re.compile(r"([A-Z0-9]{4})(\d{8})_(\d{6})")
+PALETTE_ROOT = Path(__file__).resolve().parent / "palettes"
+PALETTE_COLOR_RE = re.compile(
+    r"^Color4?:\s*([-+]?\d+(?:\.\d+)?)\s+"
+    r"(\d+)\s+(\d+)\s+(\d+)(?:\s+(\d+))?"
+)
 
 
 def timestamp_from_filename(path: Path) -> datetime:
@@ -36,10 +41,113 @@ def _field_for_product(radar, product_id: str) -> str | None:
     return None
 
 
-def _nearest_sweep(radar, elevation: float) -> tuple[int, float]:
+def _sweep_valid_gate_count(radar, sweep: int, field: str) -> int:
+    data = radar.fields[field]["data"]
+    start = int(radar.sweep_start_ray_index["data"][sweep])
+    end = int(radar.sweep_end_ray_index["data"][sweep]) + 1
+    subset = data[start:end]
+    count = getattr(subset, "count", None)
+    if callable(count):
+        return int(count())
+    return int(getattr(subset, "size", len(subset)))
+
+
+def _nearest_sweep(radar, elevation: float, field: str | None = None) -> tuple[int, float]:
     fixed_angles = [float(value) for value in radar.fixed_angle["data"]]
-    index = min(range(len(fixed_angles)), key=lambda idx: abs(fixed_angles[idx] - elevation))
+    nearby = [
+        idx
+        for idx, angle in enumerate(fixed_angles)
+        if abs(angle - elevation) <= 0.4
+    ]
+    if not nearby:
+        nearby = list(range(len(fixed_angles)))
+
+    if field is not None:
+        index = max(
+            nearby,
+            key=lambda idx: (
+                _sweep_valid_gate_count(radar, idx, field),
+                -abs(fixed_angles[idx] - elevation),
+            ),
+        )
+    else:
+        index = min(nearby, key=lambda idx: abs(fixed_angles[idx] - elevation))
     return index, fixed_angles[index]
+
+
+def _resolve_colormap(name: str) -> str:
+    import matplotlib as mpl
+
+    if name in mpl.colormaps:
+        return name
+
+    if name.startswith("pyart_"):
+        modern_name = name.removeprefix("pyart_")
+        if modern_name in mpl.colormaps:
+            return modern_name
+
+    raise ValueError(f"Radar colormap {name!r} is not registered by Matplotlib/Py-ART")
+
+
+def _load_palette_colormap(
+    palette_path: Path,
+    *,
+    name: str,
+    vmin: float,
+    vmax: float,
+):
+    from matplotlib.colors import LinearSegmentedColormap
+
+    stops: list[tuple[float, tuple[float, float, float, float]]] = []
+    with palette_path.open("r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            match = PALETTE_COLOR_RE.match(raw_line.strip())
+            if not match:
+                continue
+            value = float(match.group(1))
+            red = int(match.group(2)) / 255.0
+            green = int(match.group(3)) / 255.0
+            blue = int(match.group(4)) / 255.0
+            alpha = int(match.group(5)) / 255.0 if match.group(5) else 1.0
+            stops.append((value, (red, green, blue, alpha)))
+
+    if len(stops) < 2:
+        raise ValueError(f"Radar palette {palette_path} has fewer than two color stops")
+
+    # GR/GR2Analyst palette files are commonly written high-to-low. Reverse
+    # them before normalization so duplicate thresholds retain the intended
+    # below/above ordering (important for the ZDR discontinuity at 0 dB).
+    if stops[0][0] > stops[-1][0]:
+        stops.reverse()
+
+    span = vmax - vmin
+    if span <= 0:
+        raise ValueError(f"Invalid radar color range {vmin}..{vmax}")
+
+    normalized = [
+        (
+            min(1.0, max(0.0, (value - vmin) / span)),
+            color,
+        )
+        for value, color in stops
+        if vmin <= value <= vmax
+    ]
+    if not normalized:
+        raise ValueError(f"Radar palette {palette_path} has no stops inside {vmin}..{vmax}")
+
+    return LinearSegmentedColormap.from_list(name, normalized, N=256)
+
+
+def _colormap_for_product(product_id: str, config: dict):
+    palette_file = config.get("palette_file")
+    if palette_file:
+        return _load_palette_colormap(
+            PALETTE_ROOT / palette_file,
+            name=str(config["cmap"]),
+            vmin=float(config["vmin"]),
+            vmax=float(config["vmax"]),
+        )
+    return _resolve_colormap(str(config["cmap"]))
 
 
 def build_radar_cache(
@@ -55,6 +163,7 @@ def build_radar_cache(
     event_label: str = "Event",
     simulation_date: date | None = None,
     timezone_name: str = "America/Chicago",
+    local_time_offset_minutes: int = 0,
 ) -> RadarManifest:
     """Render archived NEXRAD Level II volumes into time-gated web assets.
 
@@ -106,6 +215,7 @@ def build_radar_cache(
                 source_base_date=source_base_date,
                 simulation_base_date=simulation_date,
                 timezone_name=timezone_name,
+                local_time_offset_minutes=local_time_offset_minutes,
             )
             if simulation_date
             else source_timestamp
@@ -125,9 +235,16 @@ def build_radar_cache(
                 continue
 
             config = RADAR_RENDER_CONFIG[product_id]
+            cmap = _colormap_for_product(product_id, config)
             for requested_elevation in elevations:
-                sweep, actual_elevation = _nearest_sweep(radar, requested_elevation)
+                sweep, actual_elevation = _nearest_sweep(
+                    radar,
+                    requested_elevation,
+                    field=field,
+                )
                 if abs(actual_elevation - requested_elevation) > 0.4:
+                    continue
+                if _sweep_valid_gate_count(radar, sweep, field) == 0:
                     continue
 
                 destination = (
@@ -139,6 +256,11 @@ def build_radar_cache(
                 destination.parent.mkdir(parents=True, exist_ok=True)
 
                 fig = plt.figure(figsize=(10, 8), constrained_layout=True)
+                valid_label = (
+                    timestamp.astimezone(zone)
+                    .strftime("%I:%M:%S %p %Z")
+                    .lstrip("0")
+                )
                 try:
                     display.plot_ppi_map(
                         field,
@@ -147,11 +269,10 @@ def build_radar_cache(
                         height=range_km * 2000.0,
                         vmin=config["vmin"],
                         vmax=config["vmax"],
-                        cmap=config["cmap"],
+                        cmap=cmap,
                         title=(
                             f"{radar_site} {RADAR_PRODUCTS[product_id]} "
-                            f"{actual_elevation:.1f}° — "
-                            f"{timestamp.astimezone(zone):%H:%M:%S %Z}"
+                            f"{actual_elevation:.1f}° — {valid_label}"
                         ),
                         colorbar_flag=True,
                         embellish=True,
@@ -163,13 +284,25 @@ def build_radar_cache(
                         ax.plot(
                             event_lon,
                             event_lat,
-                            marker="*",
-                            markersize=15,
+                            marker="o",
+                            markersize=8,
+                            markerfacecolor="none",
                             markeredgecolor="black",
+                            markeredgewidth=2.2,
+                            transform=ccrs.PlateCarree(),
+                        )
+                        ax.plot(
+                            event_lon,
+                            event_lat,
+                            marker="o",
+                            markersize=7,
+                            markerfacecolor="none",
+                            markeredgecolor="white",
+                            markeredgewidth=1.1,
                             transform=ccrs.PlateCarree(),
                             label=event_label,
                         )
-                        ax.legend(loc="upper right")
+                        ax.legend(loc="upper right", fontsize=8)
 
                     fig.savefig(destination, dpi=125, bbox_inches="tight")
                 finally:
@@ -182,7 +315,6 @@ def build_radar_cache(
                         product=product_id,
                         elevation=round(requested_elevation, 1),
                         asset=destination.relative_to(output_root).as_posix(),
-                        source_key=source.name,
                     )
                 )
 
@@ -213,6 +345,6 @@ def build_radar_cache(
 
     radar_root.mkdir(parents=True, exist_ok=True)
     with (radar_root / "manifest.json").open("w", encoding="utf-8") as handle:
-        json.dump(manifest.model_dump(mode="json"), handle, indent=2)
+        json.dump(manifest.model_dump(mode="json", exclude_none=True), handle, indent=2)
 
     return manifest

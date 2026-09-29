@@ -4,6 +4,7 @@ export type ClockState = {
   sim_time: string;
   running: boolean;
   speed: number;
+  scenario_end?: string;
 };
 
 export type Participant = {
@@ -35,6 +36,8 @@ export type SessionState = ClockState & {
   session_code: string;
   scenario_id: string;
   scenario_name: string;
+  timezone: string;
+  facilitator_token?: string;
   participants: Participant[];
   schedule?: ScheduledExerciseItem[];
 };

@@ -24,15 +24,17 @@ RADAR_RENDER_CONFIG = {
     "CC": {
         "field_candidates": ["cross_correlation_ratio"],
         "units": "",
-        "vmin": 0.70,
-        "vmax": 1.05,
-        "cmap": "viridis",
+        "vmin": 0.20,
+        "vmax": 1.04,
+        "cmap": "twip_cc",
+        "palette_file": "cc_twip.pal",
     },
     "ZDR": {
         "field_candidates": ["differential_reflectivity"],
         "units": "dB",
-        "vmin": -2.0,
+        "vmin": -4.0,
         "vmax": 8.0,
-        "cmap": "coolwarm",
+        "cmap": "schlatter_dp_zdr_gra2",
+        "palette_file": "zdr_schlatter_dp_gra2.pal",
     },
 }

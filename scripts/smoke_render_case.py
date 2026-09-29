@@ -44,27 +44,51 @@ def run(command: list[str]) -> None:
     subprocess.run(command, cwd=ROOT, check=True)
 
 
+def assert_velocity_render_has_data() -> None:
+    from PIL import Image
+
+    frames = sorted(
+        (ROOT / "data/cache/render-smoke-radar/radar/frames/VEL/0.5").glob("*.png")
+    )
+    if not frames:
+        raise SystemExit("Velocity smoke render produced no frame.")
+
+    image = Image.open(frames[0]).convert("RGB")
+    # Exclude the right-side color bar. Real velocity gates are strongly colored;
+    # coastlines/grid lines in an otherwise blank plot are grayscale.
+    plot = image.crop((0, 0, int(image.width * 0.84), image.height))
+    colored = sum(
+        1
+        for r, g, b in plot.getdata()
+        if max(r, g, b) - min(r, g, b) > 20
+    )
+    ratio = colored / (plot.width * plot.height)
+    print(f"Velocity colored-pixel fraction: {ratio:.4f}")
+    if ratio < 0.01:
+        raise SystemExit("Velocity smoke render appears blank.")
+
+
 def main() -> None:
     if WORK.exists():
         shutil.rmtree(WORK)
     WORK.mkdir(parents=True)
     s3 = s3_client()
 
+    goes_dir = WORK / "goes"
     goes_keys = list_keys(
         s3,
         "noaa-goes16",
-        "ABI-L2-CMIPC/2022/348/20/OR_ABI-L2-CMIPC-M6C13_G16_",
+        "ABI-L2-CMIPC/2021/132/07/OR_ABI-L2-CMIPC-M6C13_G16_",
         1,
     )
     if not goes_keys:
         raise SystemExit("No representative GOES C13 file.")
-    goes_dir = WORK / "goes"
     download(s3, "noaa-goes16", goes_keys[0], goes_dir)
 
     glm_keys = list_keys(
         s3,
         "noaa-goes16",
-        "GLM-L2-LCFA/2022/348/20/",
+        "GLM-L2-LCFA/2021/132/07/",
         20,
     )
     if not glm_keys:
@@ -76,7 +100,7 @@ def main() -> None:
     mesh_keys = list_keys(
         s3,
         "noaa-mrms-pds",
-        "CONUS/MESH_00.50/20221214/",
+        "CONUS/MESH_00.50/20210512/",
         1,
     )
     if not mesh_keys:
@@ -84,23 +108,68 @@ def main() -> None:
     mrms_dir = WORK / "mrms" / "MESH_00.50"
     download(s3, "noaa-mrms-pds", mesh_keys[0], mrms_dir)
 
-    rap_key = "rap.20221214/rap.t20z.awp130pgrbf00.grib2"
+    rap_key = "rap.20210512/rap.t07z.awp130pgrbf00.grib2"
     rap_dir = WORK / "rap"
     download(s3, "noaa-rap-pds", rap_key, rap_dir)
 
+    radar_keys = [
+        key
+        for key in list_keys(
+            s3,
+            "unidata-nexrad-level2",
+            "2021/05/12/KLIX/KLIX20210512_070",
+            100,
+        )
+        if "MDM" not in Path(key).name
+    ]
+    if not radar_keys:
+        raise SystemExit("No representative KLIX Level II file.")
+    radar_dir = WORK / "radar"
+    download(s3, "unidata-nexrad-level2", radar_keys[0], radar_dir)
+
+    surface_csv = WORK / "surface.csv"
+    surface_csv.write_text(
+        "station,valid,lat,lon,tmpf,dwpf,drct,sknt\n"
+        "MSY,2021-05-12T07:00:00+00:00,29.9934,-90.2580,76,71,180,12\n"
+        "NEW,2021-05-12T07:00:00+00:00,30.0424,-90.0283,75,71,170,10\n"
+        "ASD,2021-05-12T07:00:00+00:00,30.3464,-89.8208,73,70,160,8\n"
+        "BTR,2021-05-12T07:00:00+00:00,30.5332,-91.1496,70,68,140,6\n",
+        encoding="utf-8",
+    )
+
     domain = ["-93", "-87", "27.5", "32.5"]
+    run([
+        PYTHON, "scripts/build_radar_cache.py",
+        "--scenario-id", "render-smoke-radar",
+        "--input", str(radar_dir),
+        "--site", "KLIX",
+        "--products", "REF", "VEL", "CC", "ZDR",
+        "--elevations", "0.5",
+        "--range-km", "230",
+        "--simulation-date", "2027-02-06",
+        "--timezone", "America/Chicago",
+        "--local-time-offset-minutes", "825",
+    ])
+    assert_velocity_render_has_data()
     run([
         PYTHON, "scripts/render_goes.py",
         "--input", str(goes_dir),
         "--output", str(WORK / "out" / "goes_ir"),
         "--channel", "13",
         "--domain", *domain,
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
     ])
     run([
         PYTHON, "scripts/render_glm_flash_density.py",
         "--input", str(glm_dir),
         "--output", str(WORK / "out" / "glm"),
         "--domain", *domain,
+        "--event-lat", "29.965",
+        "--event-lon", "-90.095",
+        "--range-rings-mi", "8", "12", "15",
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
     ])
     run([
         PYTHON, "scripts/render_mrms.py",
@@ -108,18 +177,37 @@ def main() -> None:
         "--output-root", str(WORK / "out" / "mrms"),
         "--products", "MESH_00.50",
         "--domain", *domain,
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
     ])
     run([
         PYTHON, "scripts/render_rap_environment.py",
         "--input", str(rap_dir),
         "--output-root", str(WORK / "out" / "rap"),
         "--domain", *domain,
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
+    ])
+    run([
+        PYTHON, "scripts/render_surface_obs.py",
+        "--input", str(surface_csv),
+        "--output", str(WORK / "out" / "surface"),
+        "--start", "2021-05-12T07:00Z",
+        "--end", "2021-05-12T07:00Z",
+        "--domain", *domain,
+        "--simulation-date", "2027-02-06",
+        "--local-time-offset-minutes", "825",
     ])
 
     pngs = list((WORK / "out").rglob("*.png"))
-    print(f"Rendered {len(pngs)} smoke-test images.")
-    if len(pngs) < 6:
-        raise SystemExit("Expected GOES, GLM, MRMS, and three RAP environment images.")
+    radar_pngs = list((ROOT / "data/cache/render-smoke-radar/radar/frames").rglob("*.png"))
+    print(f"Rendered {len(radar_pngs)} radar and {len(pngs)} meso smoke-test images.")
+    if len(radar_pngs) < 1:
+        raise SystemExit("Expected at least one rendered KLIX radar image.")
+    if len(pngs) < 10:
+        raise SystemExit(
+            "Expected IR GOES, GLM, MRMS, five RAP environment images, and surface observations."
+        )
 
 
 if __name__ == "__main__":

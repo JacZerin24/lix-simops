@@ -4,7 +4,7 @@ Role-based displaced-real-time weather operations and DSS training simulator for
 
 ## Purpose
 
-LIX SimOps is a reusable training platform for realistic, synchronized weather operations exercises. The first full scenario is a 2027 Krewe of Endymion DSS exercise using a case-blind replay of the December 14, 2022 LIX severe-weather event.
+LIX SimOps is a reusable training platform for realistic, synchronized weather operations exercises. The first full scenario is a 2027 Krewe of Endymion DSS exercise using a case-blind replay of the May 12, 2021 LIX severe-weather event.
 
 ## Core roles
 
@@ -13,7 +13,7 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 - **DSS Meteorologist** — owns the simulated partner relationship, event impacts, decisions, and communication.
 - **Facilitator** — controls simulation time, injects, partner messages, team status, and debrief logging.
 
-## Current V0.7 capabilities
+## Current V0.8 branch capabilities
 
 1. Facilitator creates a live exercise session from a scenario pack.
 2. Participants join teams as Radar, Mesoanalyst, or DSS and share one synchronized simulation clock.
@@ -24,14 +24,18 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 7. The Endymion scenario exposes route, partner priorities, and NWS-derived exercise thresholds directly in DSS.
 8. Google Classroom is the participant launch/resource/debrief layer while LIX SimOps remains authoritative for live timing.
 9. The DSS workspace reserves a link for the coworker-owned Google Form → Google Sheet shift log.
-10. The approved December 14, 2022 source case is defined in a facilitator-only source-case file.
+10. The approved May 12, 2021 source case is defined in a facilitator-only source-case file.
 11. Public-source acquisition exists for NEXRAD, GOES-16 ABI/GLM, MRMS, RAP, and ASOS/METAR observations.
-12. A public-archive smoke workflow verifies that the required December 14 source families are still available before case development.
-13. GOES visible/IR, GLM flash density, MRMS, RAP environmental fields, and surface observations can be rendered into the meso workspace.
-14. RAP 90-mb MLCAPE, 0–6 km bulk shear, and 0–1 km SRH are used as the environment fallback for this case rather than depending on the likely December 2022 SPC mesoanalysis image gap.
+12. A public-archive smoke workflow verifies that the required May 12, 2021 source families are still available before case development.
+13. GOES IR, GLM flash density, MRMS, RAP environmental fields, and surface observations can be rendered into the meso workspace.
+14. RAP 90-mb MLCAPE, 0–1 km and 0–3 km SRH, 0–3 km bulk shear with sparse vectors, and 0–6 km bulk shear provide the environmental analysis for this case.
 15. LightningCast inputs are staged from archived GOES-16 ABI C02/C05/C13/C15, validated scan-by-scan, and ready for external CSPP Geo processing.
 16. Historical source keys remain server-side and are no longer exposed through participant radar/meso APIs.
-17. A final validator checks exercise-date remapping, required product coverage, and participant asset paths before rehearsal.
+17. A final validator checks exact exercise-date remapping, required product coverage, expected frame depth, referenced asset existence, and historical-source-key removal before rehearsal.
+18. Participant radar/meso imagery is served through session-aware endpoints so future frames cannot be fetched by bypassing the UI.
+19. Facilitator control uses a random per-session access key separate from the participant session code.
+20. The exercise clock stops automatically at the configured scenario end.
+21. The frontend proxies API/WebSocket traffic to the backend for reliable multi-workstation LAN operation.
 
 ## Exercise support tools
 
@@ -61,6 +65,29 @@ docs/           Architecture and operating documentation
 data/           Local/generated data only; raw weather archives stay out of git
 ```
 
+## Portable Windows quick start
+
+For managed Windows computers where Docker/Node installation is unavailable, use the
+**Build Portable Windows SimOps** GitHub Actions artifact. That package contains the
+prebuilt React frontend, the validated Endymion weather cache, and an offline Python
+wheelhouse for 64-bit Python 3.13.
+
+After extracting the ZIP, double-click:
+
+```text
+START_SIMOPS.bat
+```
+
+The launcher creates a private Python environment under the current user's local AppData runtime folder, installs only from the bundled wheelhouse, validates the case cache, starts FastAPI on port 8000, and opens:
+
+```text
+http://localhost:8000
+```
+
+No Docker, Node/npm, system-wide Python package installation, or administrator credentials
+are required. LAN clients can use `http://HOST-IP:8000` only when the office network and
+endpoint-security policy permit inbound access to that host.
+
 ## Application quick start
 
 ```bash
@@ -68,15 +95,17 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Frontend: http://localhost:5173  
-Backend health check: http://localhost:8000/health
+Frontend on the host: http://localhost:5173  
+Backend health check on the host: http://localhost:8000/health
+
+For Docker development, participants can use `http://HOST-IP:5173`. For the recommended portable workshop package, start `START_SIMOPS_LAN.bat` and participants use `http://HOST-IP:8000`. Use the LAN mode only on an IT-approved network path; do not disable enterprise security controls.
 
 ## Exercise workflow
 
 1. Open Google Classroom and the opening instruction deck.
 2. Open LIX SimOps and create the exercise session.
-3. Share the generated session code.
-4. Participants join the assigned team and role.
+3. Keep the generated facilitator access key private; share only the six-character session code with participants.
+4. Participants join the assigned team and role. Additional facilitators need both the session code and facilitator access key.
 5. DSS Meteorologists open the coworker-provided mock shift-log Form.
 6. Confirm Radar/Meso/DSS staffing for every team.
 7. Start the simulation clock.
@@ -155,6 +184,6 @@ These are exercise defaults based on NWS large-venue guidance, not claimed City 
 - **V0.3:** archived radar playback
 - **V0.4:** mesoanalysis/environment workspace
 - **V0.5:** Endymion scenario, automatic timeline, external exercise-tool integration
-- **V0.6:** approved December 14, 2022 source-case acquisition and validation
+- **V0.6:** approved May 12, 2021 source-case acquisition and validation
 - **V0.7:** participant-product rendering, RAP environment fallback, case-blindness hardening, and end-to-end cache validation
 - **V0.8:** execute the full local source-case build, add CSPP LightningCast output, rehearse the complete exercise, and tune inject timing from the actual rendered data

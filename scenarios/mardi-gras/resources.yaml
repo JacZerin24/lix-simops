@@ -21,22 +21,32 @@ resources:
     enabled_products:
       - REF
       - VEL
-      - SRM
       - CC
       - ZDR
+    interaction:
+      - scan stepping
+      - elevation stepping
+      - looping
+      - zoom/pan
+      - keyboard shortcuts
+      - fullscreen
 
   meso:
     product_config: meso-products.yaml
-    tabs:
-      - Environment
-      - Satellite
-      - Lightning
+    categories:
+      - Thermodynamics
+      - Kinematics
+      - Satellite / Lightning
       - MRMS
-      - Observations
+      - Surface
+    optional_categories:
       - Guidance
+    note: >-
+      Products with no built frames are omitted from the participant workspace.
+      LightningCast remains optional until CSPP Geo output is staged.
 
   dss:
-    show_event_map: true
+    show_event_map: false
     show_partner_chat: true
     show_event_schedule: true
     show_decision_log: true

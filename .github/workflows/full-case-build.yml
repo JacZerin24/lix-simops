@@ -43,6 +43,9 @@ jobs:
             --products ${{ matrix.product }} \
             --elevations 0.5 0.9 1.3 \
             --range-km 230 \
+            --event-lat 29.96 \
+            --event-lon -90.09 \
+            --event-label "Endymion route ref" \
             --simulation-date 2027-02-06 \
             --timezone America/Chicago \
             --local-time-offset-minutes 825
@@ -236,6 +239,9 @@ jobs:
             --input data/raw/goes/glm-lcfa \
             --output data/raw/meso/glm_flash_density \
             --domain -93 -87 27.5 32.5 \
+            --event-lat 29.965 \
+            --event-lon -90.095 \
+            --range-rings-mi 8 12 15 \
             --simulation-date 2027-02-06 \
             --local-time-offset-minutes 825
 
@@ -378,6 +384,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install final validation dependencies
+        run: pip install pydantic pyyaml
+
       - name: Download REF radar stage
         uses: actions/download-artifact@v4
         with:
@@ -475,5 +488,5 @@ jobs:
             data/cache/mardi-gras-dss-001
             data/BUILD_INFO.txt
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 45
           compression-level: 6

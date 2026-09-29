@@ -22,14 +22,16 @@ PRODUCTS = {
         "vmin": 0.0,
         "vmax": 3.0,
         "scale": 1.0 / 25.4,
+        "mask_below": 0.05,
     },
     "MergedAzShear_0-2kmAGL_00.50": {
         "label": "MRMS 0–2 km Azimuthal Shear",
         "units": "s⁻¹",
-        "cmap": "coolwarm",
-        "vmin": -0.02,
-        "vmax": 0.02,
+        "cmap": "RdBu_r",
+        "vmin": -0.015,
+        "vmax": 0.015,
         "scale": 1.0,
+        "mask_abs_below": 0.003,
     },
     "PrecipRate_00.00": {
         "label": "MRMS Precipitation Rate",
@@ -38,6 +40,7 @@ PRODUCTS = {
         "vmin": 0.0,
         "vmax": 4.0,
         "scale": 1.0 / 25.4,
+        "mask_below": 0.05,
     },
     "MergedReflectivityAtLowestAltitude_00.50": {
         "label": "MRMS Reflectivity at Lowest Altitude",
@@ -46,6 +49,7 @@ PRODUCTS = {
         "vmin": 0.0,
         "vmax": 75.0,
         "scale": 1.0,
+        "mask_below": 5.0,
     },
 }
 
@@ -80,6 +84,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--products", nargs="+", default=list(PRODUCTS))
     parser.add_argument("--domain", nargs=4, type=float)
     parser.add_argument("--timezone", default="America/Chicago")
+    parser.add_argument("--simulation-date")
+    parser.add_argument("--local-time-offset-minutes", type=int, default=0)
     return parser.parse_args()
 
 
@@ -134,15 +140,28 @@ def main() -> None:
                 fig = plt.figure(figsize=(10, 8), constrained_layout=True)
                 ax = plt.axes(projection=ccrs.PlateCarree())
                 add_base_map(ax, domain=domain)
+                masked = np.ma.masked_invalid(values)
+                if "mask_below" in config:
+                    masked = np.ma.masked_where(masked <= float(config["mask_below"]), masked)
+                if "mask_abs_below" in config:
+                    masked = np.ma.masked_where(
+                        np.abs(masked) <= float(config["mask_abs_below"]),
+                        masked,
+                    )
+
+                cmap = plt.get_cmap(config["cmap"]).copy()
+                cmap.set_bad((1.0, 1.0, 1.0, 0.0))
+
                 mesh = ax.pcolormesh(
                     lons,
                     lats,
-                    np.ma.masked_invalid(values),
+                    masked,
                     transform=ccrs.PlateCarree(),
                     shading="auto",
-                    cmap=config["cmap"],
+                    cmap=cmap,
                     vmin=config["vmin"],
                     vmax=config["vmax"],
+                    zorder=2,
                 )
                 cb = fig.colorbar(
                     mesh,
@@ -153,9 +172,9 @@ def main() -> None:
                 )
                 cb.set_label(config["units"])
                 ax.set_title(config["label"], loc="left", fontweight="bold")
-                ax.set_title(local_time_label(timestamp, args.timezone), loc="right")
+                ax.set_title(local_time_label(timestamp, args.timezone, args.simulation_date, args.local_time_offset_minutes), loc="right")
                 destination = output_dir / f"{product}_{timestamp_token(timestamp)}.png"
-                fig.savefig(destination, dpi=130, bbox_inches="tight")
+                fig.savefig(destination, dpi=130, bbox_inches="tight", facecolor="white")
                 plt.close(fig)
                 print(destination)
             finally:

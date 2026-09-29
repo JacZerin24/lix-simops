@@ -1,24 +1,22 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { getEventOperations } from "../../services/api";
 import type { EventOperationsConfig, ExerciseEvent } from "../../types/simulation";
+import { formatSimTime } from "../../utils/simTime";
 
 type Props = {
   sessionCode: string;
+  timezone: string;
   events: ExerciseEvent[];
   onRespond: (body: string) => void;
 };
 
-function simTime(value?: string) {
-  if (!value) return "";
-  return `${new Date(value).toISOString().slice(11, 16)}Z`;
-}
-
-export function DSS({ sessionCode, events, onRespond }: Props) {
+export function DSS({ sessionCode, timezone, events, onRespond }: Props) {
   const [body, setBody] = useState("");
   const [operations, setOperations] = useState<EventOperationsConfig | null>(null);
   const [opsTab, setOpsTab] = useState<"overview" | "thresholds" | "route">("overview");
   const [error, setError] = useState("");
+  const chatLogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     getEventOperations(sessionCode)
@@ -42,6 +40,11 @@ export function DSS({ sessionCode, events, onRespond }: Props) {
     [thresholds],
   );
 
+  useEffect(() => {
+    const node = chatLogRef.current;
+    if (node) node.scrollTop = node.scrollHeight;
+  }, [chat.length]);
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const value = body.trim();
@@ -60,7 +63,7 @@ export function DSS({ sessionCode, events, onRespond }: Props) {
       <div className="dss-layout">
         <div className="subpanel">
           <h3>Partner Communications</h3>
-          <div className="chat-log">
+          <div className="chat-log" ref={chatLogRef}>
             {chat.length === 0 ? (
               <p className="muted">No partner messages yet.</p>
             ) : (
@@ -71,7 +74,7 @@ export function DSS({ sessionCode, events, onRespond }: Props) {
                 >
                   <div className="chat-meta">
                     <strong>{item.sender ?? (item.type === "partner_message" ? "Event Command" : "DSS")}</strong>
-                    <span>{simTime(item.sim_time)}</span>
+                    <span>{formatSimTime(item.sim_time, timezone)}</span>
                   </div>
                   <p>{item.body}</p>
                 </article>
@@ -161,6 +164,25 @@ export function DSS({ sessionCode, events, onRespond }: Props) {
               </dl>
 
               {operations?.event?.crowd_note && <p>{operations.event.crowd_note}</p>}
+
+              {operations?.event?.pre_parade && (
+                <div className="dss-context-callout">
+                  <strong>{operations.event.pre_parade.name}</strong>
+                  <span>{operations.event.pre_parade.location}</span>
+                  <p>{operations.event.pre_parade.planning_note}</p>
+                </div>
+              )}
+
+              {(operations?.partner?.partner_priorities?.length ?? 0) > 0 && (
+                <>
+                  <h4>Partner priorities</h4>
+                  <ul className="partner-priority-list">
+                    {operations?.partner?.partner_priorities?.map((priority) => (
+                      <li key={priority}>{priority}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
 
               <h4>Lightning quick reference</h4>
               <div className="threshold-cards compact">

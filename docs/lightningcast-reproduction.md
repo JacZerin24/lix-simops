@@ -24,9 +24,9 @@ References:
 - CIMSS historical LightningCast example:
   https://cimss.ssec.wisc.edu/satellite-blog/archives/56487
 
-## Why reproduce rather than depend on a 2022 LightningCast archive
+## Why reproduce rather than depend on a 2021 LightningCast archive
 
-LightningCast was experimental in 2022 and delivered to participating NWS systems through UWSSEC/Regional LDM streams. Public documentation confirms filenames and AWIPS ingest patterns, but this project has **not confirmed a durable public archive containing the exact December 14, 2022 experimental NetCDF stream**.
+LightningCast was not being treated as a required archived product for this exercise. This project has **not confirmed a durable public archive containing an exact May 12, 2021 LightningCast probability stream suitable for replay**.
 
 For a defensible/reproducible exercise, V0.6 therefore downloads the original GOES-16 ABI Level 1b predictors and treats CSPP Geo LightningCast as the preferred historical reconstruction path.
 
@@ -40,8 +40,8 @@ C02
 C05
 C13
 C15
-20:30–22:45 UTC
-December 14, 2022
+06:00–07:45 UTC
+May 12, 2021
 GOES-16
 ```
 
@@ -64,7 +64,7 @@ Those outputs should be placed under:
 data/raw/meso/lightningcast/
 ```
 
-with UTC timestamps in filenames. Then `build_meso_cache.py` remaps the historical local clock time onto February 6, 2027.
+with UTC timestamps in filenames. Then `build_meso_cache.py` applies the facilitator-only +13 hour 45 minute local-time shift and maps the result onto February 6, 2027.
 
 ## Validation
 

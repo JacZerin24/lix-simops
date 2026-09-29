@@ -3,11 +3,15 @@ name: Case Render Smoke
 on:
   pull_request:
     paths:
+      - "scripts/requirements-data.txt"
+      - "scripts/build_radar_cache.py"
+      - "scripts/build_meso_cache.py"
       - "scripts/render_common.py"
       - "scripts/render_goes.py"
       - "scripts/render_glm_flash_density.py"
       - "scripts/render_mrms.py"
       - "scripts/render_rap_environment.py"
+      - "scripts/render_surface_obs.py"
       - "scripts/smoke_render_case.py"
       - ".github/workflows/case-render-smoke.yml"
   workflow_dispatch:
@@ -21,5 +25,31 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install boto3 matplotlib cartopy numpy xarray netCDF4 pygrib
+      - run: pip install -r scripts/requirements-data.txt
+      - name: Verify case-builder imports and radar colormaps
+        run: |
+          python scripts/build_radar_cache.py --help > /dev/null
+          python scripts/build_meso_cache.py --help > /dev/null
+          python -m py_compile scripts/render_surface_obs.py scripts/render_mrms.py scripts/render_rap_environment.py
+          python - <<'PY'
+          import pyart
+          from simulator.radar.preprocessing import _colormap_for_product
+          from simulator.radar.products import RADAR_RENDER_CONFIG
+
+          for product, config in RADAR_RENDER_CONFIG.items():
+              resolved = _colormap_for_product(product, config)
+              print(f"{product}: {config['cmap']} -> {getattr(resolved, 'name', resolved)}")
+          PY
       - run: python scripts/smoke_render_case.py
+
+      - name: Upload render smoke previews
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-smoke-preview
+          path: |
+            .render-smoke/out
+            data/cache/render-smoke-radar/radar/frames
+          if-no-files-found: warn
+          retention-days: 3
+          compression-level: 6

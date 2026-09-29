@@ -5,6 +5,7 @@ import type {
   Participant,
   ScheduledExerciseItem,
 } from "../../types/simulation";
+import { formatSimTime } from "../../utils/simTime";
 
 type InjectDraft = {
   title: string;
@@ -19,6 +20,9 @@ type Props = {
   participants: Participant[];
   events: ExerciseEvent[];
   schedule: ScheduledExerciseItem[];
+  timezone: string;
+  running: boolean;
+  speed: number;
   onControl: (action: string, speed?: number) => void;
   onInject: (draft: InjectDraft) => void;
   onPartnerMessage: (teamId: string, sender: string, body: string) => void;
@@ -34,17 +38,15 @@ const roleLabels = {
   dss: "DSS",
 } as const;
 
-function simTime(value?: string | null) {
-  if (!value) return "Manual";
-  return `${new Date(value).toISOString().slice(11, 16)}Z`;
-}
-
 export function Facilitator({
   sessionCode,
   scenarioName,
   participants,
   events,
   schedule,
+  timezone,
+  running,
+  speed,
   onControl,
   onInject,
   onPartnerMessage,
@@ -62,9 +64,21 @@ export function Facilitator({
     [participants],
   );
 
-  const teams = participantTeams.length > 0
-    ? participantTeams
-    : ["Team 1", "Team 2", "Team 3", "Team 4"];
+  const teams = Array.from(
+    new Set(["Team 1", "Team 2", "Team 3", "Team 4", ...participantTeams]),
+  ).sort();
+
+  const missingPositions = teams.flatMap((team) =>
+    (Object.keys(roleLabels) as Array<keyof typeof roleLabels>)
+      .filter(
+        (role) =>
+          !participants.some(
+            (participant) =>
+              participant.team_id === team && participant.role === role,
+          ),
+      )
+      .map((role) => `${team} ${roleLabels[role]}`),
+  );
 
   const [partnerTeam, setPartnerTeam] = useState("Team 1");
   const [partnerSender, setPartnerSender] = useState("Event Command");
@@ -73,6 +87,32 @@ export function Facilitator({
   const [injectBody, setInjectBody] = useState("");
   const [injectAudience, setInjectAudience] = useState("all");
   const [injectTeam, setInjectTeam] = useState("");
+
+  const exportLog = () => {
+    const escape = (value: unknown) => {
+      const text = String(value ?? "");
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    const header = ["sim_time", "type", "team", "sender", "title", "body"];
+    const rows = events.map((item) => [
+      item.sim_time ?? "",
+      item.type,
+      item.team_id ?? item.target_team_id ?? "",
+      item.sender ?? "",
+      item.title ?? "",
+      item.body,
+    ]);
+    const csv = [header, ...rows]
+      .map((row) => row.map(escape).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `simops-${sessionCode}-event-log.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const submitPartner = (event: FormEvent) => {
     event.preventDefault();
@@ -110,19 +150,41 @@ export function Facilitator({
         </div>
 
         <div className="controls">
-          <button onClick={() => onControl("start")}>Start / Resume</button>
-          <button onClick={() => onControl("pause")}>Pause</button>
-          <button onClick={() => onControl("reset")}>Reset Exercise</button>
-          {[0.5, 1, 1.5, 2, 4].map((speed) => (
-            <button key={speed} onClick={() => onControl("speed", speed)}>
-              {speed}×
+          <button onClick={() => onControl("start")} disabled={running}>Start / Resume</button>
+          <button onClick={() => onControl("pause")} disabled={!running}>Pause</button>
+          <button
+            className="danger-action"
+            onClick={() => {
+              if (window.confirm("Reset the exercise clock, timeline, and SimOps event log? External Shift Log entries will NOT be cleared.")) {
+                onControl("reset");
+              }
+            }}
+          >
+            Reset Exercise
+          </button>
+          {[0.5, 1, 1.5, 2, 4].map((value) => (
+            <button
+              className={Math.abs(speed - value) < 0.01 ? "active-speed" : ""}
+              key={value}
+              onClick={() => onControl("speed", value)}
+            >
+              {value}×
             </button>
           ))}
         </div>
       </div>
 
       <div className="panel">
-        <h2>Team Status</h2>
+        <div className="section-heading">
+          <div>
+            <h2>Team Status</h2>
+            <p className={missingPositions.length ? "readiness-warning" : "readiness-good"}>
+              {missingPositions.length
+                ? `${missingPositions.length} assigned position${missingPositions.length === 1 ? "" : "s"} not connected.`
+                : "All assigned team positions are connected."}
+            </p>
+          </div>
+        </div>
         <div className="team-grid">
           {teams.map((team) => (
             <article className="team-card" key={team}>
@@ -134,8 +196,18 @@ export function Facilitator({
                 return (
                   <div className="role-row" key={role}>
                     <span>{roleLabels[role]}</span>
-                    <strong className={people.length ? "online" : "offline"}>
-                      {people.length ? people.map((person) => person.display_name).join(", ") : "Not connected"}
+                    <strong
+                      className={
+                        people.length > 1
+                          ? "online duplicate-role"
+                          : people.length
+                            ? "online"
+                            : "offline"
+                      }
+                    >
+                      {people.length
+                        ? `${people.map((person) => person.display_name).join(", ")}${people.length > 1 ? " ⚠" : ""}`
+                        : "Not connected"}
                     </strong>
                   </div>
                 );
@@ -158,7 +230,7 @@ export function Facilitator({
             schedule.map((item) => (
               <article className={`schedule-row ${item.status}`} key={item.id}>
                 <div className="schedule-time">
-                  <strong>{simTime(item.due_at)}</strong>
+                  <strong>{item.due_at ? formatSimTime(item.due_at, timezone) : "Manual"}</strong>
                   <span>{item.at_sim_time}</span>
                 </div>
                 <div className="schedule-copy">
@@ -263,14 +335,22 @@ export function Facilitator({
       </div>
 
       <div className="panel">
-        <h2>Live Exercise Log</h2>
+        <div className="section-heading">
+          <div>
+            <h2>Live Exercise Log</h2>
+            <p className="muted">Download this log before closing the server if you want a standalone SimOps debrief record.</p>
+          </div>
+          <button type="button" onClick={exportLog} disabled={events.length === 0}>
+            Download CSV
+          </button>
+        </div>
         <div className="event-log">
           {events.length === 0 ? (
             <p className="muted">No logged exercise events yet.</p>
           ) : (
             [...events].reverse().slice(0, 20).map((event, index) => (
               <article className="event-row" key={event.event_id ?? index}>
-                <span className="event-time">{simTime(event.sim_time)}</span>
+                <span className="event-time">{formatSimTime(event.sim_time, timezone)}</span>
                 <strong>{event.type.replace("_", " ")}</strong>
                 <span>
                   {(event.team_id === "*" ? "All teams" : event.team_id)

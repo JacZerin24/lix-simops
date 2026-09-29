@@ -38,7 +38,7 @@ Explain where briefing materials, reference resources, SimOps link, shift-log li
 DSS logs every meaningful external communication to/from Event Command.
 
 ## Slide 8 — Exercise timing
-- Approximately 75 minutes
+- Approximately 75 minutes including pauses/decisions
 - Simulation window: 2:45–4:30 PM CST
 - Default playback: 1.5x
 - Facilitators may pause/change speed

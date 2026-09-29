@@ -4,16 +4,27 @@ LIX SimOps uses a time-gated environmental/product workspace for the Mesoanalyst
 
 The simulator intentionally uses a **generic product manifest** rather than hard-coding one archive source. This allows a scenario to combine internal exports, NOAA archives, LightningCast imagery, MRMS products, satellite images, surface analyses, and model guidance in one synchronized interface.
 
-## Categories
+## Operational layout
 
-The Endymion scenario template includes:
+The Mesoanalyst workspace is organized as an SPC-style product rail rather than
+a generic tab strip. Only products that actually have frames in the current case
+are exposed to participants, so an unbuilt optional product does not create an
+empty menu item.
 
-- Environment
-- Satellite
-- Lightning
-- MRMS
-- Observations
-- Guidance
+The current Endymion product groups are:
+
+- **Thermodynamics** — RAP 90-mb MLCAPE
+- **Kinematics** — RAP 0–1 km SRH, 0–3 km SRH, 0–3 km bulk shear with sparse
+  vectors, and 0–6 km bulk shear
+- **Satellite / Lightning** — GOES-16 IR, GLM flash density, and LightningCast
+  when the external CSPP product has been staged
+- **MRMS** — lowest-altitude reflectivity, 0–2 km azimuthal shear, precipitation
+  rate, and MESH
+- **Surface** — temperature, dewpoint, and wind observations
+- **Guidance** — shown only when scenario-specific guidance frames are staged
+
+The map supports previous/next frame stepping, looping, latest-frame follow,
+mouse-wheel zoom, drag pan, and keyboard shortcuts.
 
 ## Staging files
 
@@ -34,7 +45,7 @@ YYYYMMDDTHHMMSSZ
 Example:
 
 ```text
-data/raw/meso/lightningcast/lightningcast_20221214T214500Z.png
+data/raw/meso/lightningcast/lightningcast_20210512T070500Z.png
 ```
 
 ## Build the cache
@@ -44,10 +55,11 @@ python scripts/build_meso_cache.py \
   --scenario-id mardi-gras-dss-001 \
   --config scenarios/mardi-gras/meso-products.yaml \
   --simulation-date 2027-02-06 \
-  --timezone America/Chicago
+  --timezone America/Chicago \
+  --local-time-offset-minutes 825
 ```
 
-As with radar, `--simulation-date` preserves the source product's local clock time while remapping it to the Endymion exercise date.
+`--simulation-date` remaps the source product to the Endymion exercise date, while `--local-time-offset-minutes 825` shifts the May 2021 overnight evolution into the afternoon exercise window.
 
 This writes:
 

@@ -7,6 +7,7 @@ type Props = {
   teamId: string;
   role: Role;
   scenarioId: string;
+  facilitatorToken: string;
   busy: boolean;
   error: string;
   onDisplayNameChange: (value: string) => void;
@@ -14,6 +15,7 @@ type Props = {
   onTeamChange: (value: string) => void;
   onRoleChange: (value: Role) => void;
   onScenarioChange: (value: string) => void;
+  onFacilitatorTokenChange: (value: string) => void;
   onJoin: () => void;
   onCreate: () => void;
 };
@@ -25,6 +27,7 @@ export function JoinSession({
   teamId,
   role,
   scenarioId,
+  facilitatorToken,
   busy,
   error,
   onDisplayNameChange,
@@ -32,6 +35,7 @@ export function JoinSession({
   onTeamChange,
   onRoleChange,
   onScenarioChange,
+  onFacilitatorTokenChange,
   onJoin,
   onCreate,
 }: Props) {
@@ -86,6 +90,18 @@ export function JoinSession({
               <option value="facilitator">Facilitator</option>
             </select>
           </label>
+
+          {role === "facilitator" && (
+            <label>
+              Facilitator access key
+              <input
+                value={facilitatorToken}
+                onChange={(e) => onFacilitatorTokenChange(e.target.value)}
+                placeholder="Private key from exercise control"
+                autoComplete="off"
+              />
+            </label>
+          )}
         </div>
 
         <button className="primary-action" onClick={onJoin} disabled={busy}>
