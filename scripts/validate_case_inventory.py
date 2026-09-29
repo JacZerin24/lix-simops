@@ -114,6 +114,11 @@ def parse_args() -> argparse.Namespace:
         default=Path("scenarios/mardi-gras/source-case.yaml"),
     )
     parser.add_argument("--strict", action="store_true")
+    parser.add_argument(
+        "--skip-lightningcast-inputs",
+        action="store_true",
+        help="Do not require archived ABI L1b LightningCast inputs in strict mode.",
+    )
     parser.add_argument("--json", dest="json_output", type=Path)
     return parser.parse_args()
 
@@ -170,7 +175,10 @@ def main() -> None:
 
     if args.strict:
         failures = []
-        for key in ["nexrad", "goes_display", "glm", "lightningcast_inputs", "environment"]:
+        required = ["nexrad", "goes_display", "glm", "environment"]
+        if not args.skip_lightningcast_inputs:
+            required.append("lightningcast_inputs")
+        for key in required:
             if report["datasets"][key]["status"] != "ok":
                 failures.append(key)
         for product, summary in report["datasets"]["mrms"].items():
