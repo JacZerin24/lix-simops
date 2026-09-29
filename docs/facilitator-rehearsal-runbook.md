@@ -27,6 +27,8 @@ Facilitators remain outside the teams. One facilitator should primarily watch ex
    - local valid times make sense
    - maps cover the intended LIX/New Orleans domain
    - product color scales are useful
+   - surface observations are legible around MSY/NEW
+   - weak/no-signal MRMS areas do not dominate the display
    - the most important evolution is visible around 3:35–4:10 PM simulation time
 
 ### Google Classroom
@@ -47,6 +49,14 @@ Verify the live links to:
 - approved reference resources
 
 Do not post the source-case timeline or any material identifying May 12, 2021.
+
+### External-link readiness
+
+Before the final rehearsal, resolve the two intentionally unconfigured external links:
+- Google Classroom / participant launch page
+- coworker-owned mock Shift Log Google Form
+
+Do not treat a null/pending link as a software failure; it is a workshop-readiness item.
 
 ### Shift log
 
@@ -82,10 +92,9 @@ Important decision points:
 
 | Sim time | Partner/exercise event | Rehearsal question |
 |---|---|---|
-| 2:50 PM | Operations check-in | Do teams have enough information to give an initial useful briefing? |
+| 2:52 PM | Operations check-in | The first KLIX scan is now available; do teams have enough information for an initial useful briefing? |
 | 3:05 PM | Start-confidence question | Is uncertainty meaningful, not forced? |
 | 3:20 PM | Protective-action lead time | Are lightning/environment/radar trends supporting a forward-looking answer? |
-| 3:27 PM | Lightning-framework reminder | Does this arrive before it becomes an answer key? |
 | 3:35 PM | Commit-to-route decision | Is this the right point to force a consequential recommendation? |
 | 3:50 PM | Immediate command decision | Does the meteorology now justify urgency? |
 | 4:05 PM | Operations during hold | Is the threat still active enough to make this realistic? |
@@ -113,7 +122,7 @@ Recommended per team:
 - Meso workstation/browser
 - DSS workstation/browser
 - DSS Shift Log form open in a separate tab/window
-- Open SimOps from the host computer's LAN address (for example, http://HOST-IP:5173), not localhost, on participant workstations
+- For the portable package, start `START_SIMOPS_LAN.bat` and open `http://HOST-IP:8000` on participant workstations. Use port 5173 only for the Docker/Vite development setup.
 
 Facilitator station:
 
