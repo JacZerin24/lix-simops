@@ -53,5 +53,6 @@ PACKAGE CONTENTS
 - data/cache/: validated participant weather package
 - wheelhouse/: offline Python runtime dependencies
 - scripts/validate_exercise_cache.py: cache integrity check
+- PACKAGE_INFO.txt: safe build/run traceability without historical source identity
 
 The portable runtime intentionally omits facilitator-only historical source-case metadata. The current package does not yet include externally reproduced LightningCast.
