@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { getEventOperations } from "../../services/api";
 import type { EventOperationsConfig, ExerciseEvent } from "../../types/simulation";
@@ -16,6 +16,7 @@ export function DSS({ sessionCode, timezone, events, onRespond }: Props) {
   const [operations, setOperations] = useState<EventOperationsConfig | null>(null);
   const [opsTab, setOpsTab] = useState<"overview" | "thresholds" | "route">("overview");
   const [error, setError] = useState("");
+  const chatLogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     getEventOperations(sessionCode)
@@ -39,6 +40,11 @@ export function DSS({ sessionCode, timezone, events, onRespond }: Props) {
     [thresholds],
   );
 
+  useEffect(() => {
+    const node = chatLogRef.current;
+    if (node) node.scrollTop = node.scrollHeight;
+  }, [chat.length]);
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const value = body.trim();
@@ -57,7 +63,7 @@ export function DSS({ sessionCode, timezone, events, onRespond }: Props) {
       <div className="dss-layout">
         <div className="subpanel">
           <h3>Partner Communications</h3>
-          <div className="chat-log">
+          <div className="chat-log" ref={chatLogRef}>
             {chat.length === 0 ? (
               <p className="muted">No partner messages yet.</p>
             ) : (
