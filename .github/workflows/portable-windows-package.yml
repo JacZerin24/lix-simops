@@ -7,18 +7,6 @@ on:
         description: Full Endymion Case Build run ID containing the validated cache
         required: true
         default: "36604005724"
-  push:
-    branches:
-      - feature/v0.8-full-case-build
-    paths:
-      - ".github/workflows/portable-windows-package.yml"
-      - "backend/app/**"
-      - "frontend/**"
-      - "portable/windows/**"
-      - "scripts/validate_exercise_cache.py"
-      - "simulator/**"
-      - "scenarios/mardi-gras/**"
-
 permissions:
   contents: read
   actions: read
