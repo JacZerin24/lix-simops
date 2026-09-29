@@ -46,6 +46,23 @@ MIN_MESO_FRAMES = {
 REQUIRED_RADAR_PRODUCTS = {"REF", "VEL", "CC", "ZDR"}
 MIN_RADAR_SCANS_PER_PRODUCT = 15
 
+MESO_NEAR_REALTIME_PRODUCTS = {
+    "goes_ir": (5, 10),
+    "glm_flash_density": (10, 10),
+    "mrms_mesh": (5, 5),
+    "mrms_azshear": (5, 5),
+    "mrms_precip_rate": (5, 5),
+    "mrms_lowest_refl": (5, 5),
+    "surface_obs": (5, 10),
+}
+RAP_ENVIRONMENT_PRODUCTS = {
+    "mlcape",
+    "bulk_shear_0_3km",
+    "bulk_shear_0_6km",
+    "srh_0_1km",
+    "srh_0_3km",
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -142,6 +159,7 @@ def main() -> None:
         else:
             meso = json.loads(meso_path.read_text(encoding="utf-8"))
             counts = {}
+            meso_times: dict[str, list[datetime]] = {}
             for frame in meso.get("frames", []):
                 counts[frame["product"]] = counts.get(frame["product"], 0) + 1
                 frame_time = datetime.fromisoformat(frame["timestamp"].replace("Z", "+00:00"))
@@ -157,6 +175,7 @@ def main() -> None:
                 if frame.get("source_key"):
                     failures.append("meso participant manifest exposes historical source_key")
                     break
+                meso_times.setdefault(frame["product"], []).append(frame_time)
                 if not (root / frame["asset"]).is_file():
                     failures.append(f"meso asset missing: {frame['asset']}")
                     break
@@ -174,6 +193,34 @@ def main() -> None:
                 if count and count < minimum:
                     failures.append(
                         f"meso {product} has only {count} frames; expected at least {minimum}"
+                    )
+
+            for product, (max_start_lag, max_end_lead) in MESO_NEAR_REALTIME_PRODUCTS.items():
+                times = meso_times.get(product, [])
+                if not times:
+                    continue
+                first = min(times)
+                last = max(times)
+                if first > scenario_start + timedelta(minutes=max_start_lag):
+                    failures.append(
+                        f"meso {product} first frame is too late: {first.isoformat()}"
+                    )
+                if last < scenario_end - timedelta(minutes=max_end_lead):
+                    failures.append(
+                        f"meso {product} ends too early: {last.isoformat()}"
+                    )
+
+            for product in sorted(RAP_ENVIRONMENT_PRODUCTS):
+                times = meso_times.get(product, [])
+                if not times:
+                    continue
+                if min(times) > scenario_start:
+                    failures.append(
+                        f"meso {product} lacks an analysis valid at/before exercise start"
+                    )
+                if max(times) < scenario_start + timedelta(minutes=60):
+                    failures.append(
+                        f"meso {product} lacks an updated analysis during the exercise"
                     )
 
             print("Meso frame counts:")
