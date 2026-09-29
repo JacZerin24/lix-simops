@@ -113,7 +113,10 @@ def get_participant_asset(session_code: str, asset_path: str):
     candidate = (scenario_root / asset_path).resolve()
     if not candidate.is_relative_to(scenario_root) or not candidate.is_file():
         raise HTTPException(status_code=404, detail="Asset not found")
-    return FileResponse(candidate)
+    return FileResponse(
+        candidate,
+        headers={"Cache-Control": "private, max-age=3600, immutable"},
+    )
 
 
 @app.get("/api/sessions/{session_code}/radar/frames")
