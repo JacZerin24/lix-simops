@@ -51,21 +51,20 @@ def main() -> None:
     s3 = s3_client()
 
     goes_dir = WORK / "goes"
-    for channel in (2, 13):
-        goes_keys = list_keys(
-            s3,
-            "noaa-goes16",
-            f"ABI-L2-CMIPC/2022/348/20/OR_ABI-L2-CMIPC-M6C{channel:02d}_G16_",
-            1,
-        )
-        if not goes_keys:
-            raise SystemExit(f"No representative GOES C{channel:02d} file.")
-        download(s3, "noaa-goes16", goes_keys[0], goes_dir)
+    goes_keys = list_keys(
+        s3,
+        "noaa-goes16",
+        "ABI-L2-CMIPC/2021/132/07/OR_ABI-L2-CMIPC-M6C13_G16_",
+        1,
+    )
+    if not goes_keys:
+        raise SystemExit("No representative GOES C13 file.")
+    download(s3, "noaa-goes16", goes_keys[0], goes_dir)
 
     glm_keys = list_keys(
         s3,
         "noaa-goes16",
-        "GLM-L2-LCFA/2022/348/20/",
+        "GLM-L2-LCFA/2021/132/07/",
         20,
     )
     if not glm_keys:
@@ -77,7 +76,7 @@ def main() -> None:
     mesh_keys = list_keys(
         s3,
         "noaa-mrms-pds",
-        "CONUS/MESH_00.50/20221214/",
+        "CONUS/MESH_00.50/20210512/",
         1,
     )
     if not mesh_keys:
@@ -85,7 +84,7 @@ def main() -> None:
     mrms_dir = WORK / "mrms" / "MESH_00.50"
     download(s3, "noaa-mrms-pds", mesh_keys[0], mrms_dir)
 
-    rap_key = "rap.20221214/rap.t20z.awp130pgrbf00.grib2"
+    rap_key = "rap.20210512/rap.t07z.awp130pgrbf00.grib2"
     rap_dir = WORK / "rap"
     download(s3, "noaa-rap-pds", rap_key, rap_dir)
 
@@ -94,7 +93,7 @@ def main() -> None:
         for key in list_keys(
             s3,
             "unidata-nexrad-level2",
-            "2022/12/14/KLIX/KLIX20221214_203",
+            "2021/05/12/KLIX/KLIX20210512_070",
             100,
         )
         if "MDM" not in Path(key).name
@@ -115,13 +114,7 @@ def main() -> None:
         "--range-km", "230",
         "--simulation-date", "2027-02-06",
         "--timezone", "America/Chicago",
-    ])
-    run([
-        PYTHON, "scripts/render_goes.py",
-        "--input", str(goes_dir),
-        "--output", str(WORK / "out" / "goes_vis"),
-        "--channel", "2",
-        "--domain", *domain,
+        "--local-time-offset-minutes", "825",
     ])
     run([
         PYTHON, "scripts/render_goes.py",
@@ -155,8 +148,8 @@ def main() -> None:
     print(f"Rendered {len(radar_pngs)} radar and {len(pngs)} meso smoke-test images.")
     if len(radar_pngs) < 1:
         raise SystemExit("Expected at least one rendered KLIX radar image.")
-    if len(pngs) < 7:
-        raise SystemExit("Expected visible/IR GOES, GLM, MRMS, and three RAP environment images.")
+    if len(pngs) < 6:
+        raise SystemExit("Expected IR GOES, GLM, MRMS, and three RAP environment images.")
 
 
 if __name__ == "__main__":
