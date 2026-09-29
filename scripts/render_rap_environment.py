@@ -261,7 +261,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--vector-stride",
         type=int,
-        default=5,
+        default=7,
         help="Grid stride for 0–3 km bulk-shear vectors; larger values reduce density.",
     )
     return parser.parse_args()
@@ -392,10 +392,10 @@ def main() -> None:
                     )
                     ax.quiverkey(
                         q,
-                        0.90,
-                        1.035,
+                        0.80,
+                        0.055,
                         20,
-                        "20 kt vector",
+                        "20 kt",
                         coordinates="axes",
                         labelpos="E",
                         fontproperties={"size": 8},
