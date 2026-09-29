@@ -25,8 +25,17 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r scripts/requirements-data.txt
-      - name: Verify case-builder imports
+      - name: Verify case-builder imports and radar colormaps
         run: |
           python scripts/build_radar_cache.py --help > /dev/null
           python scripts/build_meso_cache.py --help > /dev/null
+          python - <<'PY'
+          import pyart
+          from simulator.radar.preprocessing import _resolve_colormap
+          from simulator.radar.products import RADAR_RENDER_CONFIG
+
+          for product, config in RADAR_RENDER_CONFIG.items():
+              resolved = _resolve_colormap(config["cmap"])
+              print(f"{product}: {config['cmap']} -> {resolved}")
+          PY
       - run: python scripts/smoke_render_case.py
