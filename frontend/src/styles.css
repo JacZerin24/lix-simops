@@ -568,3 +568,286 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 @media (max-width: 700px) {
   .shift-log-callout { flex-direction: column; align-items: stretch; }
 }
+
+
+/* Radar Operations V1: data-aware geographic workstation */
+.radar-display-shell {
+  position: relative;
+  min-width: 0;
+  background: #050a11;
+  border-radius: 10px;
+}
+.radar-display-shell:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  padding: 10px;
+  background: #050a11;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+}
+.radar-display-shell:fullscreen .radar-geo-canvas,
+.radar-display-shell:fullscreen .radar-canvas {
+  min-height: 0;
+  height: 100%;
+}
+
+.compact-control { min-width: 105px !important; }
+.compact-control select { padding: 8px; }
+.radar-check {
+  display: inline-flex;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 7px;
+  min-width: auto !important;
+  padding: 9px 10px;
+  border: 1px solid #30435f;
+  border-radius: 8px;
+  background: #0d1726;
+}
+.radar-check input,
+.radar-layer-menu input {
+  width: auto;
+  margin: 0;
+}
+
+.radar-layer-control {
+  position: relative;
+}
+.radar-layer-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 245px;
+  display: grid;
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid #3b526f;
+  border-radius: 9px;
+  background: #09131f;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+.radar-layer-menu label {
+  display: flex;
+  grid-auto-flow: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 9px;
+  color: #d8e1ec;
+  font-size: 0.88rem;
+}
+
+.radar-toolstrip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin: -2px 0 10px;
+  padding: 8px;
+  border: 1px solid #243651;
+  border-radius: 9px;
+  background: #0a1421;
+}
+.radar-toolstrip button {
+  padding: 7px 10px;
+  background: #101e30;
+}
+.radar-toolstrip button.active {
+  background: #2b6092;
+  border-color: #5e91c0;
+}
+.radar-tool-status {
+  flex: 1;
+  min-width: 260px;
+  color: #aebccc;
+  font-size: 0.86rem;
+  padding-left: 4px;
+}
+.radar-clear-tool {
+  margin-left: auto;
+}
+
+.radar-geo-canvas {
+  position: relative;
+  width: 100%;
+  min-height: 600px;
+  height: min(68vh, 760px);
+  overflow: hidden;
+  border: 1px solid #2b405f;
+  border-radius: 10px 10px 0 0;
+  background:
+    radial-gradient(circle at center, rgba(23, 40, 58, 0.7), rgba(4, 9, 15, 0.98) 68%),
+    #050a11;
+  touch-action: none;
+  cursor: crosshair;
+  user-select: none;
+}
+.radar-geo-canvas:active {
+  cursor: grabbing;
+}
+.radar-webgl-layer,
+.radar-map-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.radar-webgl-layer {
+  z-index: 1;
+  image-rendering: auto;
+}
+.radar-map-overlay {
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.radar-county-boundary,
+.radar-state-boundary,
+.radar-range-ring,
+.radar-site-marker path,
+.radar-annotation polyline {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+.radar-county-boundary {
+  stroke: rgba(215, 224, 232, 0.42);
+  stroke-width: 0.75;
+}
+.radar-state-boundary {
+  stroke: rgba(255, 255, 255, 0.86);
+  stroke-width: 1.5;
+}
+.radar-range-ring {
+  stroke: rgba(207, 220, 233, 0.34);
+  stroke-width: 0.8;
+  stroke-dasharray: 4 4;
+}
+.radar-range-label,
+.radar-city text,
+.radar-annotation text {
+  fill: #edf4fb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  paint-order: stroke;
+  stroke: rgba(2, 7, 12, 0.9);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.radar-site-marker circle {
+  fill: #ffffff;
+  stroke: #050a11;
+  stroke-width: 1.5;
+}
+.radar-site-marker path {
+  stroke: #ffffff;
+  stroke-width: 1.2;
+}
+.radar-city circle {
+  fill: #f7f9fc;
+  stroke: #050a11;
+  stroke-width: 1;
+}
+.radar-annotation polyline {
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+.radar-annotation polyline.dashed {
+  stroke-dasharray: 7 5;
+}
+.radar-annotation circle {
+  fill: #ffffff;
+  stroke: #07101a;
+  stroke-width: 2;
+}
+.radar-annotation text {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.radar-render-status,
+.radar-render-fallback,
+.radar-legacy-badge {
+  position: absolute;
+  z-index: 4;
+  border: 1px solid #425a78;
+  border-radius: 7px;
+  background: rgba(5, 12, 20, 0.9);
+  color: #c9d6e5;
+  font-size: 0.82rem;
+}
+.radar-render-status {
+  top: 10px;
+  left: 10px;
+  padding: 7px 9px;
+}
+.radar-render-fallback {
+  inset: 12px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 16px;
+}
+.radar-render-fallback img {
+  max-width: 90%;
+  max-height: 80%;
+  object-fit: contain;
+}
+.radar-legacy-canvas {
+  border-radius: 10px 10px 0 0;
+}
+.radar-legacy-badge {
+  left: 10px;
+  bottom: 10px;
+  padding: 7px 9px;
+  pointer-events: none;
+}
+
+.radar-interrogation-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 16px;
+  padding: 9px 11px;
+  border: 1px solid #2b405f;
+  border-top: 0;
+  background: #07111d;
+  color: #d8e2ee;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+}
+.radar-interrogation-bar span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.radar-interrogation-bar strong {
+  color: #ffffff;
+}
+.radar-display-shell .radar-footer {
+  padding: 8px 2px 0;
+  margin-top: 0;
+}
+
+@media (max-width: 1000px) {
+  .radar-interrogation-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .radar-geo-canvas {
+    min-height: 500px;
+  }
+}
+
+@media (max-width: 650px) {
+  .radar-interrogation-bar {
+    grid-template-columns: 1fr;
+  }
+  .radar-tool-status {
+    min-width: 100%;
+    order: 3;
+  }
+  .radar-geo-canvas {
+    min-height: 420px;
+    height: 60vh;
+  }
+}
