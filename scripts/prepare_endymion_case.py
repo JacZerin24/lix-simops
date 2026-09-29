@@ -18,7 +18,7 @@ def run(command: list[str], dry_run: bool) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Acquire the raw December 14, 2022 data inputs for the Endymion exercise."
+        description="Acquire the raw May 12, 2021 data inputs for the Endymion exercise."
     )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
@@ -42,9 +42,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    date = "2022-12-14"
-    start = "20:30"
-    end = "22:45"
+    date = "2021-05-12"
+    start = "06:00"
+    end = "07:45"
 
     if args.scope in {"all", "radar"}:
         run(
@@ -55,7 +55,7 @@ def main() -> None:
                 "--date", date,
                 "--start", start,
                 "--end", end,
-                "--output", "data/raw/nexrad/20221214",
+                "--output", "data/raw/nexrad/20210512",
                 *(["--list-only"] if args.list_only else []),
             ],
             args.dry_run,
@@ -65,7 +65,7 @@ def main() -> None:
         return
 
     goes_requests = [
-        ("ABI-L2-CMIPC", ["2", "13"], "data/raw/goes/abi-cmi"),
+        ("ABI-L2-CMIPC", ["13"], "data/raw/goes/abi-cmi"),
     ]
     if not args.skip_lightningcast_inputs:
         goes_requests.append(
@@ -124,8 +124,8 @@ def main() -> None:
             PYTHON,
             "scripts/fetch_rap.py",
             "--date", date,
-            "--cycles", "20", "21", "22",
-            "--output", "data/raw/rap/20221214",
+            "--cycles", "5", "6", "7",
+            "--output", "data/raw/rap/20210512",
             *(["--list-only"] if args.list_only else []),
         ],
         args.dry_run,
@@ -141,7 +141,7 @@ def main() -> None:
                 "--date", date,
                 "--start", start,
                 "--end", end,
-                "--output", "data/raw/observations/asos_20221214.csv",
+                "--output", "data/raw/observations/asos_20210512.csv",
             ],
             args.dry_run,
         )
