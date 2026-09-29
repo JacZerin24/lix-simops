@@ -195,7 +195,8 @@ class SessionManager:
         return list(self.sessions.values())
 
     def _new_code(self) -> str:
-        alphabet = string.ascii_uppercase + string.digits
+        # Omit visually ambiguous I/O/0/1 for projector and verbal session-code sharing.
+        alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         while True:
             code = "".join(secrets.choice(alphabet) for _ in range(6))
             if code not in self.sessions:
