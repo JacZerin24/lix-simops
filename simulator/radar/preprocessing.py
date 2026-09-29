@@ -36,9 +36,37 @@ def _field_for_product(radar, product_id: str) -> str | None:
     return None
 
 
-def _nearest_sweep(radar, elevation: float) -> tuple[int, float]:
+def _sweep_valid_gate_count(radar, sweep: int, field: str) -> int:
+    data = radar.fields[field]["data"]
+    start = int(radar.sweep_start_ray_index["data"][sweep])
+    end = int(radar.sweep_end_ray_index["data"][sweep]) + 1
+    subset = data[start:end]
+    count = getattr(subset, "count", None)
+    if callable(count):
+        return int(count())
+    return int(getattr(subset, "size", len(subset)))
+
+
+def _nearest_sweep(radar, elevation: float, field: str | None = None) -> tuple[int, float]:
     fixed_angles = [float(value) for value in radar.fixed_angle["data"]]
-    index = min(range(len(fixed_angles)), key=lambda idx: abs(fixed_angles[idx] - elevation))
+    nearby = [
+        idx
+        for idx, angle in enumerate(fixed_angles)
+        if abs(angle - elevation) <= 0.4
+    ]
+    if not nearby:
+        nearby = list(range(len(fixed_angles)))
+
+    if field is not None:
+        index = max(
+            nearby,
+            key=lambda idx: (
+                _sweep_valid_gate_count(radar, idx, field),
+                -abs(fixed_angles[idx] - elevation),
+            ),
+        )
+    else:
+        index = min(nearby, key=lambda idx: abs(fixed_angles[idx] - elevation))
     return index, fixed_angles[index]
 
 
@@ -143,8 +171,14 @@ def build_radar_cache(
             config = RADAR_RENDER_CONFIG[product_id]
             cmap = _resolve_colormap(config["cmap"])
             for requested_elevation in elevations:
-                sweep, actual_elevation = _nearest_sweep(radar, requested_elevation)
+                sweep, actual_elevation = _nearest_sweep(
+                    radar,
+                    requested_elevation,
+                    field=field,
+                )
                 if abs(actual_elevation - requested_elevation) > 0.4:
+                    continue
+                if _sweep_valid_gate_count(radar, sweep, field) == 0:
                     continue
 
                 destination = (
