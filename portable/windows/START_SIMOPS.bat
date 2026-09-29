@@ -16,7 +16,9 @@ if errorlevel 1 (
 title LIX SimOps
 
 set "SIMOPS_HOST=127.0.0.1"
+set "SIMOPS_CHECK_ONLY=0"
 if /I "%~1"=="LAN" set "SIMOPS_HOST=0.0.0.0"
+if /I "%~1"=="CHECK" set "SIMOPS_CHECK_ONLY=1"
 
 rem Keep the Python environment on the local user profile even when the
 rem portable package itself lives on a redirected/network drive.
@@ -74,7 +76,7 @@ if not exist "%SIMOPS_READY%" (
 )
 
 echo Checking whether port 8000 is available...
-"%SIMOPS_VENV%\Scripts\python.exe" -c "import socket,sys; s=socket.socket(); s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1); host=sys.argv[1]; exec('try:\n s.bind((host,8000))\nexcept OSError:\n raise SystemExit(1)\nfinally:\n s.close()')" "%SIMOPS_HOST%"
+"%SIMOPS_VENV%\Scripts\python.exe" -c "import socket,sys; s=socket.socket(); host=sys.argv[1]; exec('try:\n s.bind((host,8000))\nexcept OSError:\n raise SystemExit(1)\nfinally:\n s.close()')" "%SIMOPS_HOST%"
 if errorlevel 1 (
   echo.
   echo ERROR: Port 8000 is already in use on this computer.
@@ -95,10 +97,21 @@ if errorlevel 1 (
   exit /b 1
 )
 
+if "%SIMOPS_CHECK_ONLY%"=="1" (
+  echo.
+  echo Portable launcher preflight passed.
+  popd
+  exit /b 0
+)
+
 echo.
 echo SimOps is starting.
 echo Local browser address: http://localhost:8000
-if "%SIMOPS_HOST%"=="0.0.0.0" echo LAN mode is enabled on port 8000.
+if "%SIMOPS_HOST%"=="0.0.0.0" (
+  echo LAN mode is enabled on port 8000.
+  echo Candidate participant addresses:
+  "%SIMOPS_VENV%\Scripts\python.exe" -c "import socket; ips=sorted({x[4][0] for x in socket.getaddrinfo(socket.gethostname(),None,socket.AF_INET) if not x[4][0].startswith('127.')}); [print('  http://%s:8000'%%ip) for ip in ips]"
+)
 echo.
 echo Keep this window OPEN while using SimOps.
 echo To stop SimOps later, click this window and press Ctrl+C.
