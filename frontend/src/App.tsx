@@ -42,6 +42,7 @@ function App() {
   const [scenarioId, setScenarioId] = useState("");
   const [scenarioName, setScenarioName] = useState("");
   const [timezone, setTimezone] = useState("America/Chicago");
+  const [facilitatorToken, setFacilitatorToken] = useState("");
   const [clock, setClock] = useState<ClockState>({
     sim_time: new Date().toISOString(),
     running: false,
@@ -72,6 +73,7 @@ function App() {
       displayName,
       teamId,
       role,
+      facilitatorToken: role === "facilitator" ? facilitatorToken : undefined,
     });
     socketRef.current = socket;
 
@@ -141,6 +143,10 @@ function App() {
       setError("Enter the exercise session code.");
       return;
     }
+    if (role === "facilitator" && !facilitatorToken.trim()) {
+      setError("Enter the facilitator access key.");
+      return;
+    }
     setError("");
     setEvents([]);
     setParticipants([]);
@@ -162,6 +168,10 @@ function App() {
     setError("");
     try {
       const created = await createSession(scenarioId);
+      if (!created.facilitator_token) {
+        throw new Error("Exercise server did not return a facilitator access key.");
+      }
+      setFacilitatorToken(created.facilitator_token);
       setRole("facilitator");
       setTeamId("FACILITATOR");
       setSessionCode(created.session_code);
@@ -185,6 +195,7 @@ function App() {
     setEvents([]);
     setSchedule([]);
     setScenarioName("");
+    setFacilitatorToken("");
     setError("");
     if (role === "facilitator") {
       setRole("radar");
@@ -237,6 +248,7 @@ function App() {
           teamId={teamId}
           role={role}
           scenarioId={scenarioId}
+          facilitatorToken={facilitatorToken}
           busy={busy}
           error={error}
           onDisplayNameChange={setDisplayName}
@@ -244,6 +256,7 @@ function App() {
           onTeamChange={setTeamId}
           onRoleChange={setRole}
           onScenarioChange={setScenarioId}
+          onFacilitatorTokenChange={setFacilitatorToken}
           onJoin={join}
           onCreate={createExercise}
         />
@@ -262,6 +275,12 @@ function App() {
           </p>
         </div>
         <div className="header-actions">
+          {role === "facilitator" && facilitatorToken && (
+            <details>
+              <summary>Facilitator key</summary>
+              <code>{facilitatorToken}</code>
+            </details>
+          )}
           <div className={connected ? "status good" : "status bad"}>
             {connected ? "Connected" : "Disconnected"}
           </div>
