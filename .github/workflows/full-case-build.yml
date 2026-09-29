@@ -19,6 +19,11 @@ jobs:
       - name: Install case-building dependencies
         run: pip install -r scripts/requirements-data.txt
 
+      - name: Preflight case-builder imports
+        run: |
+          python scripts/build_radar_cache.py --help > /dev/null
+          python scripts/build_meso_cache.py --help > /dev/null
+
       - name: Download public source-case data
         run: python scripts/prepare_endymion_case.py --skip-lightningcast-inputs
 
