@@ -86,8 +86,12 @@ function App() {
       setReconnecting(false);
       setError("");
     });
-    socket.addEventListener("close", () => {
+    socket.addEventListener("close", (event) => {
       setConnected(false);
+      if ([4400, 4403, 4404].includes(event.code)) {
+        setReconnecting(false);
+        return;
+      }
       if (!disposed) {
         setReconnecting(true);
         retryTimer = window.setTimeout(
