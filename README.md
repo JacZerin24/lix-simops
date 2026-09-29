@@ -28,7 +28,7 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 11. Public-source acquisition exists for NEXRAD, GOES-16 ABI/GLM, MRMS, RAP, and ASOS/METAR observations.
 12. A public-archive smoke workflow verifies that the required May 12, 2021 source families are still available before case development.
 13. GOES IR, GLM flash density, MRMS, RAP environmental fields, and surface observations can be rendered into the meso workspace.
-14. RAP 90-mb MLCAPE, 0–6 km bulk shear, and 0–1 km SRH provide the environmental analysis for this case.
+14. RAP 90-mb MLCAPE, 0–1 km and 0–3 km SRH, 0–3 km bulk shear with sparse vectors, and 0–6 km bulk shear provide the environmental analysis for this case.
 15. LightningCast inputs are staged from archived GOES-16 ABI C02/C05/C13/C15, validated scan-by-scan, and ready for external CSPP Geo processing.
 16. Historical source keys remain server-side and are no longer exposed through participant radar/meso APIs.
 17. A final validator checks exact exercise-date remapping, required product coverage, expected frame depth, referenced asset existence, and historical-source-key removal before rehearsal.
@@ -78,8 +78,7 @@ After extracting the ZIP, double-click:
 START_SIMOPS.bat
 ```
 
-The launcher creates a private `.venv` inside the extracted folder, installs only from
-the bundled wheelhouse, validates the case cache, starts FastAPI on port 8000, and opens:
+The launcher creates a private Python environment under the current user's local AppData runtime folder, installs only from the bundled wheelhouse, validates the case cache, starts FastAPI on port 8000, and opens:
 
 ```text
 http://localhost:8000
@@ -99,7 +98,7 @@ docker compose up --build
 Frontend on the host: http://localhost:5173  
 Backend health check on the host: http://localhost:8000/health
 
-For a multi-workstation rehearsal, participants should open `http://HOST-IP:5173` using the SimOps host computer's LAN address. The frontend proxies API and WebSocket traffic to the backend, so participant browsers do not need a separate backend URL.
+For Docker development, participants can use `http://HOST-IP:5173`. For the recommended portable workshop package, start `START_SIMOPS_LAN.bat` and participants use `http://HOST-IP:8000`. Use the LAN mode only on an IT-approved network path; do not disable enterprise security controls.
 
 ## Exercise workflow
 
