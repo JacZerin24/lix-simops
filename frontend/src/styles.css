@@ -733,3 +733,27 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
     max-height: 280px;
   }
 }
+
+
+/* Facilitator readiness / control safeguards */
+.active-speed {
+  background: #2d6ea7;
+  border-color: #79a9d2;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.danger-action {
+  background: #4a2228;
+  border-color: #7a3a44;
+}
+.danger-action:hover { background: #642c35; }
+.readiness-warning {
+  color: #ffd48a;
+  margin: 4px 0 0;
+}
+.readiness-good {
+  color: #bce8c9;
+  margin: 4px 0 0;
+}
+.duplicate-role {
+  color: #ffd48a;
+}
