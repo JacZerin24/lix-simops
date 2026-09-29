@@ -59,6 +59,21 @@ export type RadarProductSummary = {
   id: string;
   label: string;
   units: string;
+  vmin?: number | null;
+  vmax?: number | null;
+  cmap?: string | null;
+  palette?: string[];
+};
+
+export type RadarGridMetadata = {
+  azimuth_bins: number;
+  range_bins: number;
+  range_start_m: number;
+  range_step_m: number;
+  value_min: number;
+  value_max: number;
+  nodata: number;
+  actual_elevation?: number | null;
 };
 
 export type RadarFrame = {
@@ -67,6 +82,8 @@ export type RadarFrame = {
   elevation: number;
   asset_url: string;
   source_key?: string | null;
+  data_url?: string | null;
+  grid?: RadarGridMetadata | null;
 };
 
 export type RadarFrameResponse = {
@@ -74,6 +91,9 @@ export type RadarFrameResponse = {
   scenario_id: string;
   sim_time: string;
   radar_site: string | null;
+  radar_latitude?: number | null;
+  radar_longitude?: number | null;
+  radar_altitude_m?: number | null;
   range_km?: number;
   products: RadarProductSummary[];
   elevations: number[];
