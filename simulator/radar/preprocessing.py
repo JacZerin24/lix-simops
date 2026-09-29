@@ -284,13 +284,25 @@ def build_radar_cache(
                         ax.plot(
                             event_lon,
                             event_lat,
-                            marker="*",
-                            markersize=15,
+                            marker="o",
+                            markersize=8,
+                            markerfacecolor="none",
                             markeredgecolor="black",
+                            markeredgewidth=2.2,
+                            transform=ccrs.PlateCarree(),
+                        )
+                        ax.plot(
+                            event_lon,
+                            event_lat,
+                            marker="o",
+                            markersize=7,
+                            markerfacecolor="none",
+                            markeredgecolor="white",
+                            markeredgewidth=1.1,
                             transform=ccrs.PlateCarree(),
                             label=event_label,
                         )
-                        ax.legend(loc="upper right")
+                        ax.legend(loc="upper right", fontsize=8)
 
                     fig.savefig(destination, dpi=125, bbox_inches="tight")
                 finally:
