@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  radar:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
 
@@ -19,23 +19,126 @@ jobs:
       - name: Install case-building dependencies
         run: pip install -r scripts/requirements-data.txt
 
-      - name: Preflight case-builder imports
-        run: |
-          python scripts/build_radar_cache.py --help > /dev/null
-          python scripts/build_meso_cache.py --help > /dev/null
+      - name: Preflight radar builder
+        run: python scripts/build_radar_cache.py --help > /dev/null
 
-      - name: Download public source-case data
-        run: python scripts/prepare_endymion_case.py --skip-lightningcast-inputs
+      - name: Download KLIX Level II source data
+        run: python scripts/prepare_endymion_case.py --scope radar --skip-lightningcast-inputs
 
-      - name: Validate raw source-case inventory
+      - name: Validate radar source inventory
         run: |
           python scripts/validate_case_inventory.py \
             --strict \
+            --scope radar \
             --skip-lightningcast-inputs \
-            --json data/raw-case-inventory.json
+            --json data/raw-case-inventory-radar.json
 
-      - name: Build participant-facing radar and meso caches
-        run: python scripts/build_endymion_case.py
+      - name: Build participant-facing radar cache
+        run: |
+          python scripts/build_radar_cache.py \
+            --scenario-id mardi-gras-dss-001 \
+            --input data/raw/nexrad/20221214 \
+            --site KLIX \
+            --products REF VEL CC ZDR \
+            --elevations 0.5 0.9 1.3 \
+            --range-km 230 \
+            --simulation-date 2027-02-06 \
+            --timezone America/Chicago
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: endymion-radar-stage
+          path: |
+            data/cache/mardi-gras-dss-001/radar
+            data/raw-case-inventory-radar.json
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 6
+
+  meso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/requirements-data.txt
+
+      - name: Install case-building dependencies
+        run: pip install -r scripts/requirements-data.txt
+
+      - name: Preflight meso builder
+        run: python scripts/build_meso_cache.py --help > /dev/null
+
+      - name: Download meso source data
+        run: python scripts/prepare_endymion_case.py --scope meso --skip-lightningcast-inputs
+
+      - name: Validate meso source inventory
+        run: |
+          python scripts/validate_case_inventory.py \
+            --strict \
+            --scope meso \
+            --skip-lightningcast-inputs \
+            --json data/raw-case-inventory-meso.json
+
+      - name: Build participant-facing meso cache
+        run: python scripts/build_endymion_meso_inputs.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: endymion-meso-stage
+          path: |
+            data/cache/mardi-gras-dss-001/meso
+            data/raw-case-inventory-meso.json
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 6
+
+  package:
+    needs: [radar, meso]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download radar stage
+        uses: actions/download-artifact@v4
+        with:
+          name: endymion-radar-stage
+          path: .stage/radar
+
+      - name: Download meso stage
+        uses: actions/download-artifact@v4
+        with:
+          name: endymion-meso-stage
+          path: .stage/meso
+
+      - name: Assemble participant cache
+        run: |
+          mkdir -p data/cache/mardi-gras-dss-001
+          cp -a .stage/radar/cache/mardi-gras-dss-001/radar data/cache/mardi-gras-dss-001/
+          cp -a .stage/meso/cache/mardi-gras-dss-001/meso data/cache/mardi-gras-dss-001/
+          cp .stage/radar/raw-case-inventory-radar.json data/
+          cp .stage/meso/raw-case-inventory-meso.json data/
+
+      - name: Merge raw source inventories
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          radar = json.loads(Path("data/raw-case-inventory-radar.json").read_text())
+          meso = json.loads(Path("data/raw-case-inventory-meso.json").read_text())
+          meso["datasets"]["nexrad"] = radar["datasets"]["nexrad"]
+          meso["generated_at"] = radar["generated_at"]
+          Path("data/raw-case-inventory.json").write_text(
+              json.dumps(meso, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
 
       - name: Final case-blindness and product validation
         run: python scripts/validate_exercise_cache.py
