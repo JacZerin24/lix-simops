@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from simulator.time_mapping import remap_timestamp_to_simulation_date
 
-from .manifest import RadarFrame, RadarManifest, RadarProduct
+from .manifest import RadarFrame, RadarGridData, RadarManifest, RadarProduct
 from .products import RADAR_PRODUCTS, RADAR_RENDER_CONFIG
 
 
@@ -42,6 +42,83 @@ def _nearest_sweep(radar, elevation: float) -> tuple[int, float]:
     return index, fixed_angles[index]
 
 
+def _palette(cmap_name: str, size: int = 256) -> list[str]:
+    import matplotlib.pyplot as plt
+
+    cmap = plt.get_cmap(cmap_name)
+    values: list[str] = []
+    for index in range(size):
+        red, green, blue, _ = cmap(index / max(1, size - 1))
+        values.append(
+            f"#{round(red * 255):02x}{round(green * 255):02x}{round(blue * 255):02x}"
+        )
+    return values
+
+
+def _uniform_gate_grid(
+    radar,
+    *,
+    field: str,
+    sweep: int,
+    range_km: float,
+    value_min: float,
+    value_max: float,
+    azimuth_bins: int = 360,
+) -> tuple[bytes, dict]:
+    """Resample one sweep to a compact, browser-friendly polar grid.
+
+    Values are stored as unsigned bytes 0..254 across the configured display
+    range; 255 is reserved for missing data. The azimuth dimension is uniform,
+    which keeps the browser renderer and cursor interrogation deterministic.
+    """
+    import numpy as np
+
+    sweep_slice = radar.get_slice(sweep)
+    azimuths = np.mod(
+        np.asarray(radar.azimuth["data"][sweep_slice], dtype=np.float64),
+        360.0,
+    )
+    ranges = np.asarray(radar.range["data"], dtype=np.float64)
+    gate_count = int(np.searchsorted(ranges, range_km * 1000.0, side="right"))
+    gate_count = max(1, min(gate_count, len(ranges)))
+
+    values = np.ma.asarray(radar.fields[field]["data"][sweep_slice, :gate_count])
+    target_azimuths = np.arange(azimuth_bins, dtype=np.float64) * (360.0 / azimuth_bins)
+
+    angular_difference = np.abs(
+        ((azimuths[:, None] - target_azimuths[None, :] + 180.0) % 360.0) - 180.0
+    )
+    ray_indices = angular_difference.argmin(axis=0)
+    uniform = np.ma.asarray(values[ray_indices, :])
+
+    filled = np.ma.filled(uniform, np.nan).astype(np.float64)
+    invalid = np.ma.getmaskarray(uniform) | ~np.isfinite(filled)
+
+    quantized = np.full(filled.shape, 255, dtype=np.uint8)
+    if value_max <= value_min:
+        raise ValueError("Radar value_max must be greater than value_min")
+
+    normalized = np.clip((filled - value_min) / (value_max - value_min), 0.0, 1.0)
+    valid = ~invalid
+    quantized[valid] = np.rint(normalized[valid] * 254.0).astype(np.uint8)
+
+    range_step_m = (
+        float(np.median(np.diff(ranges[:gate_count])))
+        if gate_count > 1
+        else 1.0
+    )
+    metadata = {
+        "azimuth_bins": azimuth_bins,
+        "range_bins": gate_count,
+        "range_start_m": float(ranges[0]),
+        "range_step_m": range_step_m,
+        "value_min": float(value_min),
+        "value_max": float(value_max),
+        "nodata": 255,
+    }
+    return quantized.tobytes(order="C"), metadata
+
+
 def build_radar_cache(
     *,
     input_dir: Path,
@@ -55,15 +132,17 @@ def build_radar_cache(
     event_label: str = "Event",
     simulation_date: date | None = None,
     timezone_name: str = "America/Chicago",
+    local_time_offset_minutes: int = 0,
 ) -> RadarManifest:
-    """Render archived NEXRAD Level II volumes into time-gated web assets.
+    """Build archived NEXRAD Level II into both PNG fallback and gate-aware assets.
+
+    PNGs remain available for backwards compatibility. New builds also include a
+    compact polar gate grid for each frame so the browser can render radar
+    geographically, interrogate values, and preserve one view across products.
 
     When simulation_date is supplied, source data keep their local clock time but
-    are mapped onto the exercise date. This lets a real historical LIX case be
-    presented as a Mardi Gras DRT without exposing the source date.
-
-    Py-ART/Cartopy/Matplotlib are imported lazily so the web backend does not
-    need the heavy radar-processing dependency stack.
+    are mapped onto the exercise date. local_time_offset_minutes can then shift
+    the case to the desired displaced-real-time exercise clock.
     """
     import cartopy.crs as ccrs
     import matplotlib.pyplot as plt
@@ -72,10 +151,15 @@ def build_radar_cache(
     output_root = output_root.resolve()
     radar_root = output_root / "radar"
     frame_root = radar_root / "frames"
+    data_root = radar_root / "data"
     frame_root.mkdir(parents=True, exist_ok=True)
+    data_root.mkdir(parents=True, exist_ok=True)
 
     frames: list[RadarFrame] = []
     product_ids_with_frames: set[str] = set()
+    radar_latitude: float | None = None
+    radar_longitude: float | None = None
+    radar_altitude_m: float | None = None
 
     radar_files = sorted(
         path
@@ -110,12 +194,19 @@ def build_radar_cache(
             if simulation_date
             else source_timestamp
         )
+        if local_time_offset_minutes:
+            timestamp += timedelta(minutes=local_time_offset_minutes)
 
         try:
             radar = pyart.io.read_nexrad_archive(str(source))
         except Exception as exc:
             print(f"Skipping {source.name}: {exc}")
             continue
+
+        if radar_latitude is None:
+            radar_latitude = float(radar.latitude["data"][0])
+            radar_longitude = float(radar.longitude["data"][0])
+            radar_altitude_m = float(radar.altitude["data"][0])
 
         display = pyart.graph.RadarMapDisplay(radar)
 
@@ -130,13 +221,32 @@ def build_radar_cache(
                 if abs(actual_elevation - requested_elevation) > 0.4:
                     continue
 
+                stem = timestamp.strftime("%Y%m%dT%H%M%SZ")
                 destination = (
                     frame_root
                     / product_id
                     / f"{requested_elevation:.1f}"
-                    / f"{timestamp.strftime('%Y%m%dT%H%M%SZ')}.png"
+                    / f"{stem}.png"
                 )
                 destination.parent.mkdir(parents=True, exist_ok=True)
+
+                data_destination = (
+                    data_root
+                    / product_id
+                    / f"{requested_elevation:.1f}"
+                    / f"{stem}.bin"
+                )
+                data_destination.parent.mkdir(parents=True, exist_ok=True)
+
+                packed, grid = _uniform_gate_grid(
+                    radar,
+                    field=field,
+                    sweep=sweep,
+                    range_km=range_km,
+                    value_min=float(config["vmin"]),
+                    value_max=float(config["vmax"]),
+                )
+                data_destination.write_bytes(packed)
 
                 fig = plt.figure(figsize=(10, 8), constrained_layout=True)
                 try:
@@ -183,6 +293,11 @@ def build_radar_cache(
                         elevation=round(requested_elevation, 1),
                         asset=destination.relative_to(output_root).as_posix(),
                         source_key=source.name,
+                        data=RadarGridData(
+                            asset=data_destination.relative_to(output_root).as_posix(),
+                            actual_elevation=float(actual_elevation),
+                            **grid,
+                        ),
                     )
                 )
 
@@ -200,6 +315,7 @@ def build_radar_cache(
                 vmin=config["vmin"],
                 vmax=config["vmax"],
                 cmap=config["cmap"],
+                palette=_palette(config["cmap"]),
             )
         )
 
@@ -209,6 +325,9 @@ def build_radar_cache(
         products=manifest_products,
         frames=sorted(frames, key=lambda frame: (frame.timestamp, frame.product, frame.elevation)),
         range_km=range_km,
+        radar_latitude=radar_latitude,
+        radar_longitude=radar_longitude,
+        radar_altitude_m=radar_altitude_m,
     )
 
     radar_root.mkdir(parents=True, exist_ok=True)
