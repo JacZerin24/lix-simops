@@ -31,6 +31,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip the ~2 GiB ABI L1b C02/C05/C13/C15 package when only building the non-LightningCast exercise cache.",
     )
+    parser.add_argument(
+        "--scope",
+        choices=["all", "radar", "meso"],
+        default="all",
+        help="Acquire all inputs, radar-only inputs, or meso-only inputs.",
+    )
     return parser.parse_args()
 
 
@@ -40,19 +46,23 @@ def main() -> None:
     start = "20:30"
     end = "22:45"
 
-    run(
-        [
-            PYTHON,
-            "scripts/fetch_nexrad.py",
-            "--site", "KLIX",
-            "--date", date,
-            "--start", start,
-            "--end", end,
-            "--output", "data/raw/nexrad/20221214",
-            *(["--list-only"] if args.list_only else []),
-        ],
-        args.dry_run,
-    )
+    if args.scope in {"all", "radar"}:
+        run(
+            [
+                PYTHON,
+                "scripts/fetch_nexrad.py",
+                "--site", "KLIX",
+                "--date", date,
+                "--start", start,
+                "--end", end,
+                "--output", "data/raw/nexrad/20221214",
+                *(["--list-only"] if args.list_only else []),
+            ],
+            args.dry_run,
+        )
+
+    if args.scope == "radar":
+        return
 
     goes_requests = [
         ("ABI-L2-CMIPC", ["2", "13"], "data/raw/goes/abi-cmi"),
