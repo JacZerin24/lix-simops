@@ -69,6 +69,7 @@ def build_radar_cache(
     event_label: str = "Event",
     simulation_date: date | None = None,
     timezone_name: str = "America/Chicago",
+    local_time_offset_minutes: int = 0,
 ) -> RadarManifest:
     """Render archived NEXRAD Level II volumes into time-gated web assets.
 
@@ -120,6 +121,7 @@ def build_radar_cache(
                 source_base_date=source_base_date,
                 simulation_base_date=simulation_date,
                 timezone_name=timezone_name,
+                local_time_offset_minutes=local_time_offset_minutes,
             )
             if simulation_date
             else source_timestamp
