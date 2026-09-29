@@ -15,6 +15,15 @@ GOES_RE = re.compile(r"_s(\d{4})(\d{3})(\d{2})(\d{2})(\d{2})(\d)")
 MRMS_RE = re.compile(r"_(\d{8})-(\d{6})")
 RAP_RE = re.compile(r"rap\.t(\d{2})z")
 
+STRICT_MIN_COUNTS = {
+    "nexrad": 21,
+    "goes_display": 54,
+    "glm": 406,
+    "lightningcast_inputs": 108,
+    "environment": 3,
+}
+STRICT_MRMS_MIN_COUNT = 68
+
 
 def nexrad_time(path: Path) -> datetime | None:
     match = NEXRAD_RE.search(path.name)
@@ -180,15 +189,41 @@ def main() -> None:
         if not args.skip_lightningcast_inputs:
             required.append("lightningcast_inputs")
         for key in required:
-            if report["datasets"][key]["status"] != "ok":
-                failures.append(key)
+            summary = report["datasets"][key]
+            if summary["status"] != "ok":
+                failures.append(f"{key}: missing/empty")
+                continue
+            minimum = STRICT_MIN_COUNTS[key]
+            if summary["count"] < minimum:
+                failures.append(
+                    f"{key}: expected at least {minimum} files, found {summary['count']}"
+                )
+
         for product, summary in report["datasets"]["mrms"].items():
             if summary["status"] != "ok":
-                failures.append(f"mrms:{product}")
-        if report["datasets"]["surface_observations"]["status"] != "ok":
-            failures.append("surface_observations")
+                failures.append(f"mrms:{product}: missing/empty")
+            elif summary["count"] < STRICT_MRMS_MIN_COUNT:
+                failures.append(
+                    f"mrms:{product}: expected at least {STRICT_MRMS_MIN_COUNT} files, "
+                    f"found {summary['count']}"
+                )
+
+        obs_summary = report["datasets"]["surface_observations"]
+        if obs_summary["status"] != "ok":
+            failures.append("surface_observations: missing/empty")
+        else:
+            missing_stations = [
+                station
+                for station, count in obs_summary["stations"].items()
+                if count == 0
+            ]
+            if missing_stations:
+                failures.append(
+                    "surface_observations: no reports for " + ", ".join(missing_stations)
+                )
+
         if failures:
-            raise SystemExit("Missing/empty required raw datasets: " + ", ".join(failures))
+            raise SystemExit("Strict raw-data validation failed: " + "; ".join(failures))
 
 
 if __name__ == "__main__":
