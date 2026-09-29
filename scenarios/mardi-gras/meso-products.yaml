@@ -1,63 +1,72 @@
 products:
   - id: mlcape
     label: RAP 90-mb MLCAPE
-    category: Environment
+    category: Thermodynamics
     units: J/kg
     description: RAP mixed-layer instability available to the evolving convective threat.
     source_dir: data/raw/meso/mlcape
     pattern: "*.png"
 
-  - id: bulk_shear_0_6km
-    label: RAP 0–6 km Bulk Shear
-    category: Environment
-    units: kt
-    description: RAP deep-layer bulk shear derived from the 0–6 km vertical shear components.
-    source_dir: data/raw/meso/bulk_shear_0_6km
-    pattern: "*.png"
-
   - id: srh_0_1km
     label: RAP 0–1 km SRH
-    category: Environment
+    category: Kinematics
     units: m²/s²
-    description: RAP low-level storm-relative helicity for rotating-convection context.
+    description: Low-level storm-relative helicity for near-surface rotation potential.
     source_dir: data/raw/meso/srh_0_1km
+    pattern: "*.png"
+
+  - id: srh_0_3km
+    label: RAP 0–3 km SRH
+    category: Kinematics
+    units: m²/s²
+    description: Deeper low-level storm-relative helicity useful for QLCS and mesovortex context.
+    source_dir: data/raw/meso/srh_0_3km
+    pattern: "*.png"
+
+  - id: bulk_shear_0_3km
+    label: RAP 0–3 km Bulk Shear + Vectors
+    category: Kinematics
+    units: kt
+    description: 0–3 km vector wind difference with sparse vectors, emphasizing low-level shear relevant to QLCS organization.
+    source_dir: data/raw/meso/bulk_shear_0_3km
+    pattern: "*.png"
+
+  - id: bulk_shear_0_6km
+    label: RAP 0–6 km Bulk Shear
+    category: Kinematics
+    units: kt
+    description: Deep-layer vector wind difference derived directly from RAP winds.
+    source_dir: data/raw/meso/bulk_shear_0_6km
     pattern: "*.png"
 
   - id: goes_ir
     label: GOES-16 Infrared
-    category: Satellite
+    category: Satellite / Lightning
     description: ABI Channel 13 cloud-top evolution and upstream convective development.
     source_dir: data/raw/meso/goes_ir
     pattern: "*.png"
 
-  - id: goes_vis
-    label: GOES-16 Visible
-    category: Satellite
-    description: ABI Channel 2 daytime storm development and boundary structure.
-    source_dir: data/raw/meso/goes_vis
+  - id: glm_flash_density
+    label: GLM Flash Density
+    category: Satellite / Lightning
+    description: Five-minute observed GLM flash-centroid density with approximate 8/12/15-mile event-area reference rings; evaluate the entire moving route, not only the center point. Not true Flash Extent Density.
+    source_dir: data/raw/meso/glm_flash_density
     pattern: "*.png"
 
   - id: lightningcast
     label: LightningCast
-    category: Lightning
+    category: Satellite / Lightning
     units: "%"
     description: Historical LightningCast probability generated from archived ABI inputs with CSPP Geo.
     source_dir: data/raw/meso/lightningcast
     pattern: "*.png"
 
-  - id: glm_flash_density
-    label: GLM Flash Density
-    category: Lightning
-    description: Five-minute observed GLM flash-centroid density; not true Flash Extent Density.
-    source_dir: data/raw/meso/glm_flash_density
-    pattern: "*.png"
-
-  - id: mrms_mesh
-    label: MRMS MESH
+  - id: mrms_lowest_refl
+    label: MRMS Lowest-Altitude Reflectivity
     category: MRMS
-    units: in
-    description: Multi-radar hail-size estimate for severe-weather situational awareness.
-    source_dir: data/raw/meso/mrms/MESH_00.50
+    units: dBZ
+    description: Multi-radar low-level reflectivity context away from the primary KLIX display.
+    source_dir: data/raw/meso/mrms/MergedReflectivityAtLowestAltitude_00.50
     pattern: "*.png"
 
   - id: mrms_azshear
@@ -76,17 +85,17 @@ products:
     source_dir: data/raw/meso/mrms/PrecipRate_00.00
     pattern: "*.png"
 
-  - id: mrms_lowest_refl
-    label: MRMS Lowest-Altitude Reflectivity
+  - id: mrms_mesh
+    label: MRMS MESH
     category: MRMS
-    units: dBZ
-    description: Multi-radar low-level reflectivity context away from the primary KLIX display.
-    source_dir: data/raw/meso/mrms/MergedReflectivityAtLowestAltitude_00.50
+    units: in
+    description: Multi-radar hail-size estimate; near-zero values are masked so no-hail areas remain visually quiet.
+    source_dir: data/raw/meso/mrms/MESH_00.50
     pattern: "*.png"
 
   - id: surface_obs
     label: Surface Observations
-    category: Observations
+    category: Surface
     description: Temperature, dewpoint, and wind evolution across southeast Louisiana.
     source_dir: data/raw/meso/surface_obs
     pattern: "*.png"
