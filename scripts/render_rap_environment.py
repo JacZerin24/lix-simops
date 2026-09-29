@@ -31,14 +31,69 @@ PRODUCTS = {
 }
 
 
-def find_message(grbs, *needles: str):
-    wanted = [needle.lower() for needle in needles]
+def message_matches(
+    message,
+    *,
+    short_name: str,
+    level_type: str,
+    top_level: int,
+    bottom_level: int,
+) -> bool:
+    """Match RAP GRIB fields using stable GRIB metadata rather than display strings."""
+    try:
+        return (
+            str(message.shortName) == short_name
+            and str(message.typeOfLevel) == level_type
+            and int(message.topLevel) == top_level
+            and int(message.bottomLevel) == bottom_level
+        )
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+
+def find_message(
+    grbs,
+    *,
+    short_name: str,
+    level_type: str,
+    top_level: int,
+    bottom_level: int,
+):
     for index in range(1, grbs.messages + 1):
         message = grbs.message(index)
-        text = str(message).lower()
-        if all(needle in text for needle in wanted):
+        if message_matches(
+            message,
+            short_name=short_name,
+            level_type=level_type,
+            top_level=top_level,
+            bottom_level=bottom_level,
+        ):
             return message
-    raise KeyError(" / ".join(needles))
+    raise KeyError(
+        f"{short_name} {level_type} top={top_level} bottom={bottom_level}"
+    )
+
+
+def subset_to_domain(values, lats, lons, domain):
+    import numpy as np
+
+    west, east, south, north = domain
+    in_domain = (
+        (lons >= west)
+        & (lons <= east)
+        & (lats >= south)
+        & (lats <= north)
+    )
+    rows, cols = np.where(in_domain)
+    if rows.size == 0:
+        raise ValueError("Requested LIX domain does not intersect the RAP grid.")
+    r0, r1 = rows.min(), rows.max() + 1
+    c0, c1 = cols.min(), cols.max() + 1
+    return (
+        values[r0:r1, c0:c1],
+        lats[r0:r1, c0:c1],
+        lons[r0:r1, c0:c1],
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,11 +109,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    from datetime import timezone
+
     import cartopy.crs as ccrs
     import matplotlib.pyplot as plt
     import numpy as np
     import pygrib
-    from datetime import timezone
 
     domain = parse_domain(args.domain)
     files = sorted(args.input.glob("*.grib2"))
@@ -68,25 +124,38 @@ def main() -> None:
     for source in files:
         grbs = pygrib.open(str(source))
         try:
+            # Actual RAP GRIB2 metadata was verified against the 20Z 14 Dec 2022
+            # analysis in CI. 90-mb MLCAPE is encoded as the 9000–0 Pa
+            # pressure-from-ground layer.
             cape = find_message(
                 grbs,
-                "convective available potential energy",
-                "90-0 mb above ground",
+                short_name="cape",
+                level_type="pressureFromGroundLayer",
+                top_level=9000,
+                bottom_level=0,
             )
             srh = find_message(
                 grbs,
-                "storm relative helicity",
-                "1000-0 m above ground",
+                short_name="hlcy",
+                level_type="heightAboveGroundLayer",
+                top_level=1000,
+                bottom_level=0,
             )
+            # RAP stores 0–6 km vertical shear components with top/bottom
+            # orientation 0/6000 in these GRIB messages.
             ushear = find_message(
                 grbs,
-                "vertical u-component shear",
-                "0-6000 m above ground",
+                short_name="vucsh",
+                level_type="heightAboveGroundLayer",
+                top_level=0,
+                bottom_level=6000,
             )
             vshear = find_message(
                 grbs,
-                "vertical v-component shear",
-                "0-6000 m above ground",
+                short_name="vvcsh",
+                level_type="heightAboveGroundLayer",
+                top_level=0,
+                bottom_level=6000,
             )
 
             timestamp = cape.validDate.replace(tzinfo=timezone.utc)
@@ -96,6 +165,8 @@ def main() -> None:
             fields = {
                 "mlcape": np.asarray(cape.values, dtype=float),
                 "srh_0_1km": np.asarray(srh.values, dtype=float),
+                # vucsh/vvcsh are s^-1 layer shear components. Multiplying
+                # by 6000 m yields vector wind difference in m/s, then kt.
                 "bulk_shear_0_6km": (
                     np.hypot(
                         np.asarray(ushear.values, dtype=float),
@@ -111,13 +182,20 @@ def main() -> None:
                 output_dir = args.output_root / product_id
                 output_dir.mkdir(parents=True, exist_ok=True)
 
+                subset_values, subset_lats, subset_lons = subset_to_domain(
+                    values,
+                    lats,
+                    lons,
+                    domain,
+                )
+
                 fig = plt.figure(figsize=(10, 8), constrained_layout=True)
                 ax = plt.axes(projection=ccrs.PlateCarree())
                 add_base_map(ax, domain=domain)
                 mesh = ax.pcolormesh(
-                    lons,
-                    lats,
-                    np.ma.masked_invalid(values),
+                    subset_lons,
+                    subset_lats,
+                    np.ma.masked_invalid(subset_values),
                     transform=ccrs.PlateCarree(),
                     shading="auto",
                     cmap=config["cmap"],
