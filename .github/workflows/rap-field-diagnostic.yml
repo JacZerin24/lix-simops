@@ -1,0 +1,29 @@
+name: RAP Field Diagnostic
+
+on:
+  pull_request:
+    paths:
+      - "scripts/inspect_rap_fields.py"
+      - ".github/workflows/rap-field-diagnostic.yml"
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install boto3 pygrib
+      - name: Download representative RAP analysis
+        run: |
+          python - <<'PY'
+          import boto3
+          from botocore import UNSIGNED
+          from botocore.config import Config
+          s3=boto3.client("s3",config=Config(signature_version=UNSIGNED),region_name="us-east-1")
+          s3.download_file("noaa-rap-pds","rap.20221214/rap.t20z.awp130pgrbf00.grib2","rap.grib2")
+          PY
+      - run: python scripts/inspect_rap_fields.py rap.grib2
