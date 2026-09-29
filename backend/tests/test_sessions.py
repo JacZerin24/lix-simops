@@ -31,6 +31,7 @@ def test_session_can_be_created_from_scenario() -> None:
     assert payload["scenario_name"] == "2027 Endymion Severe Weather DSS Exercise"
     assert payload["timezone"] == "America/Chicago"
     assert payload["running"] is False
+    assert payload["scenario_end"] == "2027-02-06T22:30:00+00:00"
     assert payload["facilitator_token"]
 
     session = manager.get(payload["session_code"])
