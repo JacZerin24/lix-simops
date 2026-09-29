@@ -82,21 +82,27 @@ def main() -> None:
             description=item.get("description", ""),
             kind=item.get("kind", "image"),
         )
-        products.append(product)
-
         source_dir = Path(item["source_dir"])
         pattern = item.get("pattern", "*")
         if not source_dir.exists():
-            print(f"{product.id}: source directory missing ({source_dir}); keeping product with no frames")
+            print(f"{product.id}: source directory missing ({source_dir}); omitting unavailable product")
             continue
 
+        product_sources: list[tuple[MesoProduct, Path, datetime]] = []
         for source in sorted(source_dir.glob(pattern)):
             if not source.is_file():
                 continue
             try:
-                source_items.append((product, source, timestamp_from_filename(source)))
+                product_sources.append((product, source, timestamp_from_filename(source)))
             except ValueError as exc:
                 print(f"{product.id}: skipping {source.name}: {exc}")
+
+        if not product_sources:
+            print(f"{product.id}: no usable frames; omitting unavailable product")
+            continue
+
+        products.append(product)
+        source_items.extend(product_sources)
 
     source_base_date = (
         min(timestamp.astimezone(zone).date() for _, _, timestamp in source_items)
