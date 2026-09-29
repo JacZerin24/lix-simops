@@ -35,6 +35,7 @@ export type SessionState = ClockState & {
   session_code: string;
   scenario_id: string;
   scenario_name: string;
+  timezone: string;
   participants: Participant[];
   schedule?: ScheduledExerciseItem[];
 };
