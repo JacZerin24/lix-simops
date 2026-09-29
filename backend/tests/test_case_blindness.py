@@ -38,7 +38,7 @@ def test_radar_payload_does_not_expose_historical_source_key(monkeypatch) -> Non
                 product="REF",
                 elevation=0.5,
                 asset="radar/frames/REF/0.5/20270206T204500Z.png",
-                source_key="KLIX20221214_204500_V06",
+                source_key="KLIX20210512_070500_V06",
             )
         ],
     )
@@ -48,7 +48,7 @@ def test_radar_payload_does_not_expose_historical_source_key(monkeypatch) -> Non
 
     assert payload["frames"]
     assert "source_key" not in payload["frames"][0]
-    assert "20221214" not in str(payload)
+    assert "20210512" not in str(payload)
 
 
 def test_meso_payload_does_not_expose_historical_source_key(monkeypatch) -> None:
@@ -67,7 +67,7 @@ def test_meso_payload_does_not_expose_historical_source_key(monkeypatch) -> None
                 timestamp=session.sim_time,
                 product="goes_ir",
                 asset="meso/frames/goes_ir/goes_ir_20270206T204500Z.png",
-                source_key="OR_ABI-L2-CMIPC-M6C13_G16_s20223482045000.nc",
+                source_key="OR_ABI-L2-CMIPC-M6C13_G16_s20211320705000.nc",
             )
         ],
     )
@@ -77,4 +77,4 @@ def test_meso_payload_does_not_expose_historical_source_key(monkeypatch) -> None
 
     assert payload["frames"]
     assert "source_key" not in payload["frames"][0]
-    assert "2022348" not in str(payload)
+    assert "2021132" not in str(payload)
