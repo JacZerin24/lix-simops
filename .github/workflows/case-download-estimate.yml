@@ -1,10 +1,6 @@
 name: Case Download Estimate
 
 on:
-  pull_request:
-    paths:
-      - "scripts/estimate_case_download.py"
-      - ".github/workflows/case-download-estimate.yml"
   workflow_dispatch:
 
 jobs:
