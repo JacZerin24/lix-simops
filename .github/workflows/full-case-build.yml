@@ -99,7 +99,9 @@ jobs:
             --input data/raw/goes/${{ matrix.id }} \
             --output data/raw/meso/${{ matrix.id }} \
             --channel ${{ matrix.channel }} \
-            --domain -93 -87 27.5 32.5
+            --domain -93 -87 27.5 32.5 \
+            --simulation-date 2027-02-06 \
+            --local-time-offset-minutes 825
 
       - name: Verify rendered GOES frames
         run: |
@@ -164,7 +166,9 @@ jobs:
             --input-root data/raw/mrms \
             --output-root data/raw/meso/mrms \
             --products ${{ matrix.product }} \
-            --domain -93 -87 27.5 32.5
+            --domain -93 -87 27.5 32.5 \
+            --simulation-date 2027-02-06 \
+            --local-time-offset-minutes 825
 
       - name: Verify rendered MRMS frames
         run: |
@@ -231,14 +235,18 @@ jobs:
           python scripts/render_glm_flash_density.py \
             --input data/raw/goes/glm-lcfa \
             --output data/raw/meso/glm_flash_density \
-            --domain -93 -87 27.5 32.5
+            --domain -93 -87 27.5 32.5 \
+            --simulation-date 2027-02-06 \
+            --local-time-offset-minutes 825
 
       - name: Render RAP environment
         run: |
           python scripts/render_rap_environment.py \
             --input data/raw/rap/20210512 \
             --output-root data/raw/meso \
-            --domain -93 -87 27.5 32.5
+            --domain -93 -87 27.5 32.5 \
+            --simulation-date 2027-02-06 \
+            --local-time-offset-minutes 825
 
       - name: Render surface observations
         run: |
@@ -247,7 +255,9 @@ jobs:
             --output data/raw/meso/surface_obs \
             --start 2021-05-12T06:00Z \
             --end 2021-05-12T07:45Z \
-            --domain -93 -87 27.5 32.5
+            --domain -93 -87 27.5 32.5 \
+            --simulation-date 2027-02-06 \
+            --local-time-offset-minutes 825
 
       - name: Verify supporting rendered frames
         run: |
