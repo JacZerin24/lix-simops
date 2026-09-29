@@ -42,6 +42,20 @@ def _nearest_sweep(radar, elevation: float) -> tuple[int, float]:
     return index, fixed_angles[index]
 
 
+def _resolve_colormap(name: str) -> str:
+    import matplotlib as mpl
+
+    if name in mpl.colormaps:
+        return name
+
+    if name.startswith("pyart_"):
+        modern_name = name.removeprefix("pyart_")
+        if modern_name in mpl.colormaps:
+            return modern_name
+
+    raise ValueError(f"Radar colormap {name!r} is not registered by Matplotlib/Py-ART")
+
+
 def build_radar_cache(
     *,
     input_dir: Path,
@@ -125,6 +139,7 @@ def build_radar_cache(
                 continue
 
             config = RADAR_RENDER_CONFIG[product_id]
+            cmap = _resolve_colormap(config["cmap"])
             for requested_elevation in elevations:
                 sweep, actual_elevation = _nearest_sweep(radar, requested_elevation)
                 if abs(actual_elevation - requested_elevation) > 0.4:
@@ -147,7 +162,7 @@ def build_radar_cache(
                         height=range_km * 2000.0,
                         vmin=config["vmin"],
                         vmax=config["vmax"],
-                        cmap=config["cmap"],
+                        cmap=cmap,
                         title=(
                             f"{radar_site} {RADAR_PRODUCTS[product_id]} "
                             f"{actual_elevation:.1f}° — "
