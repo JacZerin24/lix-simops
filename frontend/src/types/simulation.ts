@@ -4,6 +4,7 @@ export type ClockState = {
   sim_time: string;
   running: boolean;
   speed: number;
+  scenario_end?: string;
 };
 
 export type Participant = {
