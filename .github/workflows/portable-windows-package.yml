@@ -53,6 +53,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$dest\data\cache" | Out-Null
 
           Copy-Item backend "$dest\backend" -Recurse
+          Remove-Item "$dest\backend\tests" -Recurse -Force -ErrorAction SilentlyContinue
           Copy-Item simulator "$dest\simulator" -Recurse
           Copy-Item scenarios "$dest\scenarios" -Recurse
           Remove-Item "$dest\scenarios\mardi-gras\source-case.yaml" -Force -ErrorAction SilentlyContinue
