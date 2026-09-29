@@ -74,6 +74,9 @@ def main() -> None:
             if "20221214" in frame.get("asset", ""):
                 failures.append("radar source date appears in participant asset path")
                 break
+            if frame.get("source_key"):
+                failures.append("radar participant manifest exposes historical source_key")
+                break
             radar_times.setdefault(frame["product"], set()).add(frame["timestamp"])
             if not (root / frame["asset"]).is_file():
                 failures.append(f"radar asset missing: {frame['asset']}")
@@ -103,6 +106,9 @@ def main() -> None:
                 break
             if "20221214" in frame.get("asset", ""):
                 failures.append("meso source date appears in participant asset path")
+                break
+            if frame.get("source_key"):
+                failures.append("meso participant manifest exposes historical source_key")
                 break
             if not (root / frame["asset"]).is_file():
                 failures.append(f"meso asset missing: {frame['asset']}")
