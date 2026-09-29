@@ -519,6 +519,19 @@ export function RadarGeographicCanvas({
   const [paletteRevision, setPaletteRevision] = useState(0);
 
   const grid = frame.grid ?? null;
+  const gridKey = grid
+    ? [
+        grid.azimuth_bins,
+        grid.range_bins,
+        grid.range_start_m,
+        grid.range_step_m,
+        grid.value_min,
+        grid.value_max,
+        grid.nodata,
+        grid.actual_elevation ?? "",
+      ].join(":")
+    : "";
+  const paletteKey = (product.palette ?? []).join(",");
 
   useEffect(() => {
     const element = containerRef.current;
@@ -594,21 +607,21 @@ export function RadarGeographicCanvas({
     return () => {
       cancelled = true;
     };
-  }, [frame.data_url, grid]);
+  }, [frame.data_url, gridKey]);
 
   useEffect(() => {
     const state = rendererRef.current;
     if (!state || !values || !grid) return;
     uploadRadarData(state, grid, values);
     setDataRevision((value) => value + 1);
-  }, [values, grid]);
+  }, [values, gridKey]);
 
   useEffect(() => {
     const state = rendererRef.current;
     if (!state) return;
     uploadPalette(state, product.palette ?? []);
     setPaletteRevision((value) => value + 1);
-  }, [product.id, product.palette]);
+  }, [product.id, paletteKey]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -618,7 +631,7 @@ export function RadarGeographicCanvas({
     if (canvas.width !== size.width) canvas.width = size.width;
     if (canvas.height !== size.height) canvas.height = size.height;
     drawRadar(state, canvas, grid, view);
-  }, [view, size, grid, values, dataRevision, paletteRevision]);
+  }, [view, size, gridKey, values, dataRevision, paletteRevision]);
 
   const countyPath = useMemo(
     () =>
