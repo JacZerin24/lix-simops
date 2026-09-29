@@ -4,6 +4,9 @@ cd /d "%~dp0"
 
 title LIX SimOps
 
+set "SIMOPS_HOST=127.0.0.1"
+if /I "%~1"=="LAN" set "SIMOPS_HOST=0.0.0.0"
+
 echo.
 echo ============================================
 echo          LIX SimOps Portable
@@ -55,6 +58,7 @@ if errorlevel 1 (
 echo.
 echo SimOps is starting.
 echo Local browser address: http://localhost:8000
+if "%SIMOPS_HOST%"=="0.0.0.0" echo LAN mode is enabled on port 8000.
 echo.
 echo Keep this window OPEN while using SimOps.
 echo To stop SimOps later, click this window and press Ctrl+C.
@@ -62,7 +66,7 @@ echo.
 
 start "" powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 2; Start-Process 'http://localhost:8000'"
 
-".venv\Scripts\python.exe" -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+".venv\Scripts\python.exe" -m uvicorn backend.app.main:app --host %SIMOPS_HOST% --port 8000
 goto :eof
 
 :setup_error
