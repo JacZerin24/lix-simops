@@ -89,52 +89,71 @@ def main() -> None:
 
         fig = plt.figure(figsize=(10, 8), constrained_layout=True)
         ax = plt.axes(projection=ccrs.PlateCarree())
-        add_base_map(ax, domain=domain)
+        add_base_map(ax, domain=domain, show_cities=False)
+
+        label_offsets = {
+            "MSY": (-18, -10),
+            "NEW": (20, 12),
+            "ASD": (14, 9),
+            "HDC": (12, 10),
+            "BTR": (-8, 10),
+        }
 
         for station, (_, row, lat, lon) in latest.items():
             tmpf = number(row.get("tmpf"))
             dwpf = number(row.get("dwpf"))
             drct = number(row.get("drct"))
             sknt = number(row.get("sknt"))
+            dx, dy = label_offsets.get(station, (10, 8))
 
             ax.scatter(
                 lon,
                 lat,
-                s=20,
+                s=18,
                 facecolor="white",
                 edgecolor="black",
-                linewidth=0.5,
-                transform=ccrs.PlateCarree(),
-                zorder=5,
-            )
-            ax.text(
-                lon + 0.05,
-                lat + 0.05,
-                station,
-                fontsize=8,
-                fontweight="bold",
+                linewidth=0.6,
                 transform=ccrs.PlateCarree(),
                 zorder=6,
             )
+            ax.annotate(
+                station,
+                xy=(lon, lat),
+                xytext=(dx + 7, dy),
+                textcoords="offset points",
+                fontsize=8,
+                fontweight="bold",
+                ha="left",
+                va="center",
+                bbox={"boxstyle": "round,pad=0.12", "fc": "white", "ec": "none", "alpha": 0.78},
+                transform=ccrs.PlateCarree(),
+                zorder=7,
+            )
             if tmpf is not None:
-                ax.text(
-                    lon - 0.16,
-                    lat + 0.08,
+                ax.annotate(
                     f"{tmpf:.0f}",
+                    xy=(lon, lat),
+                    xytext=(dx - 7, dy + 8),
+                    textcoords="offset points",
                     fontsize=8,
                     ha="right",
+                    va="bottom",
+                    bbox={"boxstyle": "round,pad=0.08", "fc": "white", "ec": "none", "alpha": 0.72},
                     transform=ccrs.PlateCarree(),
-                    zorder=6,
+                    zorder=7,
                 )
             if dwpf is not None:
-                ax.text(
-                    lon - 0.16,
-                    lat - 0.08,
+                ax.annotate(
                     f"{dwpf:.0f}",
+                    xy=(lon, lat),
+                    xytext=(dx - 7, dy - 8),
+                    textcoords="offset points",
                     fontsize=8,
                     ha="right",
+                    va="top",
+                    bbox={"boxstyle": "round,pad=0.08", "fc": "white", "ec": "none", "alpha": 0.72},
                     transform=ccrs.PlateCarree(),
-                    zorder=6,
+                    zorder=7,
                 )
             if drct is not None and sknt is not None and sknt >= 1:
                 radians = math.radians(drct)
@@ -145,9 +164,10 @@ def main() -> None:
                     [lat],
                     [u],
                     [v],
-                    length=5,
+                    length=5.5,
+                    linewidth=0.7,
                     transform=ccrs.PlateCarree(),
-                    zorder=5,
+                    zorder=6,
                 )
 
         ax.set_title("Surface Observations — Temp / Dewpoint (°F)", loc="left", fontweight="bold")
