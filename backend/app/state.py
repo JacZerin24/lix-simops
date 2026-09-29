@@ -65,6 +65,7 @@ class SessionState:
     scenario_name: str
     scenario_start: datetime
     sim_time: datetime
+    timezone: str = "America/Chicago"
     running: bool = False
     speed: float = 1.0
     default_speed: float = 1.0
@@ -103,6 +104,7 @@ class SessionState:
             "session_code": self.code,
             "scenario_id": self.scenario_id,
             "scenario_name": self.scenario_name,
+            "timezone": self.timezone,
             "sim_time": self.sim_time.isoformat(),
             "running": self.running,
             "speed": self.speed,
@@ -154,6 +156,7 @@ class SessionManager:
         scenario_name: str,
         scenario_start: datetime,
         default_speed: float,
+        timezone: str = "America/Chicago",
         scheduled_events: list[ScheduledExerciseEvent] | None = None,
     ) -> SessionState:
         code = self._new_code()
@@ -170,6 +173,7 @@ class SessionManager:
             scenario_name=scenario_name,
             scenario_start=scenario_start,
             sim_time=scenario_start,
+            timezone=timezone,
             speed=default_speed,
             default_speed=default_speed,
             schedule=schedule,
