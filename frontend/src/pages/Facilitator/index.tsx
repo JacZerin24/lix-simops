@@ -5,6 +5,7 @@ import type {
   Participant,
   ScheduledExerciseItem,
 } from "../../types/simulation";
+import { formatSimTime } from "../../utils/simTime";
 
 type InjectDraft = {
   title: string;
@@ -19,6 +20,7 @@ type Props = {
   participants: Participant[];
   events: ExerciseEvent[];
   schedule: ScheduledExerciseItem[];
+  timezone: string;
   onControl: (action: string, speed?: number) => void;
   onInject: (draft: InjectDraft) => void;
   onPartnerMessage: (teamId: string, sender: string, body: string) => void;
@@ -34,17 +36,13 @@ const roleLabels = {
   dss: "DSS",
 } as const;
 
-function simTime(value?: string | null) {
-  if (!value) return "Manual";
-  return `${new Date(value).toISOString().slice(11, 16)}Z`;
-}
-
 export function Facilitator({
   sessionCode,
   scenarioName,
   participants,
   events,
   schedule,
+  timezone,
   onControl,
   onInject,
   onPartnerMessage,
@@ -158,7 +156,7 @@ export function Facilitator({
             schedule.map((item) => (
               <article className={`schedule-row ${item.status}`} key={item.id}>
                 <div className="schedule-time">
-                  <strong>{simTime(item.due_at)}</strong>
+                  <strong>{item.due_at ? formatSimTime(item.due_at, timezone) : "Manual"}</strong>
                   <span>{item.at_sim_time}</span>
                 </div>
                 <div className="schedule-copy">
@@ -270,7 +268,7 @@ export function Facilitator({
           ) : (
             [...events].reverse().slice(0, 20).map((event, index) => (
               <article className="event-row" key={event.event_id ?? index}>
-                <span className="event-time">{simTime(event.sim_time)}</span>
+                <span className="event-time">{formatSimTime(event.sim_time, timezone)}</span>
                 <strong>{event.type.replace("_", " ")}</strong>
                 <span>
                   {(event.team_id === "*" ? "All teams" : event.team_id)
