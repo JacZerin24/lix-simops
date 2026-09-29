@@ -181,8 +181,8 @@ def main() -> None:
     print(f"Rendered {len(radar_pngs)} radar and {len(pngs)} meso smoke-test images.")
     if len(radar_pngs) < 1:
         raise SystemExit("Expected at least one rendered KLIX radar image.")
-    if len(pngs) < 6:
-        raise SystemExit("Expected IR GOES, GLM, MRMS, and three RAP environment images.")
+    if len(pngs) < 8:
+        raise SystemExit("Expected IR GOES, GLM, MRMS, and five RAP environment images.")
 
 
 if __name__ == "__main__":
