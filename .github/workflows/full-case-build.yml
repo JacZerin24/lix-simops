@@ -45,7 +45,7 @@ jobs:
             --range-km 230 \
             --event-lat 29.96 \
             --event-lon -90.09 \
-            --event-label "Endymion route" \
+            --event-label "Endymion route ref" \
             --simulation-date 2027-02-06 \
             --timezone America/Chicago \
             --local-time-offset-minutes 825
@@ -239,6 +239,9 @@ jobs:
             --input data/raw/goes/glm-lcfa \
             --output data/raw/meso/glm_flash_density \
             --domain -93 -87 27.5 32.5 \
+            --event-lat 29.965 \
+            --event-lon -90.095 \
+            --range-rings-mi 8 12 15 \
             --simulation-date 2027-02-06 \
             --local-time-offset-minutes 825
 
