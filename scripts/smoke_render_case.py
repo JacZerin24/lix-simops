@@ -88,7 +88,33 @@ def main() -> None:
     rap_dir = WORK / "rap"
     download(s3, "noaa-rap-pds", rap_key, rap_dir)
 
+    radar_keys = [
+        key
+        for key in list_keys(
+            s3,
+            "unidata-nexrad-level2",
+            "2022/12/14/KLIX/KLIX20221214_203",
+            100,
+        )
+        if "MDM" not in Path(key).name
+    ]
+    if not radar_keys:
+        raise SystemExit("No representative KLIX Level II file.")
+    radar_dir = WORK / "radar"
+    download(s3, "unidata-nexrad-level2", radar_keys[0], radar_dir)
+
     domain = ["-93", "-87", "27.5", "32.5"]
+    run([
+        PYTHON, "scripts/build_radar_cache.py",
+        "--scenario-id", "render-smoke-radar",
+        "--input", str(radar_dir),
+        "--site", "KLIX",
+        "--products", "REF", "VEL", "CC", "ZDR",
+        "--elevations", "0.5",
+        "--range-km", "230",
+        "--simulation-date", "2027-02-06",
+        "--timezone", "America/Chicago",
+    ])
     run([
         PYTHON, "scripts/render_goes.py",
         "--input", str(goes_dir),
@@ -117,7 +143,10 @@ def main() -> None:
     ])
 
     pngs = list((WORK / "out").rglob("*.png"))
-    print(f"Rendered {len(pngs)} smoke-test images.")
+    radar_pngs = list((ROOT / "data/cache/render-smoke-radar/radar/frames").rglob("*.png"))
+    print(f"Rendered {len(radar_pngs)} radar and {len(pngs)} meso smoke-test images.")
+    if len(radar_pngs) < 1:
+        raise SystemExit("Expected at least one rendered KLIX radar image.")
     if len(pngs) < 6:
         raise SystemExit("Expected GOES, GLM, MRMS, and three RAP environment images.")
 
