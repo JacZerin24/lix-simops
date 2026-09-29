@@ -117,5 +117,5 @@ participant_case_blindness:
   hide_historical_event_names: true
   remap_data_to_exercise_date: true
   facilitator_traceability: >-
-    Raw filenames/source keys retain original timestamps in manifests, but participant-facing
-    timestamps are mapped to February 6, 2027.
+    Raw source files retain their original timestamps only in facilitator-controlled storage.
+    Participant cache manifests omit historical source keys and map timestamps to February 6, 2027.
