@@ -26,10 +26,14 @@ The review covered:
 - Retained the user-provided GR/GR2Analyst CC and ZDR palettes.
 - Corrected RAP 0–6 km vector wind-difference derivation.
 - Added RAP 0–3 km bulk shear with sparse vectors and RAP 0–3 km SRH.
-- Added city reference labels to operational meso maps.
-- Decluttered the MSY/NEW surface-observation cluster using offset station labels.
+- Added city reference labels to operational meso maps with white text halos for readability.
+- Decluttered the MSY/NEW surface-observation cluster using offset station-model labels.
 - Increased MRMS AzShear low-signal masking and tightened the display range.
 - Increased low-end precipitation-rate masking so trace/noise does not dominate.
+- Added approximate 8/12/15-mile reference rings to GLM around a central Endymion
+  route reference point, with explicit participant text that the entire moving route
+  must still be considered.
+- Added a small unobtrusive Endymion route-reference marker to radar frames.
 - Retained near-zero MESH masking.
 - Products with no actual frames remain hidden from the participant menu.
 - Meso frames mapped beyond the exercise end are dropped during cache assembly.
@@ -53,9 +57,13 @@ The review covered:
 - The dashboard shows whether assigned positions are still missing.
 - Playback-speed controls show the active speed.
 - Start/Pause controls reflect the current run state.
-- Reset now requires confirmation.
+- Reset now requires confirmation and states that the external Shift Log is unaffected.
 - Facilitators can download the SimOps event log as CSV.
-- Clients automatically attempt to reconnect after a transient WebSocket disconnect.
+- Clients automatically attempt to reconnect after a transient WebSocket disconnect,
+  but do not loop on invalid session/authentication errors.
+- An active connection is restored after a page refresh in the same tab.
+- Session codes avoid visually ambiguous I/O/0/1 characters.
+- Released weather images are browser-cacheable to reduce repeated LAN transfers.
 - The app distinguishes a completed exercise from an ordinary paused clock.
 - Session snapshots expose scenario end time to support that state.
 
@@ -64,9 +72,19 @@ The review covered:
 - LightningCast is marked optional until real CSPP Geo output is staged.
 - Removed stale SRM and old meso-tab declarations from resource metadata.
 - Updated portable-runtime documentation for the LocalAppData virtual environment.
+- Portable dependency readiness is keyed to the requirements-file hash so a newer
+  package refreshes its private environment when dependencies change.
+- The launcher checks for a port-8000 collision and LAN mode prints candidate
+  participant URLs without modifying firewall/security controls.
+- The packaging workflow executes the actual Windows launcher in preflight mode before publishing.
 - Updated day-of LAN instructions: portable mode uses port 8000; port 5173 is only
   for the Docker/Vite development path.
-- Strengthened cache validation for first/last radar coverage and post-end frames.
+- Strengthened cache validation for radar and meso temporal coverage and post-end frames.
+- Final case and portable artifacts retain for 45 days, with a final-package freeze
+  checklist so workshop operation does not depend on short artifact retention.
+- The portable participant runtime strips facilitator-only source metadata, excludes
+  backend tests, scans for historical source identifiers, and includes only safe
+  package/run traceability metadata.
 
 ## Public-information verification
 
