@@ -130,6 +130,12 @@ def parse_args() -> argparse.Namespace:
         help="Do not require archived ABI L1b LightningCast inputs in strict mode.",
     )
     parser.add_argument("--json", dest="json_output", type=Path)
+    parser.add_argument(
+        "--scope",
+        choices=["all", "radar", "meso"],
+        default="all",
+        help="Validate all raw inputs, radar-only inputs, or meso-only inputs.",
+    )
     return parser.parse_args()
 
 
@@ -185,7 +191,23 @@ def main() -> None:
 
     if args.strict:
         failures = []
-        required = ["nexrad", "goes_display", "glm", "environment"]
+
+        if args.scope in {"all", "radar"}:
+            summary = report["datasets"]["nexrad"]
+            if summary["status"] != "ok":
+                failures.append("nexrad: missing/empty")
+            elif summary["count"] < STRICT_MIN_COUNTS["nexrad"]:
+                failures.append(
+                    f"nexrad: expected at least {STRICT_MIN_COUNTS['nexrad']} files, "
+                    f"found {summary['count']}"
+                )
+
+        if args.scope == "radar":
+            if failures:
+                raise SystemExit("Strict raw-data validation failed: " + "; ".join(failures))
+            return
+
+        required = ["goes_display", "glm", "environment"]
         if not args.skip_lightningcast_inputs:
             required.append("lightningcast_inputs")
         for key in required:
