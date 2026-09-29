@@ -55,6 +55,7 @@ jobs:
           Copy-Item backend "$dest\backend" -Recurse
           Copy-Item simulator "$dest\simulator" -Recurse
           Copy-Item scenarios "$dest\scenarios" -Recurse
+          Remove-Item "$dest\scenarios\mardi-gras\source-case.yaml" -Force -ErrorAction SilentlyContinue
           Copy-Item frontend\dist "$dest\frontend\dist" -Recurse
           Copy-Item scripts\validate_exercise_cache.py "$dest\scripts\validate_exercise_cache.py"
           Copy-Item portable\windows\START_SIMOPS.bat "$dest\START_SIMOPS.bat"
@@ -66,8 +67,24 @@ jobs:
             throw "Downloaded case artifact does not contain cache/mardi-gras-dss-001"
           }
           Copy-Item ".case\cache\mardi-gras-dss-001" "$dest\data\cache\mardi-gras-dss-001" -Recurse
-          if (Test-Path ".case\BUILD_INFO.txt") {
-            Copy-Item ".case\BUILD_INFO.txt" "$dest\BUILD_INFO.txt"
+          # BUILD_INFO and source-case.yaml intentionally stay out of the portable
+          # participant runtime because they reveal the historical source case.
+
+      - name: Reject historical source-case leakage
+        shell: pwsh
+        run: |
+          $dest = Join-Path $PWD "portable-build\LIX-SimOps"
+          if (Test-Path "$dest\scenarios\mardi-gras\source-case.yaml") {
+            throw "Portable runtime contains facilitator-only source-case.yaml"
+          }
+          if (Test-Path "$dest\BUILD_INFO.txt") {
+            throw "Portable runtime contains facilitator-only BUILD_INFO.txt"
+          }
+          $leaks = Get-ChildItem $dest -Recurse -File |
+            Select-String -SimpleMatch "2021-05-12" -List
+          if ($leaks) {
+            $leaks | ForEach-Object { Write-Host $_.Path }
+            throw "Portable runtime contains the historical source date"
           }
 
       - name: Build offline Python wheelhouse
