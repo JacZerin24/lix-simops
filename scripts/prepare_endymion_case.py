@@ -18,7 +18,7 @@ def run(command: list[str], dry_run: bool) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Acquire the raw December 14, 2022 data inputs for the Endymion exercise."
+        description="Acquire the raw May 12, 2021 data inputs for the Endymion exercise."
     )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
@@ -26,33 +26,53 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="List matching AWS objects for GOES/MRMS without downloading them.",
     )
+    parser.add_argument(
+        "--skip-lightningcast-inputs",
+        action="store_true",
+        help="Skip the ~2 GiB ABI L1b C02/C05/C13/C15 package when only building the non-LightningCast exercise cache.",
+    )
+    parser.add_argument(
+        "--scope",
+        choices=["all", "radar", "meso"],
+        default="all",
+        help="Acquire all inputs, radar-only inputs, or meso-only inputs.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    date = "2022-12-14"
-    start = "20:30"
-    end = "22:45"
+    date = "2021-05-12"
+    start = "06:00"
+    end = "07:45"
 
-    run(
-        [
-            PYTHON,
-            "scripts/fetch_nexrad.py",
-            "--site", "KLIX",
-            "--date", date,
-            "--start", start,
-            "--end", end,
-            "--output", "data/raw/nexrad/20221214",
-            *(["--list-only"] if args.list_only else []),
-        ],
-        args.dry_run,
-    )
+    if args.scope in {"all", "radar"}:
+        run(
+            [
+                PYTHON,
+                "scripts/fetch_nexrad.py",
+                "--site", "KLIX",
+                "--date", date,
+                "--start", start,
+                "--end", end,
+                "--output", "data/raw/nexrad/20210512",
+                *(["--list-only"] if args.list_only else []),
+            ],
+            args.dry_run,
+        )
 
-    for product, channels, output in [
-        ("ABI-L2-CMIPC", ["2", "13"], "data/raw/goes/abi-cmi"),
-        ("ABI-L1b-RadC", ["2", "5", "13", "15"], "data/raw/goes/lightningcast-inputs"),
-    ]:
+    if args.scope == "radar":
+        return
+
+    goes_requests = [
+        ("ABI-L2-CMIPC", ["13"], "data/raw/goes/abi-cmi"),
+    ]
+    if not args.skip_lightningcast_inputs:
+        goes_requests.append(
+            ("ABI-L1b-RadC", ["2", "5", "13", "15"], "data/raw/goes/lightningcast-inputs")
+        )
+
+    for product, channels, output in goes_requests:
         command = [
             PYTHON,
             "scripts/fetch_goes.py",
@@ -104,8 +124,8 @@ def main() -> None:
             PYTHON,
             "scripts/fetch_rap.py",
             "--date", date,
-            "--cycles", "20", "21", "22",
-            "--output", "data/raw/rap/20221214",
+            "--cycles", "5", "6", "7",
+            "--output", "data/raw/rap/20210512",
             *(["--list-only"] if args.list_only else []),
         ],
         args.dry_run,
@@ -119,9 +139,9 @@ def main() -> None:
                 "--network", "LA_ASOS",
                 "--stations", "MSY", "NEW", "BTR", "ASD", "HDC",
                 "--date", date,
-                "--start", start,
+                "--start", "05:15",
                 "--end", end,
-                "--output", "data/raw/observations/asos_20221214.csv",
+                "--output", "data/raw/observations/asos_20210512.csv",
             ],
             args.dry_run,
         )
