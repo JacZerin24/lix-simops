@@ -256,6 +256,11 @@ def build_radar_cache(
                 destination.parent.mkdir(parents=True, exist_ok=True)
 
                 fig = plt.figure(figsize=(10, 8), constrained_layout=True)
+                valid_label = (
+                    timestamp.astimezone(zone)
+                    .strftime("%I:%M:%S %p %Z")
+                    .lstrip("0")
+                )
                 try:
                     display.plot_ppi_map(
                         field,
@@ -267,8 +272,7 @@ def build_radar_cache(
                         cmap=cmap,
                         title=(
                             f"{radar_site} {RADAR_PRODUCTS[product_id]} "
-                            f"{actual_elevation:.1f}° — "
-                            timestamp.astimezone(zone).strftime("%I:%M:%S %p %Z").lstrip("0")
+                            f"{actual_elevation:.1f}° — {valid_label}"
                         ),
                         colorbar_flag=True,
                         embellish=True,
