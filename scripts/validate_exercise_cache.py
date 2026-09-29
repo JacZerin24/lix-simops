@@ -8,8 +8,10 @@ from pathlib import Path
 
 REQUIRED_MESO = {
     "mlcape",
+    "bulk_shear_0_3km",
     "bulk_shear_0_6km",
     "srh_0_1km",
+    "srh_0_3km",
     "goes_ir",
     "glm_flash_density",
     "mrms_mesh",
@@ -21,8 +23,10 @@ REQUIRED_MESO = {
 
 MIN_MESO_FRAMES = {
     "mlcape": 3,
+    "bulk_shear_0_3km": 3,
     "bulk_shear_0_6km": 3,
     "srh_0_1km": 3,
+    "srh_0_3km": 3,
     "goes_ir": 20,
     "glm_flash_density": 20,
     "mrms_mesh": 50,
