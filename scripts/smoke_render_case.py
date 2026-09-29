@@ -165,6 +165,9 @@ def main() -> None:
         "--input", str(glm_dir),
         "--output", str(WORK / "out" / "glm"),
         "--domain", *domain,
+        "--event-lat", "29.965",
+        "--event-lon", "-90.095",
+        "--range-rings-mi", "8", "12", "15",
             "--simulation-date", "2027-02-06",
             "--local-time-offset-minutes", "825",
     ])
