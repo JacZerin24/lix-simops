@@ -13,6 +13,19 @@ class RadarProduct(BaseModel):
     vmin: float | None = None
     vmax: float | None = None
     cmap: str | None = None
+    palette: list[str] = Field(default_factory=list)
+
+
+class RadarGridData(BaseModel):
+    asset: str
+    azimuth_bins: int = Field(gt=0)
+    range_bins: int = Field(gt=0)
+    range_start_m: float
+    range_step_m: float = Field(gt=0)
+    value_min: float
+    value_max: float
+    nodata: int = 255
+    actual_elevation: float | None = None
 
 
 class RadarFrame(BaseModel):
@@ -21,6 +34,7 @@ class RadarFrame(BaseModel):
     elevation: float
     asset: str
     source_key: str | None = None
+    data: RadarGridData | None = None
 
 
 class RadarManifest(BaseModel):
@@ -29,6 +43,9 @@ class RadarManifest(BaseModel):
     products: list[RadarProduct]
     frames: list[RadarFrame]
     range_km: float = Field(default=230.0, gt=0)
+    radar_latitude: float | None = None
+    radar_longitude: float | None = None
+    radar_altitude_m: float | None = None
 
 
 def visible_frames(
