@@ -61,10 +61,13 @@ def add_base_map(ax, *, domain) -> None:
 
     west, east, south, north = domain
     ax.set_extent([west, east, south, north], crs=ccrs.PlateCarree())
-    ax.add_feature(cfeature.COASTLINE.with_scale("50m"), linewidth=0.7)
-    ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.5)
-    ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.5)
-    ax.add_feature(cfeature.LAKES.with_scale("50m"), facecolor="none", edgecolor="0.5", linewidth=0.4)
+    ax.set_facecolor("#eef3f6")
+    ax.add_feature(cfeature.LAND.with_scale("50m"), facecolor="#f7f7f4", zorder=0)
+    ax.add_feature(cfeature.OCEAN.with_scale("50m"), facecolor="#e8f1f5", zorder=0)
+    ax.add_feature(cfeature.LAKES.with_scale("50m"), facecolor="#e8f1f5", edgecolor="#777777", linewidth=0.35, zorder=1)
+    ax.add_feature(cfeature.COASTLINE.with_scale("50m"), linewidth=0.75, edgecolor="#222222", zorder=4)
+    ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.45, edgecolor="#555555", zorder=4)
+    ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.65, edgecolor="#333333", zorder=4)
 
 
 def ensure_parent(path: Path) -> None:
