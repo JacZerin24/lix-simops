@@ -1,10 +1,6 @@
 name: Full Endymion Case Build
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/full-case-build.yml"
-      - "scripts/validate_case_inventory.py"
   workflow_dispatch:
 
 jobs:
