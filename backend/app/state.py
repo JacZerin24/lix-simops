@@ -64,7 +64,9 @@ class SessionState:
     scenario_id: str
     scenario_name: str
     scenario_start: datetime
+    scenario_end: datetime
     sim_time: datetime
+    facilitator_token: str
     timezone: str = "America/Chicago"
     running: bool = False
     speed: float = 1.0
@@ -155,6 +157,7 @@ class SessionManager:
         scenario_id: str,
         scenario_name: str,
         scenario_start: datetime,
+        scenario_end: datetime,
         default_speed: float,
         timezone: str = "America/Chicago",
         scheduled_events: list[ScheduledExerciseEvent] | None = None,
@@ -172,7 +175,9 @@ class SessionManager:
             scenario_id=scenario_id,
             scenario_name=scenario_name,
             scenario_start=scenario_start,
+            scenario_end=scenario_end,
             sim_time=scenario_start,
+            facilitator_token=secrets.token_urlsafe(18),
             timezone=timezone,
             speed=default_speed,
             default_speed=default_speed,
