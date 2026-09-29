@@ -127,6 +127,16 @@ def main() -> None:
     radar_dir = WORK / "radar"
     download(s3, "unidata-nexrad-level2", radar_keys[0], radar_dir)
 
+    surface_csv = WORK / "surface.csv"
+    surface_csv.write_text(
+        "station,valid,lat,lon,tmpf,dwpf,drct,sknt\n"
+        "MSY,2021-05-12T07:00:00+00:00,29.9934,-90.2580,76,71,180,12\n"
+        "NEW,2021-05-12T07:00:00+00:00,30.0424,-90.0283,75,71,170,10\n"
+        "ASD,2021-05-12T07:00:00+00:00,30.3464,-89.8208,73,70,160,8\n"
+        "BTR,2021-05-12T07:00:00+00:00,30.5332,-91.1496,70,68,140,6\n",
+        encoding="utf-8",
+    )
+
     domain = ["-93", "-87", "27.5", "32.5"]
     run([
         PYTHON, "scripts/build_radar_cache.py",
@@ -175,14 +185,26 @@ def main() -> None:
             "--simulation-date", "2027-02-06",
             "--local-time-offset-minutes", "825",
     ])
+    run([
+        PYTHON, "scripts/render_surface_obs.py",
+        "--input", str(surface_csv),
+        "--output", str(WORK / "out" / "surface"),
+        "--start", "2021-05-12T07:00Z",
+        "--end", "2021-05-12T07:00Z",
+        "--domain", *domain,
+        "--simulation-date", "2027-02-06",
+        "--local-time-offset-minutes", "825",
+    ])
 
     pngs = list((WORK / "out").rglob("*.png"))
     radar_pngs = list((ROOT / "data/cache/render-smoke-radar/radar/frames").rglob("*.png"))
     print(f"Rendered {len(radar_pngs)} radar and {len(pngs)} meso smoke-test images.")
     if len(radar_pngs) < 1:
         raise SystemExit("Expected at least one rendered KLIX radar image.")
-    if len(pngs) < 8:
-        raise SystemExit("Expected IR GOES, GLM, MRMS, and five RAP environment images.")
+    if len(pngs) < 10:
+        raise SystemExit(
+            "Expected IR GOES, GLM, MRMS, five RAP environment images, and surface observations."
+        )
 
 
 if __name__ == "__main__":
