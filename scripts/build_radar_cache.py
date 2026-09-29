@@ -39,6 +39,12 @@ def parse_args() -> argparse.Namespace:
         help="Optional exercise date YYYY-MM-DD. Preserves historical local clock time.",
     )
     parser.add_argument("--timezone", default="America/Chicago")
+    parser.add_argument(
+        "--local-time-offset-minutes",
+        type=int,
+        default=0,
+        help="Shift historical local clock time before mapping to the exercise date.",
+    )
     return parser.parse_args()
 
 
@@ -62,6 +68,7 @@ def main() -> None:
         event_label=args.event_label,
         simulation_date=simulation_date,
         timezone_name=args.timezone,
+        local_time_offset_minutes=args.local_time_offset_minutes,
     )
     print(
         f"Built {len(manifest.frames)} radar frames for "
