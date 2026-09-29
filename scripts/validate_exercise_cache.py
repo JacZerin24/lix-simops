@@ -50,7 +50,7 @@ def parse_args() -> argparse.Namespace:
 
 def exercise_date_ok(value: str) -> bool:
     timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return timestamp.year == 2027 and timestamp.month == 2 and timestamp.day in {6, 7}
+    return timestamp.year == 2027 and timestamp.month == 2 and timestamp.day == 6
 
 
 def main() -> None:
