@@ -44,6 +44,30 @@ def run(command: list[str]) -> None:
     subprocess.run(command, cwd=ROOT, check=True)
 
 
+def assert_velocity_render_has_data() -> None:
+    from PIL import Image
+
+    frames = sorted(
+        (ROOT / "data/cache/render-smoke-radar/radar/frames/VEL/0.5").glob("*.png")
+    )
+    if not frames:
+        raise SystemExit("Velocity smoke render produced no frame.")
+
+    image = Image.open(frames[0]).convert("RGB")
+    # Exclude the right-side color bar. Real velocity gates are strongly colored;
+    # coastlines/grid lines in an otherwise blank plot are grayscale.
+    plot = image.crop((0, 0, int(image.width * 0.84), image.height))
+    colored = sum(
+        1
+        for r, g, b in plot.getdata()
+        if max(r, g, b) - min(r, g, b) > 20
+    )
+    ratio = colored / (plot.width * plot.height)
+    print(f"Velocity colored-pixel fraction: {ratio:.4f}")
+    if ratio < 0.01:
+        raise SystemExit("Velocity smoke render appears blank.")
+
+
 def main() -> None:
     if WORK.exists():
         shutil.rmtree(WORK)
@@ -116,6 +140,7 @@ def main() -> None:
         "--timezone", "America/Chicago",
         "--local-time-offset-minutes", "825",
     ])
+    assert_velocity_render_has_data()
     run([
         PYTHON, "scripts/render_goes.py",
         "--input", str(goes_dir),
