@@ -83,6 +83,7 @@ class SessionState:
             "sim_time": self.sim_time.isoformat(),
             "running": self.running,
             "speed": self.speed,
+            "scenario_end": self.scenario_end.isoformat(),
         }
 
     def presence_snapshot(self) -> dict[str, Any]:
@@ -110,6 +111,7 @@ class SessionState:
             "sim_time": self.sim_time.isoformat(),
             "running": self.running,
             "speed": self.speed,
+            "scenario_end": self.scenario_end.isoformat(),
             "participants": [
                 connection.participant.snapshot()
                 for connection in self.clients.values()
