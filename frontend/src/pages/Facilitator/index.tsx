@@ -91,7 +91,7 @@ export function Facilitator({
   const exportLog = () => {
     const escape = (value: unknown) => {
       const text = String(value ?? "");
-      return `"${text.replaceAll('"', '""')}"`;
+      return `"${text.replace(/"/g, '""')}"`;
     };
     const header = ["sim_time", "type", "team", "sender", "title", "body"];
     const rows = events.map((item) => [
