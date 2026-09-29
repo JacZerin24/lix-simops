@@ -41,6 +41,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--resolution", type=float, default=0.05)
     parser.add_argument("--domain", nargs=4, type=float)
     parser.add_argument("--timezone", default="America/Chicago")
+    parser.add_argument("--simulation-date")
+    parser.add_argument("--local-time-offset-minutes", type=int, default=0)
     return parser.parse_args()
 
 
@@ -106,7 +108,7 @@ def main() -> None:
             f"flash centroids per ~{args.resolution:.2f}° grid cell / {args.minutes} min"
         )
         ax.set_title("GOES-16 GLM Flash Density", loc="left", fontweight="bold")
-        ax.set_title(local_time_label(valid, args.timezone), loc="right")
+        ax.set_title(local_time_label(valid, args.timezone, args.simulation_date, args.local_time_offset_minutes), loc="right")
         destination = args.output / f"glm_flash_density_{timestamp_token(valid)}.png"
         fig.savefig(destination, dpi=130, bbox_inches="tight")
         plt.close(fig)
