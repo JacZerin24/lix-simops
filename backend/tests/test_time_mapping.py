@@ -51,3 +51,16 @@ def test_may_2021_case_maps_tornado_to_endymion_decision_window() -> None:
     assert local.date() == date(2027, 2, 6)
     assert local.hour == 15
     assert local.minute == 50
+
+
+def test_rendered_title_uses_exercise_clock() -> None:
+    from scripts.render_common import local_time_label
+
+    source = datetime(2021, 5, 12, 7, 5, tzinfo=timezone.utc)
+    label = local_time_label(
+        source,
+        "America/Chicago",
+        "2027-02-06",
+        825,
+    )
+    assert label == "3:50 PM CST"
