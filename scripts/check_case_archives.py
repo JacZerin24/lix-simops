@@ -36,7 +36,7 @@ def main() -> None:
             prefix_exists(
                 s3,
                 "unidata-nexrad-level2",
-                "2022/12/14/KLIX/KLIX20221214_20",
+                "2021/05/12/KLIX/KLIX20210512_06",
             ),
         ),
         (
@@ -44,7 +44,7 @@ def main() -> None:
             prefix_exists(
                 s3,
                 "noaa-goes16",
-                "ABI-L2-CMIPC/2022/348/20/",
+                "ABI-L2-CMIPC/2021/132/06/",
             ),
         ),
         (
@@ -52,7 +52,7 @@ def main() -> None:
             prefix_exists(
                 s3,
                 "noaa-goes16",
-                "ABI-L1b-RadC/2022/348/20/",
+                "ABI-L1b-RadC/2021/132/06/",
             ),
         ),
         (
@@ -60,7 +60,7 @@ def main() -> None:
             prefix_exists(
                 s3,
                 "noaa-goes16",
-                "GLM-L2-LCFA/2022/348/20/",
+                "GLM-L2-LCFA/2021/132/06/",
             ),
         ),
         (
@@ -68,7 +68,7 @@ def main() -> None:
             prefix_exists(
                 s3,
                 "noaa-mrms-pds",
-                "CONUS/MESH_00.50/20221214/",
+                "CONUS/MESH_00.50/20210512/",
             ),
         ),
         (
@@ -76,7 +76,7 @@ def main() -> None:
             prefix_exists(
                 s3,
                 "noaa-mrms-pds",
-                "CONUS/MergedAzShear_0-2kmAGL_00.50/20221214/",
+                "CONUS/MergedAzShear_0-2kmAGL_00.50/20210512/",
             ),
         ),
         (
@@ -84,7 +84,7 @@ def main() -> None:
             prefix_exists(
                 s3,
                 "noaa-mrms-pds",
-                "CONUS/PrecipRate_00.00/20221214/",
+                "CONUS/PrecipRate_00.00/20210512/",
             ),
         ),
         (
@@ -92,31 +92,31 @@ def main() -> None:
             prefix_exists(
                 s3,
                 "noaa-mrms-pds",
-                "CONUS/MergedReflectivityAtLowestAltitude_00.50/20221214/",
+                "CONUS/MergedReflectivityAtLowestAltitude_00.50/20210512/",
             ),
         ),
         (
-            "RAP 20Z analysis",
+            "RAP 05Z analysis",
             object_exists(
                 s3,
                 "noaa-rap-pds",
-                "rap.20221214/rap.t20z.awp130pgrbf00.grib2",
+                "rap.20210512/rap.t05z.awp130pgrbf00.grib2",
             ),
         ),
         (
-            "RAP 21Z analysis",
+            "RAP 06Z analysis",
             object_exists(
                 s3,
                 "noaa-rap-pds",
-                "rap.20221214/rap.t21z.awp130pgrbf00.grib2",
+                "rap.20210512/rap.t06z.awp130pgrbf00.grib2",
             ),
         ),
         (
-            "RAP 22Z analysis",
+            "RAP 07Z analysis",
             object_exists(
                 s3,
                 "noaa-rap-pds",
-                "rap.20221214/rap.t22z.awp130pgrbf00.grib2",
+                "rap.20210512/rap.t07z.awp130pgrbf00.grib2",
             ),
         ),
     ]
