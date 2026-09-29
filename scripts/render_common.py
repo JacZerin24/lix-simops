@@ -55,7 +55,7 @@ def timestamp_token(timestamp: datetime) -> str:
     return timestamp.strftime("%Y%m%dT%H%M%SZ")
 
 
-def add_base_map(ax, *, domain) -> None:
+def add_base_map(ax, *, domain, show_cities: bool = True) -> None:
     import cartopy.feature as cfeature
     import cartopy.crs as ccrs
 
@@ -68,6 +68,36 @@ def add_base_map(ax, *, domain) -> None:
     ax.add_feature(cfeature.COASTLINE.with_scale("50m"), linewidth=0.75, edgecolor="#222222", zorder=4)
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.45, edgecolor="#555555", zorder=4)
     ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.65, edgecolor="#333333", zorder=4)
+
+    if show_cities:
+        cities = [
+            ("Baton Rouge", -91.1403, 30.4515),
+            ("New Orleans", -90.0715, 29.9511),
+            ("Houma", -90.7195, 29.5958),
+            ("Slidell", -89.7812, 30.2752),
+            ("Gulfport", -89.0928, 30.3674),
+        ]
+        for name, lon, lat in cities:
+            if west <= lon <= east and south <= lat <= north:
+                ax.plot(
+                    lon,
+                    lat,
+                    marker="o",
+                    markersize=2.3,
+                    color="#222222",
+                    transform=ccrs.PlateCarree(),
+                    zorder=7,
+                )
+                ax.text(
+                    lon + 0.055,
+                    lat + 0.035,
+                    name,
+                    fontsize=6.5,
+                    color="#222222",
+                    path_effects=[],
+                    transform=ccrs.PlateCarree(),
+                    zorder=7,
+                )
 
 
 def ensure_parent(path: Path) -> None:
