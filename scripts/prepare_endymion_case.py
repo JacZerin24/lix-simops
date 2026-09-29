@@ -99,6 +99,18 @@ def main() -> None:
         command.append("--list-only")
     run(command, args.dry_run)
 
+    run(
+        [
+            PYTHON,
+            "scripts/fetch_rap.py",
+            "--date", date,
+            "--cycles", "20", "21", "22",
+            "--output", "data/raw/rap/20221214",
+            *(["--list-only"] if args.list_only else []),
+        ],
+        args.dry_run,
+    )
+
     if not args.list_only:
         run(
             [

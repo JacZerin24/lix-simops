@@ -1,39 +1,39 @@
 products:
   - id: mlcape
-    label: MLCAPE
+    label: RAP 90-mb MLCAPE
     category: Environment
     units: J/kg
-    description: Instability available to the evolving convective threat.
+    description: RAP mixed-layer instability available to the evolving convective threat.
     source_dir: data/raw/meso/mlcape
     pattern: "*.png"
 
-  - id: effective_bulk_shear
-    label: Effective Bulk Shear
+  - id: bulk_shear_0_6km
+    label: RAP 0–6 km Bulk Shear
     category: Environment
     units: kt
-    description: Deep-layer shear context for storm organization and persistence.
-    source_dir: data/raw/meso/effective_bulk_shear
+    description: RAP deep-layer bulk shear derived from the 0–6 km vertical shear components.
+    source_dir: data/raw/meso/bulk_shear_0_6km
     pattern: "*.png"
 
   - id: srh_0_1km
-    label: 0–1 km SRH
+    label: RAP 0–1 km SRH
     category: Environment
     units: m²/s²
-    description: Low-level hodograph context for rotating convection.
+    description: RAP low-level storm-relative helicity for rotating-convection context.
     source_dir: data/raw/meso/srh_0_1km
     pattern: "*.png"
 
   - id: goes_ir
-    label: GOES Infrared
+    label: GOES-16 Infrared
     category: Satellite
-    description: Cloud-top evolution and upstream convective development.
+    description: ABI Channel 13 cloud-top evolution and upstream convective development.
     source_dir: data/raw/meso/goes_ir
     pattern: "*.png"
 
   - id: goes_vis
-    label: GOES Visible
+    label: GOES-16 Visible
     category: Satellite
-    description: Daytime storm development and boundary structure.
+    description: ABI Channel 2 daytime storm development and boundary structure.
     source_dir: data/raw/meso/goes_vis
     pattern: "*.png"
 
@@ -41,15 +41,15 @@ products:
     label: LightningCast
     category: Lightning
     units: "%"
-    description: Probabilistic guidance for lightning initiation and near-term lightning threat.
+    description: Historical LightningCast probability generated from archived ABI inputs with CSPP Geo.
     source_dir: data/raw/meso/lightningcast
     pattern: "*.png"
 
-  - id: glm_fed
-    label: GLM Flash Extent Density
+  - id: glm_flash_density
+    label: GLM Flash Density
     category: Lightning
-    description: Observed total-lightning activity and trends.
-    source_dir: data/raw/meso/glm_fed
+    description: Five-minute observed GLM flash-centroid density; not true Flash Extent Density.
+    source_dir: data/raw/meso/glm_flash_density
     pattern: "*.png"
 
   - id: mrms_mesh
@@ -57,14 +57,15 @@ products:
     category: MRMS
     units: in
     description: Multi-radar hail-size estimate for severe-weather situational awareness.
-    source_dir: data/raw/meso/mrms_mesh
+    source_dir: data/raw/meso/mrms/MESH_00.50
     pattern: "*.png"
 
   - id: mrms_azshear
-    label: MRMS Azimuthal Shear
+    label: MRMS 0–2 km Azimuthal Shear
     category: MRMS
+    units: s⁻¹
     description: Multi-radar rotation signal for tracking strengthening circulations.
-    source_dir: data/raw/meso/mrms_azshear
+    source_dir: data/raw/meso/mrms/MergedAzShear_0-2kmAGL_00.50
     pattern: "*.png"
 
   - id: mrms_precip_rate
@@ -72,13 +73,21 @@ products:
     category: MRMS
     units: in/hr
     description: Rain-rate context for outdoor operations and localized flooding concerns.
-    source_dir: data/raw/meso/mrms_precip_rate
+    source_dir: data/raw/meso/mrms/PrecipRate_00.00
+    pattern: "*.png"
+
+  - id: mrms_lowest_refl
+    label: MRMS Lowest-Altitude Reflectivity
+    category: MRMS
+    units: dBZ
+    description: Multi-radar low-level reflectivity context away from the primary KLIX display.
+    source_dir: data/raw/meso/mrms/MergedReflectivityAtLowestAltitude_00.50
     pattern: "*.png"
 
   - id: surface_obs
     label: Surface Observations
     category: Observations
-    description: Temperature, dewpoint, wind, pressure, and boundary evolution.
+    description: Temperature, dewpoint, and wind evolution across southeast Louisiana.
     source_dir: data/raw/meso/surface_obs
     pattern: "*.png"
 

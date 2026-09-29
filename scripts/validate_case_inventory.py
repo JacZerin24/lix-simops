@@ -63,6 +63,14 @@ def summarize_directory(path: Path, parser) -> dict:
     }
 
 
+def rap_time(path: Path, source_date: str) -> datetime | None:
+    match = RAP_RE.search(path.name)
+    if not match:
+        return None
+    day = datetime.strptime(source_date, "%Y-%m-%d")
+    return day.replace(hour=int(match.group(1)), tzinfo=timezone.utc)
+
+
 def summarize_observations(path: Path, stations: list[str]) -> dict:
     if not path.exists():
         return {"status": "missing", "count": 0, "stations": {}}
@@ -126,6 +134,10 @@ def main() -> None:
         Path(datasets["nexrad"]["output"]),
         nexrad_time,
     )
+    report["datasets"]["environment"] = summarize_directory(
+        Path(datasets["environment"]["output"]),
+        lambda path: rap_time(path, config["source_case"]["source_date"]),
+    )
     report["datasets"]["goes_display"] = summarize_directory(
         Path(datasets["goes_display"]["output"]),
         goes_time,
@@ -158,7 +170,7 @@ def main() -> None:
 
     if args.strict:
         failures = []
-        for key in ["nexrad", "goes_display", "glm", "lightningcast_inputs"]:
+        for key in ["nexrad", "goes_display", "glm", "lightningcast_inputs", "environment"]:
             if report["datasets"][key]["status"] != "ok":
                 failures.append(key)
         for product, summary in report["datasets"]["mrms"].items():

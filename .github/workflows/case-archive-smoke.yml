@@ -1,0 +1,25 @@
+name: Case Archive Smoke
+
+on:
+  pull_request:
+    paths:
+      - "scripts/check_case_archives.py"
+      - "scripts/fetch_goes.py"
+      - "scripts/fetch_mrms.py"
+      - "scripts/fetch_nexrad.py"
+      - "scripts/fetch_rap.py"
+      - "scenarios/mardi-gras/source-case.yaml"
+      - ".github/workflows/case-archive-smoke.yml"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install boto3
+      - run: python scripts/check_case_archives.py

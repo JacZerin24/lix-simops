@@ -94,7 +94,6 @@ def radar_payload(
                 "product": frame.product,
                 "elevation": frame.elevation,
                 "asset_url": f"{scenario_root}/{frame.asset.lstrip('/')}",
-                "source_key": frame.source_key,
             }
             for frame in frames
         ],

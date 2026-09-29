@@ -57,7 +57,7 @@ datasets:
     product: GLM-L2-LCFA
     purpose:
       - Observed lightning
-      - Input for gridded GLM / flash-extent-density display
+      - Five-minute flash-density display
     output: data/raw/goes/glm-lcfa
 
   lightningcast_inputs:
@@ -70,12 +70,14 @@ datasets:
     output: data/raw/goes/lightningcast-inputs
 
   lightningcast:
-    status: reproduce_from_historical_abi
+    status: external_processor_required
     method: CSPP Geo LightningCast
+    output: data/raw/meso/lightningcast
     note: >-
       A durable public archive of the experimental December 2022 LightningCast NetCDF stream
-      has not been confirmed. The preferred reproducible path is to run CSPP Geo LightningCast
-      on archived GOES-16 ABI L1b channels 2, 5, 13, and 15.
+      has not been confirmed. The reproducible path is to run CSPP Geo LightningCast on
+      archived GOES-16 ABI L1b channels 2, 5, 13, and 15. CSPP Geo download access requires
+      a registered SSEC user.
 
   mrms:
     status: ready_to_fetch
@@ -95,16 +97,20 @@ datasets:
     output: data/raw/observations/asos_20221214.csv
 
   environment:
-    status: archive_identified
-    source: NOAA Storm Prediction Center Mesoanalysis Archive
-    desired_products:
-      - 100 mb Mixed-Layer CAPE
-      - Effective Bulk Shear
-      - 0-1 km Storm-Relative Helicity
-      - Surface observations
+    status: rap_fallback_selected
+    source: NOAA Rapid Refresh Open Data on AWS
+    product: awp130pgrbf00
+    cycles_utc: [20, 21, 22]
+    output: data/raw/rap/20221214
+    derived_products:
+      - RAP 90-mb Mixed-Layer CAPE
+      - RAP 0-6 km Bulk Shear
+      - RAP 0-1 km Storm-Relative Helicity
     note: >-
-      SPC states its hourly mesoanalysis archive is maintained from 2005 to present.
-      Acquisition/rendering into the SimOps image cache is the remaining environment-data task.
+      The SPC mesoanalysis archive is normally preferred, but independent archive tooling
+      documents a late-November through most-of-December 2022 image-archive gap. To avoid
+      depending on missing SPC images, V0.7 uses official hourly RAP analyses for the
+      environmental workspace. This is a deliberate fallback and is labeled as RAP in the UI.
 
 participant_case_blindness:
   hide_source_date: true

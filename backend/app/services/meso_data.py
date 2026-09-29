@@ -71,7 +71,6 @@ def meso_payload(
                 "timestamp": frame.timestamp.isoformat(),
                 "product": frame.product,
                 "asset_url": f"{scenario_root}/{frame.asset.lstrip('/')}",
-                "source_key": frame.source_key,
             }
             for frame in frames
         ],
