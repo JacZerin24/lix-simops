@@ -11,6 +11,7 @@ on:
       - "scripts/render_glm_flash_density.py"
       - "scripts/render_mrms.py"
       - "scripts/render_rap_environment.py"
+      - "scripts/render_surface_obs.py"
       - "scripts/smoke_render_case.py"
       - ".github/workflows/case-render-smoke.yml"
   workflow_dispatch:
@@ -29,6 +30,7 @@ jobs:
         run: |
           python scripts/build_radar_cache.py --help > /dev/null
           python scripts/build_meso_cache.py --help > /dev/null
+          python -m py_compile scripts/render_surface_obs.py scripts/render_mrms.py scripts/render_rap_environment.py
           python - <<'PY'
           import pyart
           from simulator.radar.preprocessing import _colormap_for_product
