@@ -2,19 +2,16 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { getEventOperations } from "../../services/api";
 import type { EventOperationsConfig, ExerciseEvent } from "../../types/simulation";
+import { formatSimTime } from "../../utils/simTime";
 
 type Props = {
   sessionCode: string;
+  timezone: string;
   events: ExerciseEvent[];
   onRespond: (body: string) => void;
 };
 
-function simTime(value?: string) {
-  if (!value) return "";
-  return `${new Date(value).toISOString().slice(11, 16)}Z`;
-}
-
-export function DSS({ sessionCode, events, onRespond }: Props) {
+export function DSS({ sessionCode, timezone, events, onRespond }: Props) {
   const [body, setBody] = useState("");
   const [operations, setOperations] = useState<EventOperationsConfig | null>(null);
   const [opsTab, setOpsTab] = useState<"overview" | "thresholds" | "route">("overview");
@@ -71,7 +68,7 @@ export function DSS({ sessionCode, events, onRespond }: Props) {
                 >
                   <div className="chat-meta">
                     <strong>{item.sender ?? (item.type === "partner_message" ? "Event Command" : "DSS")}</strong>
-                    <span>{simTime(item.sim_time)}</span>
+                    <span>{formatSimTime(item.sim_time, timezone)}</span>
                   </div>
                   <p>{item.body}</p>
                 </article>
