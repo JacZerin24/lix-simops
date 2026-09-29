@@ -63,11 +63,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def exercise_date_ok(value: str) -> bool:
-    timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return timestamp.year == 2027 and timestamp.month == 2 and timestamp.day == 6
-
-
 def main() -> None:
     args = parse_args()
     root = args.cache_root / args.scenario_id
@@ -80,6 +75,8 @@ def main() -> None:
     scenario_end = datetime.fromisoformat(
         scenario.simulation.end.replace("Z", "+00:00")
     )
+    exercise_date = scenario_start.date()
+    exercise_date_token = scenario_start.strftime("%Y%m%d")
 
     if args.scope in {"all", "radar"}:
         radar_path = root / "radar" / "manifest.json"
@@ -92,16 +89,16 @@ def main() -> None:
                 failures.append("radar manifest has no frames")
             radar_times: dict[str, set[str]] = {}
             for frame in radar_frames:
-                if not exercise_date_ok(frame["timestamp"]):
-                    failures.append(f"radar source-date leak in timestamp: {frame['timestamp']}")
+                frame_time = datetime.fromisoformat(frame["timestamp"].replace("Z", "+00:00"))
+                if frame_time.date() != exercise_date:
+                    failures.append(f"radar frame not mapped to exercise date: {frame['timestamp']}")
                     break
-                if "20210512" in frame.get("asset", ""):
-                    failures.append("radar source date appears in participant asset path")
+                if exercise_date_token not in Path(frame.get("asset", "")).name:
+                    failures.append("radar participant asset filename does not use exercise date")
                     break
                 if frame.get("source_key"):
                     failures.append("radar participant manifest exposes historical source_key")
                     break
-                frame_time = datetime.fromisoformat(frame["timestamp"].replace("Z", "+00:00"))
                 if frame_time > scenario_end:
                     failures.append(f"radar frame after scenario end: {frame['timestamp']}")
                     break
@@ -151,11 +148,11 @@ def main() -> None:
                 if frame_time > scenario_end:
                     failures.append(f"meso frame after scenario end: {frame['timestamp']}")
                     break
-                if not exercise_date_ok(frame["timestamp"]):
-                    failures.append(f"meso source-date leak in timestamp: {frame['timestamp']}")
+                if frame_time.date() != exercise_date:
+                    failures.append(f"meso frame not mapped to exercise date: {frame['timestamp']}")
                     break
-                if "20210512" in frame.get("asset", ""):
-                    failures.append("meso source date appears in participant asset path")
+                if exercise_date_token not in Path(frame.get("asset", "")).name:
+                    failures.append("meso participant asset filename does not use exercise date")
                     break
                 if frame.get("source_key"):
                     failures.append("meso participant manifest exposes historical source_key")
