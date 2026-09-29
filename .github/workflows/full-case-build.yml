@@ -1,17 +1,6 @@
 name: Full Endymion Case Build
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/full-case-build.yml"
-      - "scripts/prepare_endymion_case.py"
-      - "scripts/validate_case_inventory.py"
-      - "scripts/build_endymion_case.py"
-      - "scripts/build_endymion_meso_inputs.py"
-      - "scripts/render_*.py"
-      - "scripts/fetch_*.py"
-      - "scenarios/mardi-gras/source-case.yaml"
-      - "scenarios/mardi-gras/meso-products.yaml"
   workflow_dispatch:
 
 jobs:
