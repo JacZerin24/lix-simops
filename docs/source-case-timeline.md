@@ -9,10 +9,9 @@ meteorological source. Historical local time is shifted forward **13 hours
 | Exercise time | Source time (CDT) | Scenario event / historical anchor |
 | --- | --- | --- |
 | 2:45 PM | 1:00 AM | Simulation starts; convection is still west of the city |
-| 2:50 PM | 1:05 AM | Operations check-in |
+| 2:52 PM | 1:07 AM | Operations check-in after the first KLIX scan becomes available |
 | 3:05 PM | 1:20 AM | Parade-start confidence question |
 | 3:20 PM | 1:35 AM | Protective-action lead-time question |
-| 3:27 PM | 1:42 AM | Lightning-framework reminder |
 | 3:35 PM | 1:50 AM | Commit-to-route decision |
 | **3:50 PM** | **2:05 AM** | **New Orleans EF0 tornado begins** |
 | **3:53 PM** | **2:08 AM** | Historical tornado warning timing |
