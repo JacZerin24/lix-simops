@@ -48,7 +48,7 @@ def meso_payload(
         if product.category not in categories:
             categories.append(product.category)
 
-    scenario_root = f"/scenario-data/{session.scenario_id}"
+    session_root = f"/api/sessions/{session.code}/assets"
     return {
         "available": True,
         "scenario_id": session.scenario_id,
@@ -70,7 +70,7 @@ def meso_payload(
             {
                 "timestamp": frame.timestamp.isoformat(),
                 "product": frame.product,
-                "asset_url": f"{scenario_root}/{frame.asset.lstrip('/')}",
+                "asset_url": f"{session_root}/{frame.asset.lstrip('/')}",
             }
             for frame in frames
         ],
