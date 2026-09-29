@@ -26,7 +26,7 @@ LIX SimOps is a reusable training platform for realistic, synchronized weather o
 9. The DSS workspace reserves a link for the coworker-owned Google Form → Google Sheet shift log.
 10. The approved May 12, 2021 source case is defined in a facilitator-only source-case file.
 11. Public-source acquisition exists for NEXRAD, GOES-16 ABI/GLM, MRMS, RAP, and ASOS/METAR observations.
-12. A public-archive smoke workflow verifies that the required December 14 source families are still available before case development.
+12. A public-archive smoke workflow verifies that the required May 12, 2021 source families are still available before case development.
 13. GOES IR, GLM flash density, MRMS, RAP environmental fields, and surface observations can be rendered into the meso workspace.
 14. RAP 90-mb MLCAPE, 0–6 km bulk shear, and 0–1 km SRH provide the environmental analysis for this case.
 15. LightningCast inputs are staged from archived GOES-16 ABI C02/C05/C13/C15, validated scan-by-scan, and ready for external CSPP Geo processing.
