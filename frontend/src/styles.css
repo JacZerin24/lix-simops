@@ -711,6 +711,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .meso-canvas {
   touch-action: none;
   cursor: grab;
+  background: #e8edf2;
 }
 .meso-canvas:active { cursor: grabbing; }
 .meso-canvas img {
