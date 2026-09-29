@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import asyncio
+import secrets
 from datetime import datetime, timedelta
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from .models import Role, SessionCreateRequest
-from .services.meso_data import meso_payload
-from .services.radar_data import CACHE_ROOT, radar_payload
+from .services.meso_data import load_meso_manifest, meso_payload
+from .services.radar_data import CACHE_ROOT, load_radar_manifest, radar_payload
 from .services.scenario_loader import (
     list_scenarios,
     load_event_config,
@@ -27,12 +28,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-
-app.mount(
-    "/scenario-data",
-    StaticFiles(directory=str(CACHE_ROOT), check_dir=False),
-    name="scenario-data",
 )
 
 
@@ -54,15 +49,19 @@ def create_session(request: SessionCreateRequest) -> dict:
         raise HTTPException(status_code=404, detail="Scenario not found") from exc
 
     start = datetime.fromisoformat(scenario.simulation.start.replace("Z", "+00:00"))
+    end = datetime.fromisoformat(scenario.simulation.end.replace("Z", "+00:00"))
     session = manager.create(
         scenario_id=scenario.id,
         scenario_name=scenario.name,
         scenario_start=start,
+        scenario_end=end,
         default_speed=scenario.simulation.default_speed,
         timezone=scenario.timezone,
         scheduled_events=load_scheduled_events(scenario),
     )
-    return session.session_snapshot()
+    payload = session.session_snapshot()
+    payload["facilitator_token"] = session.facilitator_token
+    return payload
 
 
 @app.get("/api/sessions/{session_code}")
@@ -73,13 +72,6 @@ def get_session(session_code: str) -> dict:
     return session.session_snapshot()
 
 
-@app.get("/api/sessions/{session_code}/events")
-def get_session_events(session_code: str) -> list[dict]:
-    session = manager.get(session_code)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
-    return session.log
-
 
 @app.get("/api/sessions/{session_code}/event")
 def get_event_config(session_code: str) -> dict:
@@ -88,6 +80,38 @@ def get_event_config(session_code: str) -> dict:
         raise HTTPException(status_code=404, detail="Session not found")
     scenario = load_scenario_by_id(session.scenario_id)
     return load_event_config(scenario)
+
+
+@app.get("/api/sessions/{session_code}/assets/{asset_path:path}")
+def get_participant_asset(session_code: str, asset_path: str):
+    session = manager.get(session_code)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    allowed = False
+    radar_manifest = load_radar_manifest(session.scenario_id)
+    if radar_manifest is not None:
+        allowed = any(
+            frame.asset == asset_path and frame.timestamp <= session.sim_time
+            for frame in radar_manifest.frames
+        )
+
+    if not allowed:
+        meso_manifest = load_meso_manifest(session.scenario_id)
+        if meso_manifest is not None:
+            allowed = any(
+                frame.asset == asset_path and frame.timestamp <= session.sim_time
+                for frame in meso_manifest.frames
+            )
+
+    if not allowed:
+        raise HTTPException(status_code=404, detail="Asset not available at the current simulation time")
+
+    scenario_root = (CACHE_ROOT / session.scenario_id).resolve()
+    candidate = (scenario_root / asset_path).resolve()
+    if not candidate.is_relative_to(scenario_root) or not candidate.is_file():
+        raise HTTPException(status_code=404, detail="Asset not found")
+    return FileResponse(candidate)
 
 
 @app.get("/api/sessions/{session_code}/radar/frames")
@@ -246,6 +270,14 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
         return
 
     if role == Role.FACILITATOR:
+        facilitator_token = (websocket.query_params.get("facilitator_token") or "").strip()
+        if not facilitator_token or not secrets.compare_digest(
+            facilitator_token,
+            session.facilitator_token,
+        ):
+            await send_error(websocket, "Invalid facilitator access key")
+            await websocket.close(code=4403)
+            return
         team_id = "FACILITATOR"
     elif not team_id:
         await send_error(websocket, "Team is required")
@@ -456,9 +488,13 @@ async def start_clock_task() -> None:
             await asyncio.sleep(1)
             for session in manager.all():
                 if session.running and session.speed > 0:
-                    session.sim_time += timedelta(seconds=session.speed)
+                    next_time = session.sim_time + timedelta(seconds=session.speed)
+                    reached_end = next_time >= session.scenario_end
+                    session.sim_time = min(next_time, session.scenario_end)
                     for item in session.due_items():
                         await release_scheduled_item(session, item)
+                    if reached_end:
+                        session.running = False
                     if session.clients:
                         await broadcast_clock(session)
 
