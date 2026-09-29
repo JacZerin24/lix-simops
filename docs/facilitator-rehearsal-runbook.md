@@ -65,6 +65,8 @@ Run at least one complete rehearsal with three devices/browsers acting as one te
 ### Before start
 
 - Create a fresh SimOps session.
+- Record the generated facilitator access key somewhere private; participants need only the six-character session code.
+- If a second facilitator connects from another browser, give that person the facilitator key privately.
 - Join as Radar, Meso, and DSS.
 - Verify all three positions appear online in facilitator Team Status.
 - Open the mock Shift Log on the DSS device.
@@ -111,6 +113,7 @@ Recommended per team:
 - Meso workstation/browser
 - DSS workstation/browser
 - DSS Shift Log form open in a separate tab/window
+- Open SimOps from the host computer's LAN address (for example, http://HOST-IP:5173), not localhost, on participant workstations
 
 Facilitator station:
 
@@ -141,6 +144,7 @@ Participants should understand:
 Do not start until:
 
 - all expected positions are connected
+- a participant workstation can load radar/meso frames through the LAN-hosted session
 - DSS users have Shift Log open
 - Classroom links work
 - Radar/Meso products load
