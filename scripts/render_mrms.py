@@ -80,6 +80,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--products", nargs="+", default=list(PRODUCTS))
     parser.add_argument("--domain", nargs=4, type=float)
     parser.add_argument("--timezone", default="America/Chicago")
+    parser.add_argument("--simulation-date")
+    parser.add_argument("--local-time-offset-minutes", type=int, default=0)
     return parser.parse_args()
 
 
@@ -153,7 +155,7 @@ def main() -> None:
                 )
                 cb.set_label(config["units"])
                 ax.set_title(config["label"], loc="left", fontweight="bold")
-                ax.set_title(local_time_label(timestamp, args.timezone), loc="right")
+                ax.set_title(local_time_label(timestamp, args.timezone, args.simulation_date, args.local_time_offset_minutes), loc="right")
                 destination = output_dir / f"{product}_{timestamp_token(timestamp)}.png"
                 fig.savefig(destination, dpi=130, bbox_inches="tight")
                 plt.close(fig)
