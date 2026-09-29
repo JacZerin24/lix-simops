@@ -3,6 +3,9 @@ name: Case Render Smoke
 on:
   pull_request:
     paths:
+      - "scripts/requirements-data.txt"
+      - "scripts/build_radar_cache.py"
+      - "scripts/build_meso_cache.py"
       - "scripts/render_common.py"
       - "scripts/render_goes.py"
       - "scripts/render_glm_flash_density.py"
@@ -21,5 +24,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install boto3 matplotlib cartopy numpy xarray netCDF4 pygrib
+      - run: pip install -r scripts/requirements-data.txt
+      - name: Verify case-builder imports
+        run: |
+          python scripts/build_radar_cache.py --help > /dev/null
+          python scripts/build_meso_cache.py --help > /dev/null
       - run: python scripts/smoke_render_case.py
