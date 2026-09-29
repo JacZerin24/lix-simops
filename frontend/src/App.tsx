@@ -25,6 +25,8 @@ type InjectDraft = {
   target_team_id?: string;
 };
 
+const SESSION_STORAGE_KEY = "lix-simops-connection";
+
 const exerciseEventTypes = new Set([
   "inject",
   "partner_message",
@@ -59,6 +61,27 @@ function App() {
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (saved) {
+        const connection = JSON.parse(saved);
+        if (
+          connection.sessionCode
+          && connection.displayName
+          && connection.role
+        ) {
+          setDisplayName(connection.displayName);
+          setSessionCode(connection.sessionCode);
+          setTeamId(connection.teamId ?? "Team 1");
+          setRole(connection.role as Role);
+          setFacilitatorToken(connection.facilitatorToken ?? "");
+          setActiveSessionCode(connection.sessionCode);
+        }
+      }
+    } catch {
+      window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    }
+
     listScenarios()
       .then((items) => {
         setScenarios(items);
@@ -69,6 +92,17 @@ function App() {
 
   useEffect(() => {
     if (!activeSessionCode) return;
+
+    window.sessionStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({
+        sessionCode: activeSessionCode,
+        displayName,
+        teamId,
+        role,
+        facilitatorToken: role === "facilitator" ? facilitatorToken : "",
+      }),
+    );
 
     let disposed = false;
     let retryTimer: number | undefined;
@@ -227,6 +261,7 @@ function App() {
     setScenarioName("");
     setFacilitatorToken("");
     setError("");
+    window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
     if (role === "facilitator") {
       setRole("radar");
       setTeamId("Team 1");
