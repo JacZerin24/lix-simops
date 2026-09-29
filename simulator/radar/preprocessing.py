@@ -13,6 +13,11 @@ from .products import RADAR_PRODUCTS, RADAR_RENDER_CONFIG
 
 
 NEXRAD_TIME_RE = re.compile(r"([A-Z0-9]{4})(\d{8})_(\d{6})")
+PALETTE_ROOT = Path(__file__).resolve().parent / "palettes"
+PALETTE_COLOR_RE = re.compile(
+    r"^Color4?:\s*([-+]?\d+(?:\.\d+)?)\s+"
+    r"(\d+)\s+(\d+)\s+(\d+)(?:\s+(\d+))?"
+)
 
 
 def timestamp_from_filename(path: Path) -> datetime:
@@ -82,6 +87,67 @@ def _resolve_colormap(name: str) -> str:
             return modern_name
 
     raise ValueError(f"Radar colormap {name!r} is not registered by Matplotlib/Py-ART")
+
+
+def _load_palette_colormap(
+    palette_path: Path,
+    *,
+    name: str,
+    vmin: float,
+    vmax: float,
+):
+    from matplotlib.colors import LinearSegmentedColormap
+
+    stops: list[tuple[float, tuple[float, float, float, float]]] = []
+    with palette_path.open("r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            match = PALETTE_COLOR_RE.match(raw_line.strip())
+            if not match:
+                continue
+            value = float(match.group(1))
+            red = int(match.group(2)) / 255.0
+            green = int(match.group(3)) / 255.0
+            blue = int(match.group(4)) / 255.0
+            alpha = int(match.group(5)) / 255.0 if match.group(5) else 1.0
+            stops.append((value, (red, green, blue, alpha)))
+
+    if len(stops) < 2:
+        raise ValueError(f"Radar palette {palette_path} has fewer than two color stops")
+
+    # GR/GR2Analyst palette files are commonly written high-to-low. Reverse
+    # them before normalization so duplicate thresholds retain the intended
+    # below/above ordering (important for the ZDR discontinuity at 0 dB).
+    if stops[0][0] > stops[-1][0]:
+        stops.reverse()
+
+    span = vmax - vmin
+    if span <= 0:
+        raise ValueError(f"Invalid radar color range {vmin}..{vmax}")
+
+    normalized = [
+        (
+            min(1.0, max(0.0, (value - vmin) / span)),
+            color,
+        )
+        for value, color in stops
+        if vmin <= value <= vmax
+    ]
+    if not normalized:
+        raise ValueError(f"Radar palette {palette_path} has no stops inside {vmin}..{vmax}")
+
+    return LinearSegmentedColormap.from_list(name, normalized, N=256)
+
+
+def _colormap_for_product(product_id: str, config: dict):
+    palette_file = config.get("palette_file")
+    if palette_file:
+        return _load_palette_colormap(
+            PALETTE_ROOT / palette_file,
+            name=str(config["cmap"]),
+            vmin=float(config["vmin"]),
+            vmax=float(config["vmax"]),
+        )
+    return _resolve_colormap(str(config["cmap"]))
 
 
 def build_radar_cache(
@@ -169,7 +235,7 @@ def build_radar_cache(
                 continue
 
             config = RADAR_RENDER_CONFIG[product_id]
-            cmap = _resolve_colormap(config["cmap"])
+            cmap = _colormap_for_product(product_id, config)
             for requested_elevation in elevations:
                 sweep, actual_elevation = _nearest_sweep(
                     radar,
