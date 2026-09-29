@@ -117,7 +117,6 @@ def main() -> None:
                 timestamp=timestamp,
                 product=product.id,
                 asset=destination.relative_to(output_root).as_posix(),
-                source_key=str(source),
             )
         )
 
@@ -127,7 +126,7 @@ def main() -> None:
         frames=sorted(frames, key=lambda frame: (frame.timestamp, frame.product)),
     )
     with (meso_root / "manifest.json").open("w", encoding="utf-8") as handle:
-        json.dump(manifest.model_dump(mode="json"), handle, indent=2)
+        json.dump(manifest.model_dump(mode="json", exclude_none=True), handle, indent=2)
 
     print(
         f"Built meso manifest with {len(products)} products and "
