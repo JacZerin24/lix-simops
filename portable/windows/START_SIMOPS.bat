@@ -61,12 +61,27 @@ if not exist "%SIMOPS_VENV%\Scripts\python.exe" (
   if errorlevel 1 goto :setup_error
 )
 
-if not exist "%SIMOPS_VENV%\.simops_ready" (
-  echo First launch: installing bundled Python packages locally.
+for /f "usebackq delims=" %%H in (`python -c "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('portable-requirements.txt').read_bytes()).hexdigest())"`) do set "SIMOPS_REQ_HASH=%%H"
+set "SIMOPS_READY=%SIMOPS_VENV%\.simops_ready_%SIMOPS_REQ_HASH%"
+
+if not exist "%SIMOPS_READY%" (
+  echo Installing or refreshing bundled Python packages locally.
   echo No administrator rights or internet package download should be needed.
   "%SIMOPS_VENV%\Scripts\python.exe" -m pip install --no-index --find-links "%CD%\wheelhouse" -r "%CD%\portable-requirements.txt"
   if errorlevel 1 goto :setup_error
-  type nul > "%SIMOPS_VENV%\.simops_ready"
+  del /q "%SIMOPS_VENV%\.simops_ready_*" >nul 2>nul
+  type nul > "%SIMOPS_READY%"
+)
+
+echo Checking whether port 8000 is available...
+"%SIMOPS_VENV%\Scripts\python.exe" -c "import socket,sys; s=socket.socket(); s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1); host=sys.argv[1]; exec('try:\n s.bind((host,8000))\nexcept OSError:\n raise SystemExit(1)\nfinally:\n s.close()')" "%SIMOPS_HOST%"
+if errorlevel 1 (
+  echo.
+  echo ERROR: Port 8000 is already in use on this computer.
+  echo If SimOps is already running, use the existing browser session or stop the old server first.
+  pause
+  popd
+  exit /b 1
 )
 
 echo Checking the Endymion weather package...
