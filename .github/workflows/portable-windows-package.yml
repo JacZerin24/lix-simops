@@ -6,13 +6,12 @@ on:
       case_run_id:
         description: Full Endymion Case Build run ID containing the validated cache
         required: true
-        default: "36604005724"
 permissions:
   contents: read
   actions: read
 
 env:
-  CASE_RUN_ID: ${{ github.event.inputs.case_run_id || '36604005724' }}
+  CASE_RUN_ID: ${{ github.event.inputs.case_run_id }}
 
 jobs:
   package:
