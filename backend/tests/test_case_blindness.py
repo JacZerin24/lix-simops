@@ -9,10 +9,12 @@ from simulator.radar.manifest import RadarFrame, RadarManifest, RadarProduct
 def make_session():
     manager = SessionManager()
     start = datetime(2027, 2, 6, 20, 45, tzinfo=timezone.utc)
+    end = datetime(2027, 2, 6, 22, 30, tzinfo=timezone.utc)
     return manager.create(
         scenario_id="mardi-gras-dss-001",
         scenario_name="Endymion",
         scenario_start=start,
+        scenario_end=end,
         default_speed=1.5,
     )
 
