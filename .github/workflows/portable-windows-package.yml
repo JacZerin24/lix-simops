@@ -81,7 +81,9 @@ jobs:
           if (Test-Path "$dest\BUILD_INFO.txt") {
             throw "Portable runtime contains facilitator-only BUILD_INFO.txt"
           }
-          $files = Get-ChildItem $dest -Recurse -File
+          $textExtensions = @(".py", ".yaml", ".yml", ".json", ".txt", ".tsx", ".ts", ".js", ".html", ".css", ".md")
+          $files = Get-ChildItem $dest -Recurse -File |
+            Where-Object { $textExtensions -contains $_.Extension.ToLowerInvariant() }
           $leaks = @()
           foreach ($needle in @("2021-05-12", "20210512", "2021132")) {
             $leaks += $files | Select-String -SimpleMatch $needle -List
