@@ -58,6 +58,7 @@ def timestamp_token(timestamp: datetime) -> str:
 def add_base_map(ax, *, domain, show_cities: bool = True) -> None:
     import cartopy.feature as cfeature
     import cartopy.crs as ccrs
+    import matplotlib.patheffects as path_effects
 
     west, east, south, north = domain
     ax.set_extent([west, east, south, north], crs=ccrs.PlateCarree())
@@ -94,7 +95,9 @@ def add_base_map(ax, *, domain, show_cities: bool = True) -> None:
                     name,
                     fontsize=6.5,
                     color="#222222",
-                    path_effects=[],
+                    path_effects=[
+                        path_effects.withStroke(linewidth=2.0, foreground="white")
+                    ],
                     transform=ccrs.PlateCarree(),
                     zorder=7,
                 )
