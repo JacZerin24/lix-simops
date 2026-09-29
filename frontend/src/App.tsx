@@ -8,6 +8,7 @@ import { Mesoanalyst } from "./pages/Mesoanalyst";
 import { RadarOperator } from "./pages/RadarOperator";
 import { createSession, listScenarios } from "./services/api";
 import { createSimulationSocket } from "./services/socket";
+import { formatSimDateTime } from "./utils/simTime";
 import type {
   ClockState,
   ExerciseEvent,
@@ -40,6 +41,7 @@ function App() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [scenarioId, setScenarioId] = useState("");
   const [scenarioName, setScenarioName] = useState("");
+  const [timezone, setTimezone] = useState("America/Chicago");
   const [clock, setClock] = useState<ClockState>({
     sim_time: new Date().toISOString(),
     running: false,
@@ -88,6 +90,7 @@ function App() {
           speed: msg.speed,
         });
         setScenarioName(msg.scenario_name);
+        setTimezone(msg.timezone ?? "America/Chicago");
         setParticipants(msg.participants ?? []);
         setSchedule(msg.schedule ?? []);
       } else if (msg.type === "clock") {
@@ -116,8 +119,8 @@ function App() {
   }, [activeSessionCode]);
 
   const displayTime = useMemo(
-    () => new Date(clock.sim_time).toISOString().replace("T", " ").slice(0, 19) + "Z",
-    [clock.sim_time],
+    () => formatSimDateTime(clock.sim_time, timezone),
+    [clock.sim_time, timezone],
   );
 
   const send = (payload: object) => {
@@ -163,6 +166,7 @@ function App() {
       setTeamId("FACILITATOR");
       setSessionCode(created.session_code);
       setScenarioName(created.scenario_name);
+      setTimezone(created.timezone ?? "America/Chicago");
       setEvents([]);
       setParticipants([]);
       setSchedule(created.schedule ?? []);
@@ -280,6 +284,7 @@ function App() {
           participants={participants}
           events={events}
           schedule={schedule}
+          timezone={timezone}
           onControl={sendControl}
           onInject={sendInject}
           onPartnerMessage={sendPartnerMessage}
@@ -287,10 +292,10 @@ function App() {
         />
       ) : (
         <section className="workspace">
-          {role === "radar" && <RadarOperator sessionCode={activeSessionCode} />}
-          {role === "mesoanalyst" && <Mesoanalyst sessionCode={activeSessionCode} />}
-          {role === "dss" && <DSS sessionCode={activeSessionCode} events={events} onRespond={sendDssResponse} />}
-          <ExerciseFeed events={events} />
+          {role === "radar" && <RadarOperator sessionCode={activeSessionCode} timezone={timezone} />}
+          {role === "mesoanalyst" && <Mesoanalyst sessionCode={activeSessionCode} timezone={timezone} />}
+          {role === "dss" && <DSS sessionCode={activeSessionCode} timezone={timezone} events={events} onRespond={sendDssResponse} />}
+          <ExerciseFeed events={events} timezone={timezone} />
         </section>
       )}
     </main>
