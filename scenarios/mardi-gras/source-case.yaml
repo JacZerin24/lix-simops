@@ -1,54 +1,54 @@
 source_case:
-  id: lix-2022-12-14
-  source_date: "2022-12-14"
+  id: lix-2021-05-12
+  source_date: "2021-05-12"
   timezone: America/Chicago
   source_window_utc:
-    start: "20:30"
-    end: "22:45"
+    start: "06:00"
+    end: "07:45"
   exercise_mapping:
     exercise_date: "2027-02-06"
     simulation_start_local: "14:45"
     simulation_end_local: "16:30"
-    preserve_local_clock_time: true
+    preserve_local_clock_time: false
+    local_time_offset_minutes: 825
   rationale: >-
-    This window provides lead time before the 3:49 PM CST Marrero/Gretna/Algiers/Arabi
-    EF2 tornado, captures the 3:49–4:06 PM metro tornado, and preserves the operational
-    decision period around Endymion's 4:00 PM exercise start.
+    The 1:00–2:45 AM CDT source window captures the rapid evolution into the
+    May 12, 2021 New Orleans EF0 tornado while providing more than an hour of
+    pre-tornado radar, satellite, lightning, and environmental context. A
+    facilitator-only +13 hour 45 minute local-time shift maps the 2:05 AM
+    tornado onset to 3:50 PM in the Endymion exercise, preserving the full
+    2:45–4:30 PM participant decision window.
 
 anchor_events:
-  - id: killona-montz-ef2
-    start_local: "14:21"
-    end_local: "14:26"
-    rating: EF2
+  - id: new-orleans-ef0
+    start_local: "02:05"
+    end_local: "02:12"
+    rating: EF0
+    max_wind_mph: 85
+    path_miles: 5.26
+    max_width_yards: 125
+    mapped_start_local: "15:50"
+    mapped_end_local: "15:57"
     note: >-
-      Occurs shortly before the simulation start and provides important prior-event context
-      for facilitators, but should not be revealed to participants as historical information.
-  - id: marrero-arabi-ef2
-    start_local: "15:49"
-    end_local: "16:06"
-    rating: EF2
-    max_wind_mph: 125
-    path_miles: 10.72
-    note: >-
-      Primary metro New Orleans anchor. Timing aligns closely with the 4:00 PM Endymion
-      start decision and the automatic T+65/T+80 partner injects.
+      Primary metro New Orleans anchor. The tornado tracked through Uptown,
+      the CBD, across the Mississippi River, and into Algiers. Historical
+      timing and identity remain facilitator-only.
 
 datasets:
   nexrad:
     status: ready_to_fetch
     source: NOAA/Unidata NEXRAD Level II public archive
     radar: KLIX
-    window_utc: ["20:30", "22:45"]
-    output: data/raw/nexrad/20221214
+    window_utc: ["06:00", "07:45"]
+    output: data/raw/nexrad/20210512
 
   goes_display:
     status: ready_to_fetch
     source: NOAA GOES-16 Open Data on AWS
     product: ABI-L2-CMIPC
-    channels: [2, 13]
+    channels: [13]
     purpose:
-      - Daytime visible imagery
-      - Infrared cloud-top evolution
+      - Infrared cloud-top evolution during the overnight source case
     output: data/raw/goes/abi-cmi
 
   glm:
@@ -66,7 +66,7 @@ datasets:
     product: ABI-L1b-RadC
     channels: [2, 5, 13, 15]
     purpose: >-
-      Required ABI predictors for historical LightningCast reproduction with CSPP Geo LightningCast.
+      ABI predictors staged for historical LightningCast reproduction with CSPP Geo.
     output: data/raw/goes/lightningcast-inputs
 
   lightningcast:
@@ -74,10 +74,9 @@ datasets:
     method: CSPP Geo LightningCast
     output: data/raw/meso/lightningcast
     note: >-
-      A durable public archive of the experimental December 2022 LightningCast NetCDF stream
-      has not been confirmed. The reproducible path is to run CSPP Geo LightningCast on
-      archived GOES-16 ABI L1b channels 2, 5, 13, and 15. CSPP Geo download access requires
-      a registered SSEC user.
+      The reproducible path is to process the archived May 12, 2021 GOES-16
+      ABI L1b inputs with CSPP Geo LightningCast. CSPP Geo download access
+      requires a registered SSEC user.
 
   mrms:
     status: ready_to_fetch
@@ -94,28 +93,30 @@ datasets:
     source: Iowa Environmental Mesonet ASOS/METAR archive
     network: LA_ASOS
     stations: [MSY, NEW, BTR, ASD, HDC]
-    output: data/raw/observations/asos_20221214.csv
+    output: data/raw/observations/asos_20210512.csv
 
   environment:
     status: rap_fallback_selected
     source: NOAA Rapid Refresh Open Data on AWS
     product: awp130pgrbf00
-    cycles_utc: [20, 21, 22]
-    output: data/raw/rap/20221214
+    cycles_utc: [5, 6, 7]
+    output: data/raw/rap/20210512
     derived_products:
       - RAP 90-mb Mixed-Layer CAPE
+      - RAP 0-3 km Bulk Shear with sparse vectors
       - RAP 0-6 km Bulk Shear
       - RAP 0-1 km Storm-Relative Helicity
+      - RAP 0-3 km Storm-Relative Helicity
     note: >-
-      The SPC mesoanalysis archive is normally preferred, but independent archive tooling
-      documents a late-November through most-of-December 2022 image-archive gap. To avoid
-      depending on missing SPC images, V0.7 uses official hourly RAP analyses for the
-      environmental workspace. This is a deliberate fallback and is labeled as RAP in the UI.
+      Official hourly RAP analyses provide the environmental workspace. The
+      05Z analysis supplies pre-window context, while 06Z and 07Z cover the
+      source window and map into the participant exercise period.
 
 participant_case_blindness:
   hide_source_date: true
   hide_historical_event_names: true
   remap_data_to_exercise_date: true
   facilitator_traceability: >-
-    Raw filenames/source keys retain original timestamps in manifests, but participant-facing
-    timestamps are mapped to February 6, 2027.
+    Raw source files retain their original timestamps only in facilitator-controlled
+    storage. Participant cache manifests omit historical source keys, shift the
+    source local clock by 13 hours 45 minutes, and map timestamps to February 6, 2027.
