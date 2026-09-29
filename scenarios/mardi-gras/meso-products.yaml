@@ -30,13 +30,6 @@ products:
     source_dir: data/raw/meso/goes_ir
     pattern: "*.png"
 
-  - id: goes_vis
-    label: GOES-16 Visible
-    category: Satellite
-    description: ABI Channel 2 daytime storm development and boundary structure.
-    source_dir: data/raw/meso/goes_vis
-    pattern: "*.png"
-
   - id: lightningcast
     label: LightningCast
     category: Lightning
