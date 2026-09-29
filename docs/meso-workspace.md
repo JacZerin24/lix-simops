@@ -34,7 +34,7 @@ YYYYMMDDTHHMMSSZ
 Example:
 
 ```text
-data/raw/meso/lightningcast/lightningcast_20221214T214500Z.png
+data/raw/meso/lightningcast/lightningcast_20210512T070500Z.png
 ```
 
 ## Build the cache
@@ -44,10 +44,11 @@ python scripts/build_meso_cache.py \
   --scenario-id mardi-gras-dss-001 \
   --config scenarios/mardi-gras/meso-products.yaml \
   --simulation-date 2027-02-06 \
-  --timezone America/Chicago
+  --timezone America/Chicago \
+  --local-time-offset-minutes 825
 ```
 
-As with radar, `--simulation-date` preserves the source product's local clock time while remapping it to the Endymion exercise date.
+`--simulation-date` remaps the source product to the Endymion exercise date, while `--local-time-offset-minutes 825` shifts the May 2021 overnight evolution into the afternoon exercise window.
 
 This writes:
 
