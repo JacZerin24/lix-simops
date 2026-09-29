@@ -103,8 +103,10 @@ datasets:
     output: data/raw/rap/20210512
     derived_products:
       - RAP 90-mb Mixed-Layer CAPE
+      - RAP 0-3 km Bulk Shear with sparse vectors
       - RAP 0-6 km Bulk Shear
       - RAP 0-1 km Storm-Relative Helicity
+      - RAP 0-3 km Storm-Relative Helicity
     note: >-
       Official hourly RAP analyses provide the environmental workspace. The
       05Z analysis supplies pre-window context, while 06Z and 07Z cover the
