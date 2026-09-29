@@ -13,9 +13,9 @@ NEXRAD_RE = re.compile(r"([A-Z0-9]{4})(\d{8})_(\d{6})")
 GOES_RE = re.compile(r"_s(\d{4})(\d{3})(\d{2})(\d{2})(\d{2})(\d)")
 MRMS_RE = re.compile(r"_(\d{8})-(\d{6})")
 
-DATE = datetime.strptime("2022-12-14", "%Y-%m-%d").date()
-START = datetime.combine(DATE, time(20, 30), tzinfo=timezone.utc)
-END = datetime.combine(DATE, time(22, 45), tzinfo=timezone.utc)
+DATE = datetime.strptime("2021-05-12", "%Y-%m-%d").date()
+START = datetime.combine(DATE, time(6, 0), tzinfo=timezone.utc)
+END = datetime.combine(DATE, time(7, 45), tzinfo=timezone.utc)
 
 
 def client():
@@ -95,26 +95,26 @@ def main() -> None:
     count, size = list_filtered(
         s3,
         "unidata-nexrad-level2",
-        ["2022/12/14/KLIX/KLIX20221214_20", "2022/12/14/KLIX/KLIX20221214_21", "2022/12/14/KLIX/KLIX20221214_22"],
+        ["2021/05/12/KLIX/KLIX20210512_06", "2021/05/12/KLIX/KLIX20210512_07"],
         nexrad_time,
         lambda key: "MDM" not in Path(key).name,
     )
     results.append(("KLIX Level II", count, size))
 
-    hours = ["20", "21", "22"]
+    hours = ["06", "07"]
     count, size = list_filtered(
         s3,
         "noaa-goes16",
-        [f"ABI-L2-CMIPC/2022/348/{hour}/" for hour in hours],
+        [f"ABI-L2-CMIPC/2021/132/{hour}/" for hour in hours],
         goes_time,
-        lambda key: "C02" in key or "C13" in key,
+        lambda key: "C13" in key,
     )
-    results.append(("GOES ABI CMIP C02/C13", count, size))
+    results.append(("GOES ABI CMIP C13", count, size))
 
     count, size = list_filtered(
         s3,
         "noaa-goes16",
-        [f"ABI-L1b-RadC/2022/348/{hour}/" for hour in hours],
+        [f"ABI-L1b-RadC/2021/132/{hour}/" for hour in hours],
         goes_time,
         lambda key: any(channel in key for channel in ("C02", "C05", "C13", "C15")),
     )
@@ -123,7 +123,7 @@ def main() -> None:
     count, size = list_filtered(
         s3,
         "noaa-goes16",
-        [f"GLM-L2-LCFA/2022/348/{hour}/" for hour in hours],
+        [f"GLM-L2-LCFA/2021/132/{hour}/" for hour in hours],
         goes_time,
     )
     results.append(("GOES GLM LCFA", count, size))
@@ -137,19 +137,19 @@ def main() -> None:
         count, size = list_filtered(
             s3,
             "noaa-mrms-pds",
-            [f"CONUS/{product}/20221214/"],
+            [f"CONUS/{product}/20210512/"],
             mrms_time,
         )
         results.append((f"MRMS {product}", count, size))
 
     rap_size = 0
     rap_count = 0
-    for cycle in (20, 21, 22):
-        key = f"rap.20221214/rap.t{cycle:02d}z.awp130pgrbf00.grib2"
+    for cycle in (5, 6, 7):
+        key = f"rap.20210512/rap.t{cycle:02d}z.awp130pgrbf00.grib2"
         info = s3.head_object(Bucket="noaa-rap-pds", Key=key)
         rap_count += 1
         rap_size += int(info.get("ContentLength", 0))
-    results.append(("RAP analyses 20/21/22Z", rap_count, rap_size))
+    results.append(("RAP analyses 05/06/07Z", rap_count, rap_size))
 
     total_count = sum(item[1] for item in results)
     total_size = sum(item[2] for item in results)
