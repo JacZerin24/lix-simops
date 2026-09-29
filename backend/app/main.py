@@ -8,6 +8,7 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .models import Role, SessionCreateRequest
 from .services.meso_data import load_meso_manifest, meso_payload
@@ -21,6 +22,7 @@ from .services.scenario_loader import (
 from .state import ClientConnection, Participant, ScheduledItem, SessionState, manager
 
 app = FastAPI(title="LIX SimOps API", version="0.8.0")
+FRONTEND_DIST = CACHE_ROOT.parents[1] / "frontend" / "dist"
 
 app.add_middleware(
     CORSMiddleware,
@@ -499,3 +501,10 @@ async def start_clock_task() -> None:
                         await broadcast_clock(session)
 
     asyncio.create_task(ticker())
+
+
+# Portable/single-server mode: when GitHub Actions has built the React frontend,
+# serve it from the same FastAPI process. API and WebSocket routes are declared
+# above this catch-all mount, so they retain precedence.
+if FRONTEND_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
