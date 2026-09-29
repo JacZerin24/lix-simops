@@ -122,12 +122,16 @@ def main() -> None:
         "--output", str(WORK / "out" / "goes_ir"),
         "--channel", "13",
         "--domain", *domain,
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
     ])
     run([
         PYTHON, "scripts/render_glm_flash_density.py",
         "--input", str(glm_dir),
         "--output", str(WORK / "out" / "glm"),
         "--domain", *domain,
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
     ])
     run([
         PYTHON, "scripts/render_mrms.py",
@@ -135,12 +139,16 @@ def main() -> None:
         "--output-root", str(WORK / "out" / "mrms"),
         "--products", "MESH_00.50",
         "--domain", *domain,
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
     ])
     run([
         PYTHON, "scripts/render_rap_environment.py",
         "--input", str(rap_dir),
         "--output-root", str(WORK / "out" / "rap"),
         "--domain", *domain,
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
     ])
 
     pngs = list((WORK / "out").rglob("*.png"))
