@@ -568,3 +568,167 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 @media (max-width: 700px) {
   .shift-log-callout { flex-direction: column; align-items: stretch; }
 }
+
+
+/* Operational radar ergonomics */
+.radar-quick-products {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 14px 0 4px;
+}
+.radar-product {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  background: #0d1726;
+  border-color: #2c405e;
+  padding: 8px 11px;
+}
+.radar-product span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: #1b2d45;
+  color: #9db3cd;
+  font-size: 0.78rem;
+}
+.radar-product.active {
+  background: #245b8f;
+  border-color: #5b90c0;
+}
+.radar-product.active span {
+  background: #dceeff;
+  color: #0b243c;
+}
+.compact-control { min-width: 110px !important; }
+.keyboard-hint {
+  margin: -2px 0 12px;
+  color: #8fa0b7;
+  font-size: 0.82rem;
+}
+.radar-canvas:focus,
+.meso-canvas:focus {
+  outline: 2px solid #4c90c9;
+  outline-offset: 2px;
+}
+.radar-canvas:fullscreen {
+  background: #03070d;
+  border: 0;
+  border-radius: 0;
+  width: 100vw;
+  height: 100vh;
+}
+.radar-canvas:fullscreen img {
+  max-height: 100vh;
+  max-width: 100vw;
+}
+
+/* SPC-inspired mesoanalysis workspace */
+.meso-spc-layout {
+  display: grid;
+  grid-template-columns: 225px minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+.meso-product-rail {
+  border: 1px solid #2b405f;
+  background: #09121f;
+  border-radius: 8px;
+  padding: 10px;
+  max-height: 760px;
+  overflow-y: auto;
+}
+.meso-sector-card {
+  display: grid;
+  gap: 3px;
+  background: #13243a;
+  border: 1px solid #304b6c;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.meso-sector-card span,
+.meso-sector-card small {
+  color: #93a8c0;
+}
+.meso-sector-card strong { color: #fff; }
+.meso-product-group {
+  border-top: 1px solid #253950;
+  padding-top: 9px;
+  margin-top: 9px;
+}
+.meso-product-group h3 {
+  margin: 0 0 7px;
+  color: #d7e3ef;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.meso-product {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  margin-bottom: 5px;
+  border-radius: 5px;
+  padding: 8px 9px;
+  background: #0d1726;
+  border-color: #243954;
+  font-size: 0.83rem;
+}
+.meso-product strong { font-weight: 600; }
+.meso-product span {
+  color: #8fa0b7;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+.meso-product.active {
+  background: #1e527e;
+  border-color: #5c93c2;
+}
+.meso-product.active span { color: #d9edff; }
+.meso-map-column { min-width: 0; }
+.meso-operational-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: #0b1523;
+  border: 1px solid #273d58;
+  border-radius: 7px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.meso-context-compact {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+}
+.meso-canvas {
+  touch-action: none;
+  cursor: grab;
+}
+.meso-canvas:active { cursor: grabbing; }
+.meso-canvas img {
+  pointer-events: none;
+  transform-origin: center center;
+  transition: transform 80ms linear;
+}
+
+@media (max-width: 1050px) {
+  .meso-spc-layout {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .meso-spc-layout {
+    grid-template-columns: 1fr;
+  }
+  .meso-product-rail {
+    max-height: 280px;
+  }
+}
