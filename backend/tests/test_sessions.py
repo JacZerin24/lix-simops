@@ -139,3 +139,14 @@ def test_participant_asset_route_blocks_future_frames(monkeypatch, tmp_path) -> 
 
     assert available.status_code == 200
     assert available.content == b"not-a-real-png"
+
+
+
+def test_session_codes_avoid_ambiguous_characters() -> None:
+    from backend.app.state import SessionManager
+
+    local_manager = SessionManager()
+    for _ in range(100):
+        code = local_manager._new_code()
+        assert len(code) == 6
+        assert not (set(code) & set("IO01"))
