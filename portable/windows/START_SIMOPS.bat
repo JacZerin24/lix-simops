@@ -110,7 +110,7 @@ echo Local browser address: http://localhost:8000
 if "%SIMOPS_HOST%"=="0.0.0.0" (
   echo LAN mode is enabled on port 8000.
   echo Candidate participant addresses:
-  "%SIMOPS_VENV%\Scripts\python.exe" -c "import socket; ips=sorted({x[4][0] for x in socket.getaddrinfo(socket.gethostname(),None,socket.AF_INET) if not x[4][0].startswith('127.')}); [print('  http://%s:8000'%%ip) for ip in ips]"
+  "%SIMOPS_VENV%\Scripts\python.exe" -c "import socket; ips=sorted({x[4][0] for x in socket.getaddrinfo(socket.gethostname(),None,socket.AF_INET) if not x[4][0].startswith('127.')}); [print(f'  http://{ip}:8000') for ip in ips]"
 )
 echo.
 echo Keep this window OPEN while using SimOps.
