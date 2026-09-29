@@ -74,6 +74,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--channel", required=True, type=int)
     parser.add_argument("--domain", nargs=4, type=float)
     parser.add_argument("--timezone", default="America/Chicago")
+    parser.add_argument("--simulation-date")
+    parser.add_argument("--local-time-offset-minutes", type=int, default=0)
     parser.add_argument("--label")
     return parser.parse_args()
 
@@ -158,7 +160,7 @@ def main() -> None:
             cb = fig.colorbar(mesh, ax=ax, orientation="horizontal", pad=0.035, shrink=0.82)
             cb.set_label(units)
             ax.set_title(args.label or default_label, loc="left", fontweight="bold")
-            ax.set_title(local_time_label(timestamp, args.timezone), loc="right")
+            ax.set_title(local_time_label(timestamp, args.timezone, args.simulation_date, args.local_time_offset_minutes), loc="right")
             destination = args.output / f"goes_c{args.channel:02d}_{timestamp_token(timestamp)}.png"
             fig.savefig(destination, dpi=130, bbox_inches="tight")
             plt.close(fig)
