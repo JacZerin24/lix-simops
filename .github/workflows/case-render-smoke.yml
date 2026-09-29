@@ -31,11 +31,11 @@ jobs:
           python scripts/build_meso_cache.py --help > /dev/null
           python - <<'PY'
           import pyart
-          from simulator.radar.preprocessing import _resolve_colormap
+          from simulator.radar.preprocessing import _colormap_for_product
           from simulator.radar.products import RADAR_RENDER_CONFIG
 
           for product, config in RADAR_RENDER_CONFIG.items():
-              resolved = _resolve_colormap(config["cmap"])
-              print(f"{product}: {config['cmap']} -> {resolved}")
+              resolved = _colormap_for_product(product, config)
+              print(f"{product}: {config['cmap']} -> {getattr(resolved, 'name', resolved)}")
           PY
       - run: python scripts/smoke_render_case.py
