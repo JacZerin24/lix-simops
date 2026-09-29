@@ -1,0 +1,138 @@
+name: Build Portable Windows SimOps
+
+on:
+  workflow_dispatch:
+    inputs:
+      case_run_id:
+        description: Full Endymion Case Build run ID containing the validated cache
+        required: true
+        default: "36604005724"
+  push:
+    branches:
+      - feature/v0.8-full-case-build
+    paths:
+      - ".github/workflows/portable-windows-package.yml"
+      - "backend/app/**"
+      - "frontend/**"
+      - "portable/windows/**"
+      - "scripts/validate_exercise_cache.py"
+      - "simulator/**"
+      - "scenarios/mardi-gras/**"
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  CASE_RUN_ID: ${{ github.event.inputs.case_run_id || '36604005724' }}
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build React frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Download validated Endymion weather cache
+        uses: actions/download-artifact@v4
+        with:
+          name: endymion-case-cache-no-lightningcast
+          path: .case
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ env.CASE_RUN_ID }}
+
+      - name: Assemble portable application
+        shell: pwsh
+        run: |
+          $dest = Join-Path $PWD "portable-build\LIX-SimOps"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          New-Item -ItemType Directory -Force -Path "$dest\frontend" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$dest\scripts" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$dest\data\cache" | Out-Null
+
+          Copy-Item backend "$dest\backend" -Recurse
+          Copy-Item simulator "$dest\simulator" -Recurse
+          Copy-Item scenarios "$dest\scenarios" -Recurse
+          Copy-Item frontend\dist "$dest\frontend\dist" -Recurse
+          Copy-Item scripts\validate_exercise_cache.py "$dest\scripts\validate_exercise_cache.py"
+          Copy-Item portable\windows\START_SIMOPS.bat "$dest\START_SIMOPS.bat"
+          Copy-Item portable\windows\README-PORTABLE.txt "$dest\README-PORTABLE.txt"
+          Copy-Item portable\windows\portable-requirements.txt "$dest\portable-requirements.txt"
+
+          if (-not (Test-Path ".case\cache\mardi-gras-dss-001")) {
+            throw "Downloaded case artifact does not contain cache/mardi-gras-dss-001"
+          }
+          Copy-Item ".case\cache\mardi-gras-dss-001" "$dest\data\cache\mardi-gras-dss-001" -Recurse
+          if (Test-Path ".case\BUILD_INFO.txt") {
+            Copy-Item ".case\BUILD_INFO.txt" "$dest\BUILD_INFO.txt"
+          }
+
+      - name: Build offline Python wheelhouse
+        shell: pwsh
+        run: |
+          $dest = Join-Path $PWD "portable-build\LIX-SimOps"
+          New-Item -ItemType Directory -Force -Path "$dest\wheelhouse" | Out-Null
+          python -m pip install --upgrade pip
+          python -m pip download --only-binary=:all: --dest "$dest\wheelhouse" -r "$dest\portable-requirements.txt"
+
+      - name: Test package with offline-only install
+        shell: pwsh
+        run: |
+          $dest = Join-Path $PWD "portable-build\LIX-SimOps"
+          python -m venv .portable-test
+          $testPython = Join-Path $PWD ".portable-test\Scripts\python.exe"
+
+          & $testPython -m pip install --no-index --find-links "$dest\wheelhouse" -r "$dest\portable-requirements.txt"
+
+          Push-Location $dest
+          & $testPython scripts\validate_exercise_cache.py
+          if ($LASTEXITCODE -ne 0) {
+            Pop-Location
+            throw "Portable cache validation failed."
+          }
+          Pop-Location
+
+          $server = Start-Process -FilePath $testPython -ArgumentList "-m","uvicorn","backend.app.main:app","--host","127.0.0.1","--port","8765" -WorkingDirectory $dest -PassThru
+          try {
+            Start-Sleep -Seconds 4
+            $health = Invoke-WebRequest "http://127.0.0.1:8765/health" -UseBasicParsing
+            if ($health.StatusCode -ne 200) { throw "Health endpoint failed." }
+            $home = Invoke-WebRequest "http://127.0.0.1:8765/" -UseBasicParsing
+            if ($home.StatusCode -ne 200 -or $home.Content -notmatch "LIX SimOps") {
+              throw "Prebuilt frontend was not served by FastAPI."
+            }
+          }
+          finally {
+            if ($server -and -not $server.HasExited) {
+              Stop-Process -Id $server.Id -Force
+            }
+          }
+
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "portable-build\LIX-SimOps\*" -DestinationPath "LIX-SimOps-Portable-Windows.zip" -CompressionLevel Optimal
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LIX-SimOps-Portable-Windows
+          path: LIX-SimOps-Portable-Windows.zip
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
