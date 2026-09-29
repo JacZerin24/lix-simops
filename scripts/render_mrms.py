@@ -117,6 +117,20 @@ def main() -> None:
                 lats, lons = message.latlons()
                 lons = np.where(lons > 180, lons - 360, lons)
 
+                west, east, south, north = domain
+                in_domain = (
+                    (lons >= west) & (lons <= east)
+                    & (lats >= south) & (lats <= north)
+                )
+                rows, cols = np.where(in_domain)
+                if rows.size == 0:
+                    raise ValueError(f"{product}: requested domain does not intersect grid")
+                r0, r1 = rows.min(), rows.max() + 1
+                c0, c1 = cols.min(), cols.max() + 1
+                values = values[r0:r1, c0:c1]
+                lats = lats[r0:r1, c0:c1]
+                lons = lons[r0:r1, c0:c1]
+
                 fig = plt.figure(figsize=(10, 8), constrained_layout=True)
                 ax = plt.axes(projection=ccrs.PlateCarree())
                 add_base_map(ax, domain=domain)
