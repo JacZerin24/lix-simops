@@ -182,7 +182,6 @@ def build_radar_cache(
                         product=product_id,
                         elevation=round(requested_elevation, 1),
                         asset=destination.relative_to(output_root).as_posix(),
-                        source_key=source.name,
                     )
                 )
 
@@ -213,6 +212,6 @@ def build_radar_cache(
 
     radar_root.mkdir(parents=True, exist_ok=True)
     with (radar_root / "manifest.json").open("w", encoding="utf-8") as handle:
-        json.dump(manifest.model_dump(mode="json"), handle, indent=2)
+        json.dump(manifest.model_dump(mode="json", exclude_none=True), handle, indent=2)
 
     return manifest
