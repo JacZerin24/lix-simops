@@ -40,6 +40,8 @@ def main() -> None:
             "--output", "data/raw/meso/goes_ir",
             "--channel", "13",
             "--domain", *DOMAIN,
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
         ],
         args.dry_run,
     )
@@ -49,6 +51,8 @@ def main() -> None:
             "--input", "data/raw/goes/glm-lcfa",
             "--output", "data/raw/meso/glm_flash_density",
             "--domain", *DOMAIN,
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
         ],
         args.dry_run,
     )
@@ -58,6 +62,8 @@ def main() -> None:
             "--input-root", "data/raw/mrms",
             "--output-root", "data/raw/meso/mrms",
             "--domain", *DOMAIN,
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
         ],
         args.dry_run,
     )
@@ -67,6 +73,8 @@ def main() -> None:
             "--input", "data/raw/rap/20210512",
             "--output-root", "data/raw/meso",
             "--domain", *DOMAIN,
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
         ],
         args.dry_run,
     )
@@ -78,6 +86,8 @@ def main() -> None:
             "--start", "2021-05-12T06:00Z",
             "--end", "2021-05-12T07:45Z",
             "--domain", *DOMAIN,
+            "--simulation-date", "2027-02-06",
+            "--local-time-offset-minutes", "825",
         ],
         args.dry_run,
     )
