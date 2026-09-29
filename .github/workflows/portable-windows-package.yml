@@ -70,6 +70,7 @@ jobs:
           Copy-Item frontend\dist "$dest\frontend\dist" -Recurse
           Copy-Item scripts\validate_exercise_cache.py "$dest\scripts\validate_exercise_cache.py"
           Copy-Item portable\windows\START_SIMOPS.bat "$dest\START_SIMOPS.bat"
+          Copy-Item portable\windows\START_SIMOPS_LAN.bat "$dest\START_SIMOPS_LAN.bat"
           Copy-Item portable\windows\README-PORTABLE.txt "$dest\README-PORTABLE.txt"
           Copy-Item portable\windows\portable-requirements.txt "$dest\portable-requirements.txt"
 
