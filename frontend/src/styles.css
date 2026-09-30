@@ -734,6 +734,84 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   stroke-width: 3px;
   stroke-linejoin: round;
 }
+.radar-highway polyline,
+.radar-warning polygon,
+.radar-point-overlay path,
+.radar-event-marker path,
+.radar-site-marker path {
+  vector-effect: non-scaling-stroke;
+}
+.radar-highway .casing {
+  fill: none;
+  stroke: rgba(3, 7, 12, 0.88);
+  stroke-width: 4;
+}
+.radar-highway .centerline {
+  fill: none;
+  stroke: #f6d365;
+  stroke-width: 1.6;
+}
+.radar-highway text,
+.radar-site-marker text,
+.radar-event-marker text,
+.radar-warning text,
+.radar-point-overlay text {
+  fill: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: rgba(2, 7, 12, 0.95);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.radar-event-marker path {
+  fill: #f72585;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+.radar-event-marker circle {
+  fill: #ffffff;
+  stroke: #050a11;
+  stroke-width: 1;
+}
+.radar-warning polygon {
+  fill: rgba(255, 255, 255, 0.04);
+  stroke: #ffffff;
+  stroke-width: 2.2;
+}
+.radar-warning-tor polygon {
+  stroke: #ff3b30;
+}
+.radar-warning-svr polygon {
+  stroke: #ffd60a;
+}
+.radar-warning-ffw polygon {
+  stroke: #39ff88;
+}
+.radar-point-overlay circle {
+  fill: #ffffff;
+  stroke: #050a11;
+  stroke-width: 1.5;
+}
+.radar-point-overlay path {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1.4;
+}
+.radar-point-tornado circle {
+  fill: #ff3b30;
+}
+.radar-point-hail circle {
+  fill: #39d353;
+}
+.radar-point-wind circle {
+  fill: #2f81f7;
+}
+.radar-point-inject circle {
+  fill: #f72585;
+}
+
 .radar-site-marker circle {
   fill: #ffffff;
   stroke: #050a11;
@@ -742,6 +820,9 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .radar-site-marker path {
   stroke: #ffffff;
   stroke-width: 1.2;
+}
+.radar-site-marker text {
+  font-size: 10px;
 }
 .radar-city circle {
   fill: #f7f9fc;
