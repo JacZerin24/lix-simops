@@ -1688,9 +1688,9 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     const issueTime = new Date(data.sim_time);
     const issueLabel = localWarnTime(issueTime, timeZone);
     const expireLabel = localWarnTime(svsWarning.expires_at, timeZone);
-    const areaLabels = (
-      svsAction === "CON" ? svsAffectedCounties : warnAffectedCounties
-    ).map((county) => warningAreaLabel(county.fips, county.name));
+    const areaLabels = svsAffectedCounties.map((county) =>
+      warningAreaLabel(county.fips, county.name),
+    );
 
     const warningName = svsWarning.label.toUpperCase();
     const lines: string[] = [
@@ -2566,13 +2566,166 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
                   expires {new Date(warning.expires_at).toISOString().slice(11, 16)}Z
                 </span>
                 {warning.inherited && <span>Inherited at exercise start</span>}
+                {(warning.followups?.length ?? 0) > 0 && (
+                  <span>
+                    Last SVS: {warning.followups?.[warning.followups.length - 1]?.action}
+                  </span>
+                )}
               </div>
+              {!warning.inherited && (
+                <div className="radar-warning-actions">
+                  <button
+                    onClick={() => beginSvsFollowup(warning)}
+                    disabled={svsWarningId === warning.id}
+                  >
+                    Follow Up / SVS
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {error && <div className="error-banner">{error}</div>}
+      {svsWarning && (
+        <div className="radar-svs-panel">
+          <div className="warngen-section-title">
+            <strong>Severe Weather Statement — {svsWarning.label}</strong>
+            <span>
+              Original expiration {new Date(svsWarning.expires_at).toISOString().slice(11, 16)}Z
+            </span>
+          </div>
+
+          <label>
+            Follow-up Action
+            <select
+              value={svsAction}
+              onChange={(event) => {
+                setSvsAction(event.target.value as SvsAction);
+                setSvsDraftText("");
+              }}
+            >
+              <option value="CON">CON — Continue</option>
+              <option value="CAN">CAN — Cancel</option>
+              <option value="EXP">EXP — Expire</option>
+              <option value="COR">COR — Correct</option>
+            </select>
+          </label>
+
+          {(svsAction === "CAN" || svsAction === "EXP") && (
+            <label>
+              End-of-Warning Reason
+              <select
+                value={svsReason}
+                onChange={(event) => {
+                  setSvsReason(event.target.value as SvsEndReason);
+                  setSvsDraftText("");
+                }}
+              >
+                <option value="weakened">Storm weakened</option>
+                <option value="moved_out">Storm moved out of warned area</option>
+                <option value="weakened_and_moved">
+                  Storm weakened and moved out
+                </option>
+                {svsWarning.hazard === "TOR" && (
+                  <>
+                    <option value="tor_downgrade">
+                      Tornado warning cancellation — severe still in effect
+                    </option>
+                    <option value="tor_reissue">
+                      Tornado warning ending — will reissue
+                    </option>
+                  </>
+                )}
+              </select>
+            </label>
+          )}
+
+          <label className="radar-check warngen-check">
+            <input
+              type="checkbox"
+              checked={svsStillHail}
+              onChange={(event) => {
+                setSvsStillHail(event.target.checked);
+                setSvsDraftText("");
+              }}
+            />
+            Hail still a threat
+          </label>
+          <label className="radar-check warngen-check">
+            <input
+              type="checkbox"
+              checked={svsStillWind}
+              onChange={(event) => {
+                setSvsStillWind(event.target.checked);
+                setSvsDraftText("");
+              }}
+            />
+            Gusty winds still a threat
+          </label>
+          <label className="radar-check warngen-check">
+            <input
+              type="checkbox"
+              checked={svsStillRain}
+              onChange={(event) => {
+                setSvsStillRain(event.target.checked);
+                setSvsDraftText("");
+              }}
+            />
+            Heavy rain still a threat
+          </label>
+
+          {svsAction === "CON" && (
+            <div className="svs-trim-note">
+              <strong>CON warned area</strong>
+              <span>
+                Drag the cyan vertices to trim the active polygon. A continuation
+                can reduce the warned area but the backend will reject any expansion.
+                Middle-click an edge to add a vertex; right-click a vertex to remove it.
+              </span>
+              <span>
+                {svsAffectedCounties.length} LIX parish/count{
+                  svsAffectedCounties.length === 1 ? "y" : "ies"
+                } in the proposed continuation.
+              </span>
+            </div>
+          )}
+
+          <div className="radar-svs-actions">
+            <button onClick={closeSvsFollowup}>Close</button>
+            <button className="primary-action" onClick={createSvsText}>
+              Create Text
+            </button>
+          </div>
+
+          {svsDraftText && (
+            <div className="warngen-text-editor svs-text-editor">
+              <div className="warngen-section-title">
+                <strong>SVS Text Editor</strong>
+                <span>Review and edit before issuing.</span>
+              </div>
+              <textarea
+                value={svsDraftText}
+                onChange={(event) => setSvsDraftText(event.target.value)}
+                spellCheck={false}
+                aria-label="SVS follow-up text"
+              />
+              <div className="warngen-text-actions">
+                <button onClick={createSvsText}>Recreate Text</button>
+                <button
+                  className="primary-action"
+                  onClick={issueSvsFollowup}
+                  disabled={!svsDraftText.trim()}
+                >
+                  Issue {svsAction} SVS
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+            {error && <div className="error-banner">{error}</div>}
 
       {!data?.available ? (
         <div className="radar-empty">
@@ -2605,16 +2758,36 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
               eventMarker={eventMarker}
               warningPolygons={warningPolygons}
               pointOverlays={pointOverlays}
-              annotations={annotations}
-              draggableHandles={warnHandles}
-              warnedAreaPreview={
-                warnHatched
-                  ? { polygon: warnPolygon, counties: warnAffectedCounties }
-                  : null
+              annotations={displayAnnotations}
+              draggableHandles={
+                svsWarningId
+                  ? svsAction === "CON"
+                    ? svsHandles
+                    : []
+                  : warnHandles
               }
-              onDraggableHandleChange={onWarnHandleChange}
-              onDraggableHandleRemove={removeWarnPolygonVertex}
-              onMapMiddleClick={addWarnPolygonVertex}
+              warnedAreaPreview={
+                svsWarningId && svsAction === "CON"
+                  ? { polygon: svsPolygon, counties: svsAffectedCounties }
+                  : warnHatched
+                    ? { polygon: warnPolygon, counties: warnAffectedCounties }
+                    : null
+              }
+              onDraggableHandleChange={
+                svsWarningId && svsAction === "CON"
+                  ? onSvsHandleChange
+                  : onWarnHandleChange
+              }
+              onDraggableHandleRemove={
+                svsWarningId && svsAction === "CON"
+                  ? removeSvsPolygonVertex
+                  : removeWarnPolygonVertex
+              }
+              onMapMiddleClick={
+                svsWarningId && svsAction === "CON"
+                  ? addSvsPolygonVertex
+                  : addWarnPolygonVertex
+              }
               onViewChange={setView}
               onCursorSample={setCursorSample}
               onMapClick={onMapClick}
