@@ -1,4 +1,5 @@
 import {
+  MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
   WheelEvent as ReactWheelEvent,
   useCallback,
@@ -87,6 +88,8 @@ type Props = {
   draggableHandles?: RadarDraggableHandle[];
   warnedAreaPreview?: WarnGenHatchedPreview | null;
   onDraggableHandleChange?: (id: string, point: RadarMapPoint) => void;
+  onDraggableHandleRemove?: (id: string) => void;
+  onMapMiddleClick?: (point: RadarMapPoint) => void;
   onViewChange: (view: RadarView) => void;
   onCursorSample: (sample: CursorSample | null) => void;
   onMapClick?: (point: RadarMapPoint) => void;
@@ -819,6 +822,8 @@ export function RadarGeographicCanvas({
   draggableHandles = [],
   warnedAreaPreview = null,
   onDraggableHandleChange,
+  onDraggableHandleRemove,
+  onMapMiddleClick,
   onViewChange,
   onCursorSample,
   onMapClick,
@@ -851,6 +856,11 @@ export function RadarGeographicCanvas({
   const [renderError, setRenderError] = useState("");
   const [dataRevision, setDataRevision] = useState(0);
   const [paletteRevision, setPaletteRevision] = useState(0);
+  const [handleContextMenu, setHandleContextMenu] = useState<{
+    x: number;
+    y: number;
+    handleId: string;
+  } | null>(null);
 
   const grid = frame.grid ?? null;
   const gridKey = grid
@@ -1051,6 +1061,8 @@ export function RadarGeographicCanvas({
   );
 
   const pointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    setHandleContextMenu(null);
+    if (event.button === 2) return;
     event.currentTarget.setPointerCapture(event.pointerId);
 
     const rect = event.currentTarget.getBoundingClientRect();
@@ -1145,7 +1157,13 @@ export function RadarGeographicCanvas({
 
     dragRef.current = null;
 
-    if (drag?.mode === "pan" && !drag.moved && onMapClick && containerRef.current) {
+    if (
+      drag?.mode === "pan" &&
+      !drag.moved &&
+      event.button === 0 &&
+      onMapClick &&
+      containerRef.current
+    ) {
       const point = mapPointFromClient(
         event.clientX,
         event.clientY,
@@ -1156,6 +1174,38 @@ export function RadarGeographicCanvas({
       );
       onMapClick({ ...point, timestamp: frame.timestamp });
     }
+  };
+
+  const auxClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (event.button !== 1 || !onMapMiddleClick || !containerRef.current) return;
+    event.preventDefault();
+    const point = mapPointFromClient(
+      event.clientX,
+      event.clientY,
+      containerRef.current.getBoundingClientRect(),
+      view,
+      radarLatitude,
+      radarLongitude,
+    );
+    onMapMiddleClick({ ...point, timestamp: frame.timestamp });
+  };
+
+  const contextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!onDraggableHandleRemove || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const hit = draggableHandles.find((handle) => {
+      if (handle.kind !== "vertex") return false;
+      const handleScreen = screenPoint(handle.point, view, size);
+      return Math.hypot(x - handleScreen.x, y - handleScreen.y) <= 24;
+    });
+    if (!hit) {
+      setHandleContextMenu(null);
+      return;
+    }
+    event.preventDefault();
+    setHandleContextMenu({ x, y, handleId: hit.id });
   };
 
   const wheel = (event: ReactWheelEvent<HTMLDivElement>) => {
@@ -1209,6 +1259,8 @@ export function RadarGeographicCanvas({
       onPointerUp={pointerUp}
       onPointerCancel={pointerUp}
       onPointerLeave={() => onCursorSample(null)}
+      onAuxClick={auxClick}
+      onContextMenu={contextMenu}
       onWheel={wheel}
       onDoubleClick={onResetView}
       aria-label="Geographic radar display; mouse wheel zooms around cursor and drag pans"
@@ -1485,6 +1537,22 @@ export function RadarGeographicCanvas({
           );
         })}
       </svg>
+
+      {handleContextMenu && (
+        <div
+          className="radar-handle-context-menu"
+          style={{ left: handleContextMenu.x, top: handleContextMenu.y }}
+        >
+          <button
+            onClick={() => {
+              onDraggableHandleRemove?.(handleContextMenu.handleId);
+              setHandleContextMenu(null);
+            }}
+          >
+            Remove Vertex
+          </button>
+        </div>
+      )}
 
       {!values && !renderError && (
         <div className="radar-render-status">Loading gate data…</div>
