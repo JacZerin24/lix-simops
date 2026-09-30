@@ -1546,7 +1546,6 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
 
   const beginSvsFollowup = (warning: WarningRecord) => {
     if (
-      warning.inherited ||
       data?.radar_latitude == null ||
       data.radar_longitude == null
     ) {
@@ -2572,16 +2571,14 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
                   </span>
                 )}
               </div>
-              {!warning.inherited && (
-                <div className="radar-warning-actions">
-                  <button
-                    onClick={() => beginSvsFollowup(warning)}
-                    disabled={svsWarningId === warning.id}
-                  >
-                    Follow Up / SVS
-                  </button>
-                </div>
-              )}
+              <div className="radar-warning-actions">
+                <button
+                  onClick={() => beginSvsFollowup(warning)}
+                  disabled={svsWarningId === warning.id}
+                >
+                  Follow Up / SVS
+                </button>
+              </div>
             </div>
           ))}
         </div>
