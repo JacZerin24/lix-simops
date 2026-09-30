@@ -451,7 +451,11 @@ jobs:
           ]
           merged["frames"] = sorted(
               [
-                  frame
+                  {
+                      key: value
+                      for key, value in frame.items()
+                      if key != "source_key"
+                  }
                   for manifest in manifests
                   for frame in manifest.get("frames", [])
               ],
