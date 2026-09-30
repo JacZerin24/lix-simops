@@ -15,10 +15,11 @@ from .services.radar_data import CACHE_ROOT, load_radar_manifest, radar_payload
 from .services.scenario_loader import (
     list_scenarios,
     load_event_config,
+    load_initial_warnings,
     load_scenario_by_id,
     load_scheduled_events,
 )
-from .state import ClientConnection, Participant, ScheduledItem, SessionState, manager
+from .state import ClientConnection, Participant, ScheduledItem, SessionState, WarningState, manager
 
 app = FastAPI(title="LIX SimOps API", version="0.8.0")
 FRONTEND_DIST = CACHE_ROOT.parents[1] / "frontend" / "dist"
@@ -55,6 +56,7 @@ def create_session(request: SessionCreateRequest) -> dict:
         scenario_start=start,
         default_speed=scenario.simulation.default_speed,
         scheduled_events=load_scheduled_events(scenario),
+        initial_warnings=load_initial_warnings(scenario),
     )
     return session.session_snapshot()
 
@@ -169,6 +171,12 @@ def event_visible_to(event: dict, participant: Participant) -> bool:
     if event_type in {"dss_response", "team_message"}:
         return event.get("team_id") == participant.team_id
 
+    if event_type == "warning_action":
+        return (
+            participant.role == Role.FACILITATOR
+            or event.get("team_id") in {"*", participant.team_id}
+        )
+
     return True
 
 
@@ -205,6 +213,55 @@ async def broadcast_schedule(session: SessionState) -> None:
         session.schedule_snapshot(),
         lambda person: person.role == Role.FACILITATOR,
     )
+
+
+async def broadcast_warnings(session: SessionState) -> None:
+    for connection in list(session.clients.values()):
+        participant = connection.participant
+        team_scope = None if participant.role == Role.FACILITATOR else participant.team_id
+        try:
+            await connection.websocket.send_json(session.warning_snapshot(team_scope))
+        except Exception:
+            pass
+
+
+def normalize_warning_points(raw_points) -> list[dict[str, float]]:
+    if not isinstance(raw_points, list):
+        raise ValueError("Warning polygon must be a list of points")
+    points: list[dict[str, float]] = []
+    for point in raw_points:
+        if not isinstance(point, dict) or "lat" not in point or "lon" not in point:
+            raise ValueError("Each warning point requires lat and lon")
+        lat = float(point["lat"])
+        lon = float(point["lon"])
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            raise ValueError("Warning polygon contains an invalid coordinate")
+        points.append({"lat": lat, "lon": lon})
+    if len(points) < 3:
+        raise ValueError("Warning polygon requires at least three vertices")
+    return points
+
+
+async def expire_due_warnings(session: SessionState) -> None:
+    changed = False
+    for warning in session.warnings:
+        if warning.status == "active" and warning.expires_at <= session.sim_time:
+            warning.status = "expired"
+            session.record(
+                {
+                    "type": "warning_action",
+                    "event_id": uuid4().hex,
+                    "action": "expire",
+                    "warning_id": warning.id,
+                    "hazard": warning.hazard,
+                    "team_id": warning.team_id,
+                    "issuer": warning.issuer,
+                    "sim_time": session.sim_time.isoformat(),
+                }
+            )
+            changed = True
+    if changed:
+        await broadcast_warnings(session)
 
 
 async def send_error(websocket: WebSocket, message: str) -> None:
@@ -305,6 +362,8 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
     )
     history = [event for event in session.log if event_visible_to(event, participant)]
     await websocket.send_json({"type": "event_history", "events": history[-100:]})
+    team_scope = None if role == Role.FACILITATOR else participant.team_id
+    await websocket.send_json(session.warning_snapshot(team_scope))
     await broadcast_presence(session)
 
     try:
@@ -326,6 +385,7 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     session.reset_clock()
                     await send_to(session, {"type": "event_history", "events": []})
                     await broadcast_schedule(session)
+                    await broadcast_warnings(session)
                 elif action == "speed":
                     session.speed = max(0.25, min(float(message.get("speed", 1.0)), 8.0))
                 else:
@@ -393,6 +453,140 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     payload,
                     lambda person: event_visible_to(payload, person),
                 )
+
+            elif kind == "warning_issue":
+                if role != Role.RADAR:
+                    await send_error(websocket, "Only the Radar Operator can issue warnings")
+                    continue
+
+                hazard = str(message.get("hazard", "")).upper()
+                if hazard not in {"TOR", "SVR"}:
+                    await send_error(websocket, "Warning type must be TOR or SVR")
+                    continue
+
+                try:
+                    points = normalize_warning_points(message.get("points"))
+                    duration_minutes = int(message.get("duration_minutes", 30))
+                except (TypeError, ValueError) as exc:
+                    await send_error(websocket, str(exc))
+                    continue
+
+                if duration_minutes not in {15, 30, 45, 60}:
+                    await send_error(websocket, "Warning duration must be 15, 30, 45, or 60 minutes")
+                    continue
+
+                warning = WarningState(
+                    id=uuid4().hex,
+                    hazard=hazard,
+                    label="Tornado Warning" if hazard == "TOR" else "Severe Thunderstorm Warning",
+                    team_id=participant.team_id,
+                    points=points,
+                    issued_at=session.sim_time,
+                    expires_at=session.sim_time + timedelta(minutes=duration_minutes),
+                    issuer=participant.display_name,
+                    text=str(message.get("text", "")).strip(),
+                )
+                session.warnings.append(warning)
+                session.record(
+                    {
+                        "type": "warning_action",
+                        "event_id": uuid4().hex,
+                        "action": "issue",
+                        "warning_id": warning.id,
+                        "hazard": warning.hazard,
+                        "team_id": warning.team_id,
+                        "issuer": warning.issuer,
+                        "points": warning.points,
+                        "expires_at": warning.expires_at.isoformat(),
+                        "sim_time": session.sim_time.isoformat(),
+                    }
+                )
+                await broadcast_warnings(session)
+
+            elif kind == "warning_update":
+                if role != Role.RADAR:
+                    await send_error(websocket, "Only the Radar Operator can update warnings")
+                    continue
+
+                warning_id = str(message.get("warning_id", "")).strip()
+                warning = session.warning_by_id(warning_id)
+                if warning is None or warning.team_id != participant.team_id:
+                    await send_error(websocket, "Warning not found for this team")
+                    continue
+                if warning.inherited:
+                    await send_error(websocket, "Inherited warnings cannot be edited")
+                    continue
+                if warning.status != "active":
+                    await send_error(websocket, "Only active warnings can be updated")
+                    continue
+
+                raw_points = message.get("points")
+                if raw_points is not None:
+                    try:
+                        warning.points = normalize_warning_points(raw_points)
+                    except (TypeError, ValueError) as exc:
+                        await send_error(websocket, str(exc))
+                        continue
+
+                extend_minutes = message.get("extend_minutes")
+                if extend_minutes is not None:
+                    try:
+                        extend_minutes = int(extend_minutes)
+                    except (TypeError, ValueError):
+                        await send_error(websocket, "Warning extension must be a whole number of minutes")
+                        continue
+                    if extend_minutes not in {15, 30}:
+                        await send_error(websocket, "Warning extension must be 15 or 30 minutes")
+                        continue
+                    warning.expires_at += timedelta(minutes=extend_minutes)
+
+                session.record(
+                    {
+                        "type": "warning_action",
+                        "event_id": uuid4().hex,
+                        "action": "update",
+                        "warning_id": warning.id,
+                        "hazard": warning.hazard,
+                        "team_id": warning.team_id,
+                        "issuer": participant.display_name,
+                        "points": warning.points,
+                        "expires_at": warning.expires_at.isoformat(),
+                        "sim_time": session.sim_time.isoformat(),
+                    }
+                )
+                await broadcast_warnings(session)
+
+            elif kind == "warning_cancel":
+                if role != Role.RADAR:
+                    await send_error(websocket, "Only the Radar Operator can cancel warnings")
+                    continue
+
+                warning_id = str(message.get("warning_id", "")).strip()
+                warning = session.warning_by_id(warning_id)
+                if warning is None or warning.team_id != participant.team_id:
+                    await send_error(websocket, "Warning not found for this team")
+                    continue
+                if warning.inherited:
+                    await send_error(websocket, "Inherited warnings cannot be cancelled")
+                    continue
+                if warning.status != "active":
+                    await send_error(websocket, "Only active warnings can be cancelled")
+                    continue
+
+                warning.status = "cancelled"
+                session.record(
+                    {
+                        "type": "warning_action",
+                        "event_id": uuid4().hex,
+                        "action": "cancel",
+                        "warning_id": warning.id,
+                        "hazard": warning.hazard,
+                        "team_id": warning.team_id,
+                        "issuer": participant.display_name,
+                        "sim_time": session.sim_time.isoformat(),
+                    }
+                )
+                await broadcast_warnings(session)
 
             elif kind == "partner_message":
                 if role != Role.FACILITATOR:
@@ -496,6 +690,7 @@ async def start_clock_task() -> None:
                     session.sim_time += timedelta(seconds=session.speed)
                     for item in session.due_items():
                         await release_scheduled_item(session, item)
+                    await expire_due_warnings(session)
                     if session.clients:
                         await broadcast_clock(session)
 
