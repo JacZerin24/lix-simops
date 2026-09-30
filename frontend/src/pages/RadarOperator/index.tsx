@@ -224,6 +224,31 @@ function formatLatLonPolygon(points: RadarMapPoint[]) {
     .join(" ");
 }
 
+function projectToSegment(
+  point: RadarMapPoint,
+  start: RadarMapPoint,
+  end: RadarMapPoint,
+) {
+  const dx = end.xKm - start.xKm;
+  const dy = end.yKm - start.yKm;
+  const lengthSquared = dx * dx + dy * dy;
+  const rawT =
+    lengthSquared > 0
+      ? ((point.xKm - start.xKm) * dx + (point.yKm - start.yKm) * dy) /
+        lengthSquared
+      : 0;
+  const t = Math.max(0, Math.min(1, rawT));
+  const xKm = start.xKm + t * dx;
+  const yKm = start.yKm + t * dy;
+  return {
+    xKm,
+    yKm,
+    distanceSquared:
+      (point.xKm - xKm) * (point.xKm - xKm) +
+      (point.yKm - yKm) * (point.yKm - yKm),
+  };
+}
+
 export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props) {
   const [product, setProduct] = useState("REF");
   const [elevation, setElevation] = useState(0.5);
@@ -1181,6 +1206,69 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     setWarnDraftText("");
   };
 
+  const addWarnPolygonVertex = (point: RadarMapPoint) => {
+    if (
+      tool !== "warngen" ||
+      !warnTracked ||
+      warnPolygon.length < 3 ||
+      warnPolygon.length >= 19 ||
+      data?.radar_latitude == null ||
+      data.radar_longitude == null
+    ) {
+      return;
+    }
+
+    let bestIndex = 0;
+    let bestProjection = projectToSegment(
+      point,
+      warnPolygon[0],
+      warnPolygon[1],
+    );
+    for (let index = 1; index < warnPolygon.length; index += 1) {
+      const projection = projectToSegment(
+        point,
+        warnPolygon[index],
+        warnPolygon[(index + 1) % warnPolygon.length],
+      );
+      if (projection.distanceSquared < bestProjection.distanceSquared) {
+        bestIndex = index;
+        bestProjection = projection;
+      }
+    }
+
+    const geographic = localToLatLon(
+      bestProjection.xKm,
+      bestProjection.yKm,
+      data.radar_latitude,
+      data.radar_longitude,
+    );
+    const inserted: RadarMapPoint = {
+      xKm: bestProjection.xKm,
+      yKm: bestProjection.yKm,
+      ...geographic,
+      timestamp: warnCurrentReference?.timestamp,
+    };
+
+    setWarnPolygon((current) => [
+      ...current.slice(0, bestIndex + 1),
+      inserted,
+      ...current.slice(bestIndex + 1),
+    ]);
+    setWarnHatched(false);
+    setWarnDraftText("");
+  };
+
+  const removeWarnPolygonVertex = (id: string) => {
+    if (!id.startsWith("warn-vertex-") || warnPolygon.length <= 3) return;
+    const index = Number(id.replace("warn-vertex-", ""));
+    if (!Number.isInteger(index) || index < 0 || index >= warnPolygon.length) return;
+    setWarnPolygon((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index),
+    );
+    setWarnHatched(false);
+    setWarnDraftText("");
+  };
+
   const warnAffectedCounties = useMemo(
     () =>
       warnPolygon.length >= 3 &&
@@ -1853,7 +1941,9 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
                       ? `${warnMeasurement.bearing.toFixed(0).padStart(3, "0")}° at ${warnMeasurement.speedKt.toFixed(0)} kt · ${warningDuration} min`
                       : ""}
                   </span>
-                  <span>Drag the polygon vertices on the radar to refine the warning area.</span>
+                  <span>
+                    Drag vertices to refine. Middle-click a polygon edge to add a vertex; right-click a vertex to remove it.
+                  </span>
                 </div>
                 <button
                   className={warnHatched ? "primary-action" : ""}
@@ -2210,6 +2300,8 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
                   : null
               }
               onDraggableHandleChange={onWarnHandleChange}
+              onDraggableHandleRemove={removeWarnPolygonVertex}
+              onMapMiddleClick={addWarnPolygonVertex}
               onViewChange={setView}
               onCursorSample={setCursorSample}
               onMapClick={onMapClick}
