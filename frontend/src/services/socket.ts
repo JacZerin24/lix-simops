@@ -8,7 +8,8 @@ type SocketOptions = {
 };
 
 export function createSimulationSocket(options: SocketOptions): WebSocket {
-  const defaultBase = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;\n  const base = import.meta.env.VITE_WS_BASE || defaultBase;
+  const defaultBase = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;
+  const base = import.meta.env.VITE_WS_BASE || defaultBase;
   const params = new URLSearchParams({
     display_name: options.displayName,
     team_id: options.teamId,
