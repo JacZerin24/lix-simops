@@ -18,6 +18,7 @@ import type {
 import {
   CursorSample,
   RadarAnnotation,
+  RadarDraggableHandle,
   RadarGeographicCanvas,
   RadarLayerState,
   RadarMapPoint,
@@ -99,7 +100,10 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
   const [toolPoints, setToolPoints] = useState<RadarMapPoint[]>([]);
   const [warningHazard, setWarningHazard] = useState<"TOR" | "SVR">("TOR");
   const [warningDuration, setWarningDuration] = useState(30);
-  const [editingWarningId, setEditingWarningId] = useState<string | null>(null);
+  const [warnCurrentPoint, setWarnCurrentPoint] = useState<RadarMapPoint | null>(null);
+  const [warnPreviousPoint, setWarnPreviousPoint] = useState<RadarMapPoint | null>(null);
+  const [warnPolygon, setWarnPolygon] = useState<RadarMapPoint[]>([]);
+  const [warnTracked, setWarnTracked] = useState(false);
   const [legacyZoom, setLegacyZoom] = useState(1);
   const [legacyPan, setLegacyPan] = useState({ x: 0, y: 0 });
   const [error, setError] = useState("");
@@ -342,7 +346,121 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     return { first, second, ...vector, minutes, speedKt };
   }, [toolPoints]);
 
+  const warnMeasurement = useMemo(() => {
+    if (!warnPreviousPoint || !warnCurrentPoint) return null;
+    const minutes = minutesBetween(warnPreviousPoint.timestamp, warnCurrentPoint.timestamp);
+    if (minutes <= 0) return null;
+    const vector = distanceBearing(warnPreviousPoint, warnCurrentPoint);
+    const dx = warnCurrentPoint.xKm - warnPreviousPoint.xKm;
+    const dy = warnCurrentPoint.yKm - warnPreviousPoint.yKm;
+    const speedKt = vector.distanceNm / (minutes / 60);
+    return { ...vector, minutes, speedKt, dx, dy };
+  }, [warnCurrentPoint, warnPreviousPoint]);
+
+  const warnProjection = useMemo(() => {
+    if (
+      !warnMeasurement ||
+      !warnCurrentPoint ||
+      data?.radar_latitude == null ||
+      data.radar_longitude == null
+    ) {
+      return null;
+    }
+
+    const xPerMinute = warnMeasurement.dx / warnMeasurement.minutes;
+    const yPerMinute = warnMeasurement.dy / warnMeasurement.minutes;
+    const futureX = warnCurrentPoint.xKm + xPerMinute * warningDuration;
+    const futureY = warnCurrentPoint.yKm + yPerMinute * warningDuration;
+    const trackLength = Math.hypot(warnMeasurement.dx, warnMeasurement.dy);
+    if (trackLength < 0.01) return null;
+
+    const perpX = -warnMeasurement.dy / trackLength;
+    const perpY = warnMeasurement.dx / trackLength;
+    const rearHalfWidthKm = 10;
+    const forwardHalfWidthKm = 15;
+
+    const makePoint = (xKm: number, yKm: number): RadarMapPoint => ({
+      xKm,
+      yKm,
+      ...localToLatLon(
+        xKm,
+        yKm,
+        data.radar_latitude!,
+        data.radar_longitude!,
+      ),
+      timestamp: warnCurrentPoint.timestamp,
+    });
+
+    const future = makePoint(futureX, futureY);
+    const polygon = [
+      makePoint(
+        warnCurrentPoint.xKm + perpX * rearHalfWidthKm,
+        warnCurrentPoint.yKm + perpY * rearHalfWidthKm,
+      ),
+      makePoint(
+        warnCurrentPoint.xKm - perpX * rearHalfWidthKm,
+        warnCurrentPoint.yKm - perpY * rearHalfWidthKm,
+      ),
+      makePoint(
+        futureX - perpX * forwardHalfWidthKm,
+        futureY - perpY * forwardHalfWidthKm,
+      ),
+      makePoint(
+        futureX + perpX * forwardHalfWidthKm,
+        futureY + perpY * forwardHalfWidthKm,
+      ),
+    ];
+
+    return { future, polygon };
+  }, [
+    data?.radar_latitude,
+    data?.radar_longitude,
+    warnCurrentPoint,
+    warnMeasurement,
+    warningDuration,
+  ]);
+
+  const warnCurrentFrameIndex = warnCurrentPoint
+    ? frames.findIndex((item) => item.timestamp === warnCurrentPoint.timestamp)
+    : -1;
+  const warnPreviousFrameIndex = warnPreviousPoint
+    ? frames.findIndex((item) => item.timestamp === warnPreviousPoint.timestamp)
+    : -1;
+  const warnFrameSeparation =
+    warnCurrentFrameIndex >= 0 && warnPreviousFrameIndex >= 0
+      ? warnCurrentFrameIndex - warnPreviousFrameIndex
+      : 0;
+
   const annotations = useMemo<RadarAnnotation[]>(() => {
+    if (tool === "warngen") {
+      const items: RadarAnnotation[] = [];
+
+      if (warnPreviousPoint && warnCurrentPoint) {
+        const trackPoints = warnProjection
+          ? [warnPreviousPoint, warnCurrentPoint, warnProjection.future]
+          : [warnPreviousPoint, warnCurrentPoint];
+        items.push({
+          id: "warngen-track",
+          points: trackPoints,
+          dashed: true,
+          label: warnMeasurement
+            ? `${warnMeasurement.bearing.toFixed(0).padStart(3, "0")}° @ ${warnMeasurement.speedKt.toFixed(0)} kt`
+            : undefined,
+        });
+      }
+
+      if (warnTracked && warnPolygon.length >= 3) {
+        items.push({
+          id: "warngen-polygon",
+          points: warnPolygon,
+          closed: true,
+          label: `${warningHazard} track polygon`,
+        });
+      }
+
+      return items;
+    }
+
     if (!toolPoints.length) return [];
 
     if (tool === "distance-bearing") {
@@ -369,23 +487,6 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
               : toolPoints.length > 1
                 ? "Use a later scan for endpoint"
                 : "Step forward, then set endpoint",
-        },
-      ];
-    }
-
-    if (tool === "warngen") {
-      return [
-        {
-          id: "warngen-draft",
-          points: toolPoints,
-          closed: toolPoints.length >= 3,
-          dashed: true,
-          label:
-            toolPoints.length >= 3
-              ? `${warningHazard} draft · ${toolPoints.length} vertices`
-              : toolPoints.length
-                ? "Add at least 3 vertices"
-                : undefined,
         },
       ];
     }
@@ -441,62 +542,138 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     measurement,
     tool,
     toolPoints,
+    warnCurrentPoint,
+    warnMeasurement,
+    warnPolygon,
+    warnPreviousPoint,
+    warnProjection,
+    warnTracked,
     warningHazard,
   ]);
 
   const onMapClick = (point: RadarMapPoint) => {
-    if (tool === "cursor") return;
-    if (tool === "warngen") {
-      setToolPoints((current) => (current.length >= 12 ? current : [...current, point]));
-      return;
-    }
+    if (tool === "cursor" || tool === "warngen") return;
     setToolPoints((current) => (current.length >= 2 ? [point] : [...current, point]));
   };
 
-  const issueOrUpdateWarning = () => {
-    if (toolPoints.length < 3) return;
-    const points = toolPoints.map((point) => ({ lat: point.lat, lon: point.lon }));
-    if (editingWarningId) {
-      onWarningAction({
-        type: "warning_update",
-        warning_id: editingWarningId,
-        points,
-      });
-    } else {
-      onWarningAction({
-        type: "warning_issue",
-        hazard: warningHazard,
-        duration_minutes: warningDuration,
-        points,
-      });
-    }
+  const startWarnGen = () => {
+    setPlaying(false);
+    setTool("warngen");
     setToolPoints([]);
-    setEditingWarningId(null);
+    setWarnCurrentPoint(null);
+    setWarnPreviousPoint(null);
+    setWarnPolygon([]);
+    setWarnTracked(false);
+    goLatest();
   };
 
-  const beginWarningRedraw = (warning: WarningRecord) => {
-    if (data?.radar_latitude == null || data.radar_longitude == null) return;
-    setTool("warngen");
-    setEditingWarningId(warning.id);
-    if (warning.hazard === "TOR" || warning.hazard === "SVR") {
-      setWarningHazard(warning.hazard);
+  const restartWarnGen = () => {
+    setPlaying(false);
+    setWarnCurrentPoint(null);
+    setWarnPreviousPoint(null);
+    setWarnPolygon([]);
+    setWarnTracked(false);
+    goLatest();
+  };
+
+  const trackWarnGenStorm = () => {
+    if (!warnProjection || !warnMeasurement) return;
+    setWarnPolygon(warnProjection.polygon);
+    setWarnTracked(true);
+  };
+
+  const warnHandles = useMemo<RadarDraggableHandle[]>(() => {
+    if (tool !== "warngen" || !frame) return [];
+
+    if (warnTracked) {
+      return warnPolygon.map((point, index) => ({
+        id: `warn-vertex-${index}`,
+        point,
+        label: index === 0 ? "Drag vertices to edit" : undefined,
+        kind: "vertex" as const,
+      }));
     }
-    setToolPoints(
-      warning.points.map((point) => {
-        const local = latLonToLocal(
-          point.lat,
-          point.lon,
-          data.radar_latitude!,
-          data.radar_longitude!,
-        );
-        return {
-          ...local,
-          lat: point.lat,
-          lon: point.lon,
-          timestamp: frame?.timestamp,
-        };
-      }),
-    );
+
+    let point: RadarMapPoint;
+    if (!warnCurrentPoint) {
+      const geographic =
+        data?.radar_latitude != null && data.radar_longitude != null
+          ? localToLatLon(
+              view.centerXKm,
+              view.centerYKm,
+              data.radar_latitude,
+              data.radar_longitude,
+            )
+          : { lat: 0, lon: 0 };
+      point = {
+        xKm: view.centerXKm,
+        yKm: view.centerYKm,
+        ...geographic,
+        timestamp: frame.timestamp,
+      };
+    } else {
+      const frameMs = new Date(frame.timestamp).getTime();
+      const currentMs = new Date(warnCurrentPoint.timestamp ?? frame.timestamp).getTime();
+      point =
+        frameMs < currentMs
+          ? warnPreviousPoint ?? { ...warnCurrentPoint, timestamp: frame.timestamp }
+          : warnCurrentPoint;
+    }
+
+    return [
+      {
+        id: "warn-storm",
+        point,
+        label: "Drag Me to Storm",
+        kind: "storm",
+      },
+    ];
+  }, [
+    data?.radar_latitude,
+    data?.radar_longitude,
+    frame,
+    tool,
+    view.centerXKm,
+    view.centerYKm,
+    warnCurrentPoint,
+    warnPolygon,
+    warnPreviousPoint,
+    warnTracked,
+  ]);
+
+  const onWarnHandleChange = (id: string, point: RadarMapPoint) => {
+    if (id.startsWith("warn-vertex-")) {
+      const index = Number(id.replace("warn-vertex-", ""));
+      if (!Number.isInteger(index)) return;
+      setWarnPolygon((current) =>
+        current.map((existing, itemIndex) =>
+          itemIndex === index
+            ? { ...point, timestamp: existing.timestamp ?? warnCurrentPoint?.timestamp }
+            : existing,
+        ),
+      );
+      return;
+    }
+
+    if (id !== "warn-storm" || !frame) return;
+
+    if (!warnCurrentPoint) {
+      setWarnCurrentPoint({ ...point, timestamp: frame.timestamp });
+      setWarnPreviousPoint(null);
+      return;
+    }
+
+    const frameMs = new Date(frame.timestamp).getTime();
+    const currentMs = new Date(warnCurrentPoint.timestamp ?? frame.timestamp).getTime();
+
+    if (frameMs < currentMs) {
+      setWarnPreviousPoint({ ...point, timestamp: frame.timestamp });
+    } else {
+      setWarnCurrentPoint({ ...point, timestamp: frame.timestamp });
+      if (frameMs > currentMs) setWarnPreviousPoint(null);
+    }
+    setWarnPolygon([]);
+    setWarnTracked(false);
   };
 
   const activeWarnings = warnings.filter((warning) => warning.status === "active");
@@ -518,16 +695,34 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
           : "Distance/Speed: click the earlier storm position";
     }
     if (tool === "warngen") {
-      return editingWarningId
-        ? `WarnGen: redraw polygon · ${toolPoints.length}/3+ vertices`
-        : `WarnGen: ${warningHazard} · click 3 or more polygon vertices`;
+      if (warnTracked) {
+        return `WarnGen: track polygon generated · drag vertices to refine`;
+      }
+      if (!warnCurrentPoint) {
+        return "WarnGen: drag the marker onto the threat on the current scan";
+      }
+      if (!warnPreviousPoint) {
+        return "WarnGen: step back 3–4 scans, then drag the marker to the earlier threat position";
+      }
+      return warnMeasurement
+        ? `WarnGen: ${warnMeasurement.bearing.toFixed(1)}° at ${warnMeasurement.speedKt.toFixed(1)} kt · ${warnFrameSeparation} scan${warnFrameSeparation === 1 ? "" : "s"} apart`
+        : "WarnGen: choose an earlier scan for the second storm position";
     }
     return measurement?.speedKt != null
       ? `Storm Track: ${measurement.bearing.toFixed(1)}° at ${measurement.speedKt.toFixed(1)} kt; projected every 5 min to +30 min`
       : toolPoints.length
         ? "Storm Track: step to a later scan, then click the current storm position"
         : "Storm Track: click the earlier storm position";
-  }, [editingWarningId, measurement, tool, toolPoints.length, warningHazard]);
+  }, [
+    measurement,
+    tool,
+    toolPoints.length,
+    warnCurrentPoint,
+    warnFrameSeparation,
+    warnMeasurement,
+    warnPreviousPoint,
+    warnTracked,
+  ]);
 
   const legacyPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
