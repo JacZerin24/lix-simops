@@ -743,6 +743,30 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   font-weight: 800;
 }
 
+.facilitator-warning-list {
+  display: grid;
+  gap: 8px;
+}
+.facilitator-warning-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border: 1px solid #2b405f;
+  border-radius: 8px;
+  background: #0a1422;
+}
+.facilitator-warning-row > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.facilitator-warning-row span {
+  color: #b7c5d6;
+  font-size: 0.84rem;
+}
+
 .radar-geo-canvas {
   position: relative;
   width: 100%;
