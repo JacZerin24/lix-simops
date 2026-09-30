@@ -13,6 +13,7 @@ import type {
   EventOperationsConfig,
   RadarFrameResponse,
   RadarProductSummary,
+  WarningRecord,
 } from "../../types/simulation";
 import {
   CursorSample,
@@ -22,14 +23,22 @@ import {
   RadarMapPoint,
   RadarView,
   distanceBearing,
+  latLonToLocal,
   localToLatLon,
 } from "./RadarGeographicCanvas";
 
 type Props = {
   sessionCode: string;
+  warnings: WarningRecord[];
+  onWarningAction: (payload: object) => void;
 };
 
-type RadarTool = "cursor" | "distance-bearing" | "distance-speed" | "storm-track";
+type RadarTool =
+  | "cursor"
+  | "distance-bearing"
+  | "distance-speed"
+  | "storm-track"
+  | "warngen";
 
 const PRODUCT_KEYS = ["REF", "VEL", "CC", "ZDR"];
 const DEFAULT_RANGE_KM = 230;
@@ -61,7 +70,7 @@ function minutesBetween(first?: string, second?: string) {
   return (new Date(second).getTime() - new Date(first).getTime()) / 60000;
 }
 
-export function RadarOperator({ sessionCode }: Props) {
+export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props) {
   const [product, setProduct] = useState("REF");
   const [elevation, setElevation] = useState(0.5);
   const [data, setData] = useState<RadarFrameResponse | null>(null);
@@ -88,6 +97,9 @@ export function RadarOperator({ sessionCode }: Props) {
   const [layersOpen, setLayersOpen] = useState(false);
   const [tool, setTool] = useState<RadarTool>("cursor");
   const [toolPoints, setToolPoints] = useState<RadarMapPoint[]>([]);
+  const [warningHazard, setWarningHazard] = useState<"TOR" | "SVR">("TOR");
+  const [warningDuration, setWarningDuration] = useState(30);
+  const [editingWarningId, setEditingWarningId] = useState<string | null>(null);
   const [legacyZoom, setLegacyZoom] = useState(1);
   const [legacyPan, setLegacyPan] = useState({ x: 0, y: 0 });
   const [error, setError] = useState("");
@@ -159,11 +171,18 @@ export function RadarOperator({ sessionCode }: Props) {
 
   const eventMarker = eventConfig?.event?.radar_marker ?? null;
   const overlayTime = data?.sim_time ? new Date(data.sim_time).getTime() : Number.NaN;
-  const warningPolygons = (eventConfig?.radar_overlays?.warnings ?? []).filter((warning) => {
-    const start = warning.valid_from ? new Date(warning.valid_from).getTime() : -Infinity;
-    const end = warning.valid_to ? new Date(warning.valid_to).getTime() : Infinity;
-    return Number.isNaN(overlayTime) || (overlayTime >= start && overlayTime <= end);
-  });
+  const warningPolygons = warnings
+    .filter((warning) => warning.status === "active")
+    .map((warning) => ({
+      id: warning.id,
+      label: warning.inherited
+        ? `${warning.label} · inherited`
+        : warning.label,
+      hazard: warning.hazard,
+      valid_from: warning.issued_at,
+      valid_to: warning.expires_at,
+      points: warning.points,
+    }));
   const pointOverlays = (eventConfig?.radar_overlays?.reports ?? []).filter((report) => {
     const start = report.valid_at ? new Date(report.valid_at).getTime() : -Infinity;
     const end = report.expires_at ? new Date(report.expires_at).getTime() : Infinity;
@@ -305,10 +324,6 @@ export function RadarOperator({ sessionCode }: Props) {
     toggleFullscreen,
   ]);
 
-  useEffect(() => {
-    setToolPoints([]);
-  }, [tool]);
-
   const currentProduct: RadarProductSummary =
     data?.products.find((item) => item.id === product) ?? {
       id: product,
@@ -354,6 +369,23 @@ export function RadarOperator({ sessionCode }: Props) {
               : toolPoints.length > 1
                 ? "Use a later scan for endpoint"
                 : "Step forward, then set endpoint",
+        },
+      ];
+    }
+
+    if (tool === "warngen") {
+      return [
+        {
+          id: "warngen-draft",
+          points: toolPoints,
+          closed: toolPoints.length >= 3,
+          dashed: true,
+          label:
+            toolPoints.length >= 3
+              ? `${warningHazard} draft · ${toolPoints.length} vertices`
+              : toolPoints.length
+                ? "Add at least 3 vertices"
+                : undefined,
         },
       ];
     }
@@ -409,12 +441,65 @@ export function RadarOperator({ sessionCode }: Props) {
     measurement,
     tool,
     toolPoints,
+    warningHazard,
   ]);
 
   const onMapClick = (point: RadarMapPoint) => {
     if (tool === "cursor") return;
+    if (tool === "warngen") {
+      setToolPoints((current) => (current.length >= 12 ? current : [...current, point]));
+      return;
+    }
     setToolPoints((current) => (current.length >= 2 ? [point] : [...current, point]));
   };
+
+  const issueOrUpdateWarning = () => {
+    if (toolPoints.length < 3) return;
+    const points = toolPoints.map((point) => ({ lat: point.lat, lon: point.lon }));
+    if (editingWarningId) {
+      onWarningAction({
+        type: "warning_update",
+        warning_id: editingWarningId,
+        points,
+      });
+    } else {
+      onWarningAction({
+        type: "warning_issue",
+        hazard: warningHazard,
+        duration_minutes: warningDuration,
+        points,
+      });
+    }
+    setToolPoints([]);
+    setEditingWarningId(null);
+  };
+
+  const beginWarningRedraw = (warning: WarningRecord) => {
+    if (data?.radar_latitude == null || data.radar_longitude == null) return;
+    setTool("warngen");
+    setEditingWarningId(warning.id);
+    if (warning.hazard === "TOR" || warning.hazard === "SVR") {
+      setWarningHazard(warning.hazard);
+    }
+    setToolPoints(
+      warning.points.map((point) => {
+        const local = latLonToLocal(
+          point.lat,
+          point.lon,
+          data.radar_latitude!,
+          data.radar_longitude!,
+        );
+        return {
+          ...local,
+          lat: point.lat,
+          lon: point.lon,
+          timestamp: frame?.timestamp,
+        };
+      }),
+    );
+  };
+
+  const activeWarnings = warnings.filter((warning) => warning.status === "active");
 
   const toolStatus = useMemo(() => {
     if (tool === "cursor") return "Cursor interrogation";
@@ -432,12 +517,17 @@ export function RadarOperator({ sessionCode }: Props) {
           ? "Distance/Speed: step to a later scan, then click the new storm position"
           : "Distance/Speed: click the earlier storm position";
     }
+    if (tool === "warngen") {
+      return editingWarningId
+        ? `WarnGen: redraw polygon · ${toolPoints.length}/3+ vertices`
+        : `WarnGen: ${warningHazard} · click 3 or more polygon vertices`;
+    }
     return measurement?.speedKt != null
       ? `Storm Track: ${measurement.bearing.toFixed(1)}° at ${measurement.speedKt.toFixed(1)} kt; projected every 5 min to +30 min`
       : toolPoints.length
         ? "Storm Track: step to a later scan, then click the current storm position"
         : "Storm Track: click the earlier storm position";
-  }, [measurement, tool, toolPoints.length]);
+  }, [editingWarningId, measurement, tool, toolPoints.length, warningHazard]);
 
   const legacyPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
