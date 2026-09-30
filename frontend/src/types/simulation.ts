@@ -163,6 +163,7 @@ export type WarningRecord = {
   status: "active" | "cancelled" | "expired" | string;
   inherited: boolean;
   text?: string;
+  attributes?: Record<string, unknown>;
 };
 
 export type RadarPointOverlay = {
