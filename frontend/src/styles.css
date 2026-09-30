@@ -789,6 +789,43 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   justify-content: flex-end;
   gap: 8px;
 }
+
+.radar-svs-panel {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+  padding: 12px;
+  border: 1px solid #466184;
+  border-radius: 8px;
+  background: #08131f;
+}
+.radar-svs-panel > label:not(.radar-check) {
+  min-width: 220px;
+}
+.radar-svs-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+.svs-trim-note {
+  flex-basis: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 9px 11px;
+  border: 1px solid #3b5878;
+  border-radius: 7px;
+  background: #07101b;
+}
+.svs-trim-note span {
+  color: #b7c5d6;
+  font-size: 0.84rem;
+}
+.svs-text-editor {
+  margin-top: 2px;
+}
+
 .radar-active-warnings {
   display: grid;
   align-items: stretch;
