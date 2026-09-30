@@ -57,7 +57,7 @@ export type RadarDraggableHandle = {
   id: string;
   point: RadarMapPoint;
   label?: string;
-  kind?: "storm" | "vertex";
+  kind?: "storm" | "line" | "vertex";
 };
 
 export type WarnGenAffectedCounty = {
