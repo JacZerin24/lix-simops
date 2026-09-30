@@ -216,13 +216,18 @@ async def broadcast_schedule(session: SessionState) -> None:
 
 
 async def broadcast_warnings(session: SessionState) -> None:
-    for connection in list(session.clients.values()):
-        participant = connection.participant
-        team_scope = None if participant.role == Role.FACILITATOR else participant.team_id
-        try:
-            await connection.websocket.send_json(session.warning_snapshot(team_scope))
-        except Exception:
-            pass
+    dead: list[str] = []
+    async with session.send_lock:
+        for participant_id, connection in list(session.clients.items()):
+            participant = connection.participant
+            team_scope = None if participant.role == Role.FACILITATOR else participant.team_id
+            try:
+                await connection.websocket.send_json(session.warning_snapshot(team_scope))
+            except Exception:
+                dead.append(participant_id)
+
+    for participant_id in dead:
+        session.clients.pop(participant_id, None)
 
 
 def normalize_warning_points(raw_points) -> list[dict[str, float]]:
@@ -360,7 +365,12 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
     await websocket.send_json(
         session.session_snapshot(include_schedule=role == Role.FACILITATOR)
     )
-    history = [event for event in session.log if event_visible_to(event, participant)]
+    history = [
+        event
+        for event in session.log
+        if event.get("type") != "warning_action"
+        and event_visible_to(event, participant)
+    ]
     await websocket.send_json({"type": "event_history", "events": history[-100:]})
     team_scope = None if role == Role.FACILITATOR else participant.team_id
     await websocket.send_json(session.warning_snapshot(team_scope))
