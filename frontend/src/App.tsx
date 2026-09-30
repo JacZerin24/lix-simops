@@ -15,6 +15,7 @@ import type {
   Role,
   ScenarioSummary,
   ScheduledExerciseItem,
+  WarningRecord,
 } from "./types/simulation";
 
 type InjectDraft = {
@@ -48,6 +49,7 @@ function App() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [events, setEvents] = useState<ExerciseEvent[]>([]);
   const [schedule, setSchedule] = useState<ScheduledExerciseItem[]>([]);
+  const [warnings, setWarnings] = useState<WarningRecord[]>([]);
   const [connected, setConnected] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -102,6 +104,8 @@ function App() {
         setSchedule(msg.items ?? []);
       } else if (msg.type === "event_history") {
         setEvents(msg.events ?? []);
+      } else if (msg.type === "warning_state") {
+        setWarnings(msg.warnings ?? []);
       } else if (exerciseEventTypes.has(msg.type)) {
         setEvents((current) => [...current, msg as ExerciseEvent]);
       } else if (msg.type === "error") {
@@ -142,6 +146,7 @@ function App() {
     setEvents([]);
     setParticipants([]);
     setSchedule([]);
+    setWarnings([]);
     setActiveSessionCode(sessionCode.trim().toUpperCase());
   };
 
@@ -166,6 +171,7 @@ function App() {
       setEvents([]);
       setParticipants([]);
       setSchedule(created.schedule ?? []);
+      setWarnings([]);
       setActiveSessionCode(created.session_code);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to create session");
@@ -180,6 +186,7 @@ function App() {
     setParticipants([]);
     setEvents([]);
     setSchedule([]);
+    setWarnings([]);
     setScenarioName("");
     setError("");
     if (role === "facilitator") {
@@ -287,7 +294,13 @@ function App() {
         />
       ) : (
         <section className="workspace">
-          {role === "radar" && <RadarOperator sessionCode={activeSessionCode} />}
+          {role === "radar" && (
+            <RadarOperator
+              sessionCode={activeSessionCode}
+              warnings={warnings}
+              onWarningAction={send}
+            />
+          )}
           {role === "mesoanalyst" && <Mesoanalyst sessionCode={activeSessionCode} />}
           {role === "dss" && <DSS sessionCode={activeSessionCode} events={events} onRespond={sendDssResponse} />}
           <ExerciseFeed events={events} />
