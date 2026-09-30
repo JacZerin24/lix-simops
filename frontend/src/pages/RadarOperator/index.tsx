@@ -1530,6 +1530,303 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     restartWarnGen();
   };
 
+    const svsWarning =
+    warnings.find((warning) => warning.id === svsWarningId) ?? null;
+
+  const closeSvsFollowup = () => {
+    setSvsWarningId(null);
+    setSvsAction("CON");
+    setSvsReason("weakened");
+    setSvsStillHail(false);
+    setSvsStillWind(false);
+    setSvsStillRain(false);
+    setSvsPolygon([]);
+    setSvsDraftText("");
+  };
+
+  const beginSvsFollowup = (warning: WarningRecord) => {
+    if (
+      warning.inherited ||
+      data?.radar_latitude == null ||
+      data.radar_longitude == null
+    ) {
+      return;
+    }
+
+    restartWarnGen();
+    setTool("cursor");
+    setSvsWarningId(warning.id);
+    setSvsAction("CON");
+    setSvsReason("weakened");
+    setSvsStillHail(false);
+    setSvsStillWind(false);
+    setSvsStillRain(false);
+    setSvsDraftText("");
+    setSvsPolygon(
+      warning.points.map((point) => {
+        const local = latLonToLocal(
+          point.lat,
+          point.lon,
+          data.radar_latitude!,
+          data.radar_longitude!,
+        );
+        return {
+          ...local,
+          lat: point.lat,
+          lon: point.lon,
+          timestamp: data.sim_time,
+        };
+      }),
+    );
+  };
+
+  const svsAffectedCounties = useMemo(
+    () =>
+      svsPolygon.length >= 3 &&
+      data?.radar_latitude != null &&
+      data.radar_longitude != null
+        ? getWarnGenAffectedCounties(
+            svsPolygon,
+            data.radar_latitude,
+            data.radar_longitude,
+          )
+        : [],
+    [
+      data?.radar_latitude,
+      data?.radar_longitude,
+      svsPolygon,
+    ],
+  );
+
+  const svsHandles = useMemo<RadarDraggableHandle[]>(
+    () =>
+      svsWarningId && svsAction === "CON"
+        ? svsPolygon.map((point, index) => ({
+            id: `svs-vertex-${index}`,
+            point,
+            label: index === 0 ? "Trim warned area" : undefined,
+            kind: "vertex" as const,
+          }))
+        : [],
+    [svsAction, svsPolygon, svsWarningId],
+  );
+
+  const onSvsHandleChange = (id: string, point: RadarMapPoint) => {
+    if (!id.startsWith("svs-vertex-")) return;
+    const index = Number(id.replace("svs-vertex-", ""));
+    if (!Number.isInteger(index)) return;
+    setSvsPolygon((current) =>
+      current.map((existing, itemIndex) =>
+        itemIndex === index
+          ? { ...point, timestamp: existing.timestamp ?? data?.sim_time }
+          : existing,
+      ),
+    );
+    setSvsDraftText("");
+  };
+
+  const addSvsPolygonVertex = (point: RadarMapPoint) => {
+    if (
+      !svsWarningId ||
+      svsAction !== "CON" ||
+      svsPolygon.length < 3 ||
+      svsPolygon.length >= 19 ||
+      data?.radar_latitude == null ||
+      data.radar_longitude == null
+    ) {
+      return;
+    }
+
+    let bestIndex = 0;
+    let bestProjection = projectToSegment(point, svsPolygon[0], svsPolygon[1]);
+    for (let index = 1; index < svsPolygon.length; index += 1) {
+      const projection = projectToSegment(
+        point,
+        svsPolygon[index],
+        svsPolygon[(index + 1) % svsPolygon.length],
+      );
+      if (projection.distanceSquared < bestProjection.distanceSquared) {
+        bestIndex = index;
+        bestProjection = projection;
+      }
+    }
+
+    const geographic = localToLatLon(
+      bestProjection.xKm,
+      bestProjection.yKm,
+      data.radar_latitude,
+      data.radar_longitude,
+    );
+    const inserted: RadarMapPoint = {
+      xKm: bestProjection.xKm,
+      yKm: bestProjection.yKm,
+      ...geographic,
+      timestamp: data.sim_time,
+    };
+    setSvsPolygon((current) => [
+      ...current.slice(0, bestIndex + 1),
+      inserted,
+      ...current.slice(bestIndex + 1),
+    ]);
+    setSvsDraftText("");
+  };
+
+  const removeSvsPolygonVertex = (id: string) => {
+    if (!id.startsWith("svs-vertex-") || svsPolygon.length <= 3) return;
+    const index = Number(id.replace("svs-vertex-", ""));
+    if (!Number.isInteger(index) || index < 0 || index >= svsPolygon.length) return;
+    setSvsPolygon((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index),
+    );
+    setSvsDraftText("");
+  };
+
+  const createSvsText = () => {
+    if (!svsWarning || !data?.sim_time) return;
+
+    const timeZone = eventConfig?.event?.timezone ?? "America/Chicago";
+    const issueTime = new Date(data.sim_time);
+    const issueLabel = localWarnTime(issueTime, timeZone);
+    const expireLabel = localWarnTime(svsWarning.expires_at, timeZone);
+    const areaLabels = (
+      svsAction === "CON" ? svsAffectedCounties : warnAffectedCounties
+    ).map((county) => warningAreaLabel(county.fips, county.name));
+
+    const warningName = svsWarning.label.toUpperCase();
+    const lines: string[] = [
+      "SEVERE WEATHER STATEMENT",
+      "NATIONAL WEATHER SERVICE NEW ORLEANS/BATON ROUGE LA",
+      warningHeaderTime(issueTime, timeZone),
+      "",
+      "...THIS IS AN EXERCISE...",
+      "",
+    ];
+
+    if (svsAction === "CON") {
+      lines.push(`...${warningName} REMAINS IN EFFECT UNTIL ${expireLabel}...`);
+      lines.push("");
+      lines.push(
+        `AT ${issueLabel}, THE ${warningName} REMAINS IN EFFECT FOR...`,
+      );
+      if (areaLabels.length) {
+        areaLabels.forEach((area) => lines.push(`  ${area.toUpperCase()}`));
+      } else {
+        lines.push("  PORTIONS OF THE PREVIOUSLY WARNED AREA");
+      }
+
+      const attributes = svsWarning.attributes ?? {};
+      if (svsWarning.hazard === "TOR") {
+        lines.push("");
+        lines.push("HAZARD...Tornado.");
+        lines.push("SOURCE...RADAR INDICATED.");
+      } else {
+        const wind = Number(attributes.severe_wind_mph ?? 60);
+        const hail = Number(attributes.severe_hail_inches ?? 1);
+        lines.push("");
+        lines.push(
+          `HAZARD...${wind} MPH wind gusts and ${hail.toFixed(2)} inch hail.`,
+        );
+        lines.push("SOURCE...RADAR INDICATED.");
+        if (attributes.tornado_possible === true) {
+          lines.push("TORNADO...POSSIBLE.");
+        }
+      }
+      lines.push("");
+      lines.push("THE WARNING CONTINUES FOR THE REMAINING WARNED AREA.");
+      lines.push(`LAT...LON ${formatLatLonPolygon(svsPolygon)}`);
+    } else if (svsAction === "COR") {
+      lines.push("...CORRECTED WARNING FOLLOW-UP...");
+      lines.push("");
+      lines.push(
+        `THE ${warningName} REMAINS IN EFFECT UNTIL ${expireLabel}. THIS STATEMENT CORRECTS INFORMATION IN THE PREVIOUS PRODUCT.`,
+      );
+    } else {
+      const reasonText: Record<SvsEndReason, string> = {
+        weakened:
+          "THE STORM WHICH PROMPTED THE WARNING HAS WEAKENED BELOW WARNING CRITERIA.",
+        moved_out:
+          "THE STORM WHICH PROMPTED THE WARNING HAS MOVED OUT OF THE WARNED AREA.",
+        weakened_and_moved:
+          "THE STORM HAS WEAKENED AND MOVED OUT OF THE WARNED AREA.",
+        tor_downgrade:
+          "THE TORNADO THREAT HAS DIMINISHED, BUT A SEVERE THUNDERSTORM WARNING REMAINS IN EFFECT.",
+        tor_reissue:
+          "THIS WARNING IS ENDING AND A NEW WARNING WILL BE ISSUED FOR THE CONTINUING THREAT.",
+      };
+
+      if (svsAction === "CAN") {
+        lines.push(`...THE ${warningName} HAS BEEN CANCELLED...`);
+      } else {
+        lines.push(`...THE ${warningName} WILL EXPIRE AT ${expireLabel}...`);
+      }
+      lines.push("");
+      lines.push(reasonText[svsReason]);
+    }
+
+    if (svsStillHail || svsStillWind || svsStillRain) {
+      lines.push("");
+      lines.push("ADDITIONAL THREATS...");
+      if (svsStillHail) lines.push("HAIL MAY STILL BE A THREAT.");
+      if (svsStillWind) lines.push("GUSTY WINDS MAY STILL BE A THREAT.");
+      if (svsStillRain) lines.push("HEAVY RAIN MAY STILL BE A THREAT.");
+    }
+
+    lines.push("");
+    lines.push("...END EXERCISE MESSAGE...");
+    setSvsDraftText(lines.join("\n"));
+  };
+
+  const issueSvsFollowup = () => {
+    if (!svsWarning || !svsDraftText.trim()) return;
+
+    onWarningAction({
+      type: "warning_followup",
+      warning_id: svsWarning.id,
+      action: svsAction,
+      text: svsDraftText,
+      ...(svsAction === "CON"
+        ? {
+            points: svsPolygon.map((point) => ({
+              lat: point.lat,
+              lon: point.lon,
+            })),
+          }
+        : {}),
+      attributes: {
+        reason:
+          svsAction === "CAN" || svsAction === "EXP" ? svsReason : null,
+        still_hail: svsStillHail,
+        still_wind: svsStillWind,
+        still_rain: svsStillRain,
+        affected_areas:
+          svsAction === "CON"
+            ? svsAffectedCounties.map((county) => ({
+                fips: county.fips,
+                name: county.name,
+              }))
+            : [],
+      },
+    });
+
+    closeSvsFollowup();
+  };
+
+  const displayAnnotations = useMemo<RadarAnnotation[]>(
+    () =>
+      svsWarningId && svsAction === "CON" && svsPolygon.length >= 3
+        ? [
+            ...annotations,
+            {
+              id: "svs-con-polygon",
+              points: svsPolygon,
+              closed: true,
+              label: "SVS CON trim",
+            },
+          ]
+        : annotations,
+    [annotations, svsAction, svsPolygon, svsWarningId],
+  );
+
     const activeWarnings = warnings.filter((warning) => warning.status === "active");
 
   const toolStatus = useMemo(() => {
