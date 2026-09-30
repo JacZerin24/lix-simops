@@ -24,14 +24,12 @@ import {
   RadarMapPoint,
   RadarView,
   distanceBearing,
-  latLonToLocal,
   localToLatLon,
 } from "./RadarGeographicCanvas";
 
 type Props = {
   sessionCode: string;
   warnings: WarningRecord[];
-  onWarningAction: (payload: object) => void;
 };
 
 type RadarTool =
@@ -71,7 +69,7 @@ function minutesBetween(first?: string, second?: string) {
   return (new Date(second).getTime() - new Date(first).getTime()) / 60000;
 }
 
-export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props) {
+export function RadarOperator({ sessionCode, warnings }: Props) {
   const [product, setProduct] = useState("REF");
   const [elevation, setElevation] = useState(0.5);
   const [data, setData] = useState<RadarFrameResponse | null>(null);
@@ -940,16 +938,19 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
             key={id}
             className={tool === id ? "active" : ""}
             onClick={() => {
-              setTool(id);
-              setToolPoints([]);
-              setEditingWarningId(null);
+              if (id === "warngen") {
+                startWarnGen();
+              } else {
+                setTool(id);
+                setToolPoints([]);
+              }
             }}
           >
             {label}
           </button>
         ))}
         <span className="radar-tool-status">{toolStatus}</span>
-        {tool !== "cursor" && toolPoints.length > 0 && (
+        {tool !== "cursor" && tool !== "warngen" && toolPoints.length > 0 && (
           <button className="radar-clear-tool" onClick={() => setToolPoints([])}>
             Clear
           </button>
@@ -957,29 +958,31 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
       </div>
 
       {tool === "warngen" && (
-        <div className="radar-warngen-panel">
-          <div>
-            <strong>WarnGen</strong>
+        <div className="radar-warngen-panel radar-warngen-track-panel">
+          <div className="radar-warngen-intro">
+            <strong>WarnGen — One Storm</strong>
             <span className="muted">
-              Click 3–12 vertices on the radar to define the warning polygon.
+              Track the threat first. The warning polygon is generated from the storm motion.
             </span>
           </div>
+
           <label>
-            Warning
+            Product
             <select
               value={warningHazard}
-              disabled={Boolean(editingWarningId)}
+              disabled={warnTracked}
               onChange={(event) => setWarningHazard(event.target.value as "TOR" | "SVR")}
             >
               <option value="TOR">Tornado Warning</option>
               <option value="SVR">Severe Thunderstorm Warning</option>
             </select>
           </label>
+
           <label>
             Duration
             <select
               value={warningDuration}
-              disabled={Boolean(editingWarningId)}
+              disabled={warnTracked}
               onChange={(event) => setWarningDuration(Number(event.target.value))}
             >
               <option value={15}>15 min</option>
@@ -988,25 +991,66 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
               <option value={60}>60 min</option>
             </select>
           </label>
-          <span className="radar-warngen-count">
-            {toolPoints.length} {toolPoints.length === 1 ? "vertex" : "vertices"}
-          </span>
-          <button
-            className="primary-action"
-            disabled={toolPoints.length < 3}
-            onClick={issueOrUpdateWarning}
-          >
-            {editingWarningId ? "Update Warning Polygon" : "Issue Warning"}
-          </button>
-          <button
-            onClick={() => {
-              setToolPoints([]);
-              setEditingWarningId(null);
-            }}
-            disabled={toolPoints.length === 0 && !editingWarningId}
-          >
-            Clear / Cancel
-          </button>
+
+          <button onClick={restartWarnGen}>Restart</button>
+
+          <div className="radar-warngen-workflow">
+            {!warnCurrentPoint ? (
+              <div className="warngen-step active">
+                <strong>1. Current position</strong>
+                <span>Drag “Drag Me to Storm” onto the threat on the current scan.</span>
+              </div>
+            ) : !warnPreviousPoint ? (
+              <>
+                <div className="warngen-step complete">
+                  <strong>1. Current position set</strong>
+                  <span>{frameTime(warnCurrentPoint.timestamp)}</span>
+                </div>
+                <div className="warngen-step active">
+                  <strong>2. Previous position</strong>
+                  <span>Step back about 3–4 scans, then drag the marker onto the same feature.</span>
+                </div>
+              </>
+            ) : !warnTracked ? (
+              <>
+                <div className="warngen-step complete">
+                  <strong>Storm motion</strong>
+                  <span>
+                    {warnMeasurement
+                      ? `${warnMeasurement.bearing.toFixed(0).padStart(3, "0")}° at ${warnMeasurement.speedKt.toFixed(0)} kt`
+                      : "Waiting for a valid earlier position"}
+                  </span>
+                  <span>
+                    {warnFrameSeparation > 0
+                      ? `${warnFrameSeparation} scan${warnFrameSeparation === 1 ? "" : "s"} between positions`
+                      : "Use an earlier radar frame"}
+                  </span>
+                </div>
+                <button
+                  className="primary-action"
+                  disabled={!warnProjection || !warnMeasurement}
+                  onClick={trackWarnGenStorm}
+                >
+                  Track
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="warngen-step complete">
+                  <strong>Track polygon generated</strong>
+                  <span>
+                    {warnMeasurement
+                      ? `${warnMeasurement.bearing.toFixed(0).padStart(3, "0")}° at ${warnMeasurement.speedKt.toFixed(0)} kt · ${warningDuration} min`
+                      : ""}
+                  </span>
+                  <span>Drag the polygon vertices on the radar to refine the warning area.</span>
+                </div>
+                <div className="warngen-next-step">
+                  Next: Warned/Hatched Area → warning attributes → Create Text → Issue.
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -1025,32 +1069,6 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
                 </span>
                 {warning.inherited && <span>Inherited at exercise start</span>}
               </div>
-              {!warning.inherited && (
-                <div className="radar-warning-actions">
-                  <button onClick={() => beginWarningRedraw(warning)}>Redraw</button>
-                  <button
-                    onClick={() =>
-                      onWarningAction({
-                        type: "warning_update",
-                        warning_id: warning.id,
-                        extend_minutes: 15,
-                      })
-                    }
-                  >
-                    +15 min
-                  </button>
-                  <button
-                    onClick={() =>
-                      onWarningAction({
-                        type: "warning_cancel",
-                        warning_id: warning.id,
-                      })
-                    }
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -1090,6 +1108,8 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
               warningPolygons={warningPolygons}
               pointOverlays={pointOverlays}
               annotations={annotations}
+              draggableHandles={warnHandles}
+              onDraggableHandleChange={onWarnHandleChange}
               onViewChange={setView}
               onCursorSample={setCursorSample}
               onMapClick={onMapClick}
