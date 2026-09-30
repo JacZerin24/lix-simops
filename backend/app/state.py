@@ -63,6 +63,7 @@ class WarningState:
     inherited: bool = False
     text: str = ""
     attributes: dict[str, Any] = field(default_factory=dict)
+    followups: list[dict[str, Any]] = field(default_factory=list)
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -78,6 +79,7 @@ class WarningState:
             "inherited": self.inherited,
             "text": self.text,
             "attributes": copy.deepcopy(self.attributes),
+            "followups": copy.deepcopy(self.followups),
         }
 
 
@@ -126,6 +128,7 @@ def warning_from_definition(
         inherited=True,
         text=str(definition.get("text") or ""),
         attributes=copy.deepcopy(definition.get("attributes") or {}),
+        followups=copy.deepcopy(definition.get("followups") or []),
     )
 
 
