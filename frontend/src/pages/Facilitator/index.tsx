@@ -171,6 +171,12 @@ export function Facilitator({
                   <span>{warning.status}</span>
                   <span>by {warning.issuer}</span>
                   <span>{simTime(warning.issued_at)} → {simTime(warning.expires_at)}</span>
+                  {(warning.followups?.length ?? 0) > 0 && (
+                    <span>
+                      SVS {warning.followups?.length} · latest {warning.followups?.at(-1)?.action} at{" "}
+                      {simTime(warning.followups?.at(-1)?.issued_at)}
+                    </span>
+                  )}
                 </div>
               </article>
             ))}
