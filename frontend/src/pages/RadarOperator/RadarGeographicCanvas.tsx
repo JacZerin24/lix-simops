@@ -50,6 +50,7 @@ export type RadarAnnotation = {
   points: RadarMapPoint[];
   label?: string;
   dashed?: boolean;
+  closed?: boolean;
 };
 
 type Props = {
@@ -1102,10 +1103,17 @@ export function RadarGeographicCanvas({
           return (
             <g key={annotation.id} className="radar-annotation">
               {screenPoints.length > 1 && (
-                <polyline
-                  points={screenPoints.map((point) => `${point.x},${point.y}`).join(" ")}
-                  className={annotation.dashed ? "dashed" : ""}
-                />
+                annotation.closed && screenPoints.length >= 3 ? (
+                  <polygon
+                    points={screenPoints.map((point) => `${point.x},${point.y}`).join(" ")}
+                    className={annotation.dashed ? "dashed" : ""}
+                  />
+                ) : (
+                  <polyline
+                    points={screenPoints.map((point) => `${point.x},${point.y}`).join(" ")}
+                    className={annotation.dashed ? "dashed" : ""}
+                  />
+                )
               )}
               {screenPoints.map((point, index) => (
                 <circle key={index} cx={point.x} cy={point.y} r="4" />
