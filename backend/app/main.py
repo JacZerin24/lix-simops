@@ -481,8 +481,16 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     await send_error(websocket, str(exc))
                     continue
 
-                if duration_minutes not in {15, 30, 45, 60}:
-                    await send_error(websocket, "Warning duration must be 15, 30, 45, or 60 minutes")
+                valid_durations = (
+                    {15, 20, 25, 30, 40, 45, 50, 60}
+                    if hazard == "TOR"
+                    else {15, 20, 25, 30, 40, 45, 50, 60, 75, 90}
+                )
+                if duration_minutes not in valid_durations:
+                    await send_error(
+                        websocket,
+                        "Warning duration is not valid for the selected WarnGen product",
+                    )
                     continue
 
                 warning = WarningState(
@@ -495,6 +503,9 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     expires_at=session.sim_time + timedelta(minutes=duration_minutes),
                     issuer=participant.display_name,
                     text=str(message.get("text", "")).strip(),
+                    attributes=message.get("attributes")
+                    if isinstance(message.get("attributes"), dict)
+                    else {},
                 )
                 session.warnings.append(warning)
                 session.record(
@@ -508,6 +519,7 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                         "issuer": warning.issuer,
                         "points": warning.points,
                         "expires_at": warning.expires_at.isoformat(),
+                        "attributes": warning.attributes,
                         "sim_time": session.sim_time.isoformat(),
                     }
                 )
