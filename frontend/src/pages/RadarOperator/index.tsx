@@ -8,8 +8,9 @@ import {
   useState,
 } from "react";
 
-import { getRadarFrames } from "../../services/api";
+import { getEventOperations, getRadarFrames } from "../../services/api";
 import type {
+  EventOperationsConfig,
   RadarFrameResponse,
   RadarProductSummary,
 } from "../../types/simulation";
@@ -64,6 +65,7 @@ export function RadarOperator({ sessionCode }: Props) {
   const [product, setProduct] = useState("REF");
   const [elevation, setElevation] = useState(0.5);
   const [data, setData] = useState<RadarFrameResponse | null>(null);
+  const [eventConfig, setEventConfig] = useState<EventOperationsConfig | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [followLatest, setFollowLatest] = useState(true);
   const [playing, setPlaying] = useState(false);
@@ -76,7 +78,12 @@ export function RadarOperator({ sessionCode }: Props) {
     counties: true,
     states: true,
     cities: true,
+    highways: true,
     rangeRings: true,
+    radarSite: true,
+    event: true,
+    warnings: true,
+    reports: true,
   });
   const [layersOpen, setLayersOpen] = useState(false);
   const [tool, setTool] = useState<RadarTool>("cursor");
@@ -93,6 +100,20 @@ export function RadarOperator({ sessionCode }: Props) {
     panY: number;
   } | null>(null);
   const fullscreenRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getEventOperations(sessionCode)
+      .then((config) => {
+        if (!cancelled) setEventConfig(config);
+      })
+      .catch(() => {
+        if (!cancelled) setEventConfig(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionCode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,6 +156,19 @@ export function RadarOperator({ sessionCode }: Props) {
   const frames = data?.frames ?? [];
   const safeIndex = frames.length ? Math.min(selectedIndex, frames.length - 1) : 0;
   const frame = frames[safeIndex];
+
+  const eventMarker = eventConfig?.event?.radar_marker ?? null;
+  const overlayTime = data?.sim_time ? new Date(data.sim_time).getTime() : Number.NaN;
+  const warningPolygons = (eventConfig?.radar_overlays?.warnings ?? []).filter((warning) => {
+    const start = warning.valid_from ? new Date(warning.valid_from).getTime() : -Infinity;
+    const end = warning.valid_to ? new Date(warning.valid_to).getTime() : Infinity;
+    return Number.isNaN(overlayTime) || (overlayTime >= start && overlayTime <= end);
+  });
+  const pointOverlays = (eventConfig?.radar_overlays?.reports ?? []).filter((report) => {
+    const start = report.valid_at ? new Date(report.valid_at).getTime() : -Infinity;
+    const end = report.expires_at ? new Date(report.expires_at).getTime() : Infinity;
+    return Number.isNaN(overlayTime) || (overlayTime >= start && overlayTime <= end);
+  });
 
   useEffect(() => {
     if (!playing || frames.length < 2) return;
@@ -575,7 +609,12 @@ export function RadarOperator({ sessionCode }: Props) {
                   ["counties", "Parish / county boundaries"],
                   ["states", "State boundaries"],
                   ["cities", "Cities / towns"],
+                  ["highways", "Major highways / interstates"],
                   ["rangeRings", "Range rings"],
+                  ["radarSite", "KLIX radar site"],
+                  ["event", "Endymion event location"],
+                  ["warnings", "Warning polygons"],
+                  ["reports", "Reports / radar injects"],
                 ] as const
               ).map(([key, label]) => (
                 <label key={key}>
@@ -657,6 +696,9 @@ export function RadarOperator({ sessionCode }: Props) {
               rangeKm={data.range_km ?? DEFAULT_RANGE_KM}
               view={view}
               layers={layers}
+              eventMarker={eventMarker}
+              warningPolygons={warningPolygons}
+              pointOverlays={pointOverlays}
               annotations={annotations}
               onViewChange={setView}
               onCursorSample={setCursorSample}
