@@ -687,10 +687,46 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .radar-warngen-panel label {
   min-width: 170px;
 }
-.radar-warngen-count {
-  padding: 9px 4px;
-  color: #c9d6e5;
-  font-size: 0.86rem;
+.radar-warngen-track-panel {
+  align-items: flex-end;
+}
+.radar-warngen-intro {
+  min-width: 300px;
+}
+.radar-warngen-workflow {
+  flex-basis: 100%;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+.warngen-step {
+  display: grid;
+  gap: 3px;
+  min-width: 230px;
+  padding: 9px 11px;
+  border: 1px solid #324966;
+  border-radius: 7px;
+  background: #08111d;
+}
+.warngen-step.active {
+  border-color: #6b8fb8;
+}
+.warngen-step.complete {
+  border-color: #4d6b55;
+}
+.warngen-step span,
+.warngen-next-step {
+  color: #b7c5d6;
+  font-size: 0.84rem;
+}
+.warngen-next-step {
+  display: flex;
+  align-items: center;
+  padding: 9px 11px;
+  border: 1px dashed #4a607d;
+  border-radius: 7px;
 }
 .radar-active-warnings {
   display: grid;
@@ -965,6 +1001,48 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .radar-annotation text {
   font-weight: 700;
   font-size: 12px;
+}
+
+.radar-drag-handle {
+  vector-effect: non-scaling-stroke;
+}
+.radar-drag-handle .handle-ring {
+  fill: rgba(0, 0, 0, 0.15);
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+.radar-drag-handle .handle-center {
+  fill: #ffffff;
+  stroke: #050a11;
+  stroke-width: 1.5;
+}
+.radar-drag-handle path {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.radar-drag-handle-storm .handle-ring {
+  stroke: #ff4fd8;
+}
+.radar-drag-handle-storm .handle-center {
+  fill: #ff4fd8;
+}
+.radar-drag-handle-vertex .handle-ring {
+  stroke: #73d7ff;
+}
+.radar-drag-handle-vertex .handle-center {
+  fill: #73d7ff;
+}
+.radar-drag-handle text {
+  fill: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: rgba(2, 7, 12, 0.95);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 
 .radar-render-status,
