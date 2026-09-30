@@ -1062,7 +1062,7 @@ export function RadarGeographicCanvas({
 
   const pointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     setHandleContextMenu(null);
-    if (event.button === 2) return;
+    if (event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
 
     const rect = event.currentTarget.getBoundingClientRect();
