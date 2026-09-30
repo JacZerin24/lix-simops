@@ -130,6 +130,37 @@ export type MesoFrameResponse = {
 };
 
 
+export type RadarEventMarker = {
+  label: string;
+  lat: number;
+  lon: number;
+};
+
+export type RadarOverlayPoint = {
+  lat: number;
+  lon: number;
+};
+
+export type RadarWarningOverlay = {
+  id: string;
+  label: string;
+  hazard?: "TOR" | "SVR" | "FFW" | string;
+  valid_from?: string | null;
+  valid_to?: string | null;
+  points: RadarOverlayPoint[];
+};
+
+export type RadarPointOverlay = {
+  id: string;
+  label: string;
+  kind?: "tornado" | "hail" | "wind" | "inject" | "report" | string;
+  lat: number;
+  lon: number;
+  valid_at?: string | null;
+  expires_at?: string | null;
+};
+
+
 export type DecisionThreshold = {
   id: string;
   hazard: string;
@@ -148,6 +179,7 @@ export type EventOperationsConfig = {
     timezone?: string;
     primary_operational_area?: string;
     crowd_note?: string;
+    radar_marker?: RadarEventMarker;
     pre_parade?: {
       name?: string;
       location?: string;
@@ -172,6 +204,10 @@ export type EventOperationsConfig = {
       recommended_fields?: string[];
       note?: string;
     };
+  };
+  radar_overlays?: {
+    warnings?: RadarWarningOverlay[];
+    reports?: RadarPointOverlay[];
   };
   operations?: {
     exercise_duration_minutes?: number;
