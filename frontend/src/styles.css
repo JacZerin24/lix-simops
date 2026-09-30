@@ -706,7 +706,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .radar-state-boundary,
 .radar-range-ring,
 .radar-site-marker path,
-.radar-annotation polyline {
+.radar-annotation polyline,
+.radar-annotation polygon {
   fill: none;
   vector-effect: non-scaling-stroke;
 }
@@ -844,11 +845,16 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   stroke: #050a11;
   stroke-width: 1;
 }
-.radar-annotation polyline {
+.radar-annotation polyline,
+.radar-annotation polygon {
   stroke: #ffffff;
   stroke-width: 2;
 }
-.radar-annotation polyline.dashed {
+.radar-annotation polygon {
+  fill: rgba(255, 255, 255, 0.05);
+}
+.radar-annotation polyline.dashed,
+.radar-annotation polygon.dashed {
   stroke-dasharray: 7 5;
 }
 .radar-annotation circle {
