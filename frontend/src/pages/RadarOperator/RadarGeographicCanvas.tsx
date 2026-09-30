@@ -53,6 +53,13 @@ export type RadarAnnotation = {
   closed?: boolean;
 };
 
+export type RadarDraggableHandle = {
+  id: string;
+  point: RadarMapPoint;
+  label?: string;
+  kind?: "storm" | "vertex";
+};
+
 type Props = {
   frame: RadarFrame;
   product: RadarProductSummary;
@@ -66,6 +73,8 @@ type Props = {
   warningPolygons?: RadarWarningOverlay[];
   pointOverlays?: RadarPointOverlay[];
   annotations?: RadarAnnotation[];
+  draggableHandles?: RadarDraggableHandle[];
+  onDraggableHandleChange?: (id: string, point: RadarMapPoint) => void;
   onViewChange: (view: RadarView) => void;
   onCursorSample: (sample: CursorSample | null) => void;
   onMapClick?: (point: RadarMapPoint) => void;
@@ -604,6 +613,8 @@ export function RadarGeographicCanvas({
   warningPolygons = [],
   pointOverlays = [],
   annotations = [],
+  draggableHandles = [],
+  onDraggableHandleChange,
   onViewChange,
   onCursorSample,
   onMapClick,
@@ -612,14 +623,24 @@ export function RadarGeographicCanvas({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<WebGlState | null>(null);
-  const dragRef = useRef<{
-    pointerId: number;
-    x: number;
-    y: number;
-    centerXKm: number;
-    centerYKm: number;
-    moved: boolean;
-  } | null>(null);
+  const dragRef = useRef<
+    | {
+        mode: "pan";
+        pointerId: number;
+        x: number;
+        y: number;
+        centerXKm: number;
+        centerYKm: number;
+        moved: boolean;
+      }
+    | {
+        mode: "handle";
+        pointerId: number;
+        handleId: string;
+        moved: boolean;
+      }
+    | null
+  >(null);
 
   const [size, setSize] = useState<Size>({ width: 1, height: 1 });
   const [values, setValues] = useState<Uint8Array | null>(null);
@@ -827,7 +848,27 @@ export function RadarGeographicCanvas({
 
   const pointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const hit = draggableHandles.find((handle) => {
+      const handleScreen = screenPoint(handle.point, view, size);
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      return Math.hypot(x - handleScreen.x, y - handleScreen.y) <= 24;
+    });
+
+    if (hit && onDraggableHandleChange) {
+      dragRef.current = {
+        mode: "handle",
+        pointerId: event.pointerId,
+        handleId: hit.id,
+        moved: false,
+      };
+      return;
+    }
+
     dragRef.current = {
+      mode: "pan",
       pointerId: event.pointerId,
       x: event.clientX,
       y: event.clientY,
@@ -841,6 +882,24 @@ export function RadarGeographicCanvas({
     updateCursor(event.clientX, event.clientY);
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+
+    if (drag.mode === "handle") {
+      if (!containerRef.current || !onDraggableHandleChange) return;
+      drag.moved = true;
+      const point = mapPointFromClient(
+        event.clientX,
+        event.clientY,
+        containerRef.current.getBoundingClientRect(),
+        view,
+        radarLatitude,
+        radarLongitude,
+      );
+      onDraggableHandleChange(drag.handleId, {
+        ...point,
+        timestamp: frame.timestamp,
+      });
+      return;
+    }
 
     const dx = event.clientX - drag.x;
     const dy = event.clientY - drag.y;
@@ -858,9 +917,31 @@ export function RadarGeographicCanvas({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+
+    if (
+      drag?.mode === "handle" &&
+      containerRef.current &&
+      onDraggableHandleChange
+    ) {
+      const point = mapPointFromClient(
+        event.clientX,
+        event.clientY,
+        containerRef.current.getBoundingClientRect(),
+        view,
+        radarLatitude,
+        radarLongitude,
+      );
+      onDraggableHandleChange(drag.handleId, {
+        ...point,
+        timestamp: frame.timestamp,
+      });
+      dragRef.current = null;
+      return;
+    }
+
     dragRef.current = null;
 
-    if (!drag?.moved && onMapClick && containerRef.current) {
+    if (drag?.mode === "pan" && !drag.moved && onMapClick && containerRef.current) {
       const point = mapPointFromClient(
         event.clientX,
         event.clientY,
@@ -1093,6 +1174,24 @@ export function RadarGeographicCanvas({
               </g>
             );
           })}
+
+        {draggableHandles.map((handle) => {
+          const point = screenPoint(handle.point, view, size);
+          return (
+            <g
+              key={handle.id}
+              className={`radar-drag-handle radar-drag-handle-${handle.kind ?? "vertex"}`}
+              transform={`translate(${point.x} ${point.y})`}
+            >
+              <circle className="handle-ring" r={handle.kind === "storm" ? 10 : 7} />
+              <circle className="handle-center" r={3} />
+              {handle.kind === "storm" && (
+                <path d="M -15 0 L 15 0 M 0 -15 L 0 15" />
+              )}
+              {handle.label && <text x="15" y="-13">{handle.label}</text>}
+            </g>
+          );
+        })}
 
         {annotations.map((annotation) => {
           if (annotation.points.length < 1) return null;
