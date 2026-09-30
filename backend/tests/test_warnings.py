@@ -265,3 +265,119 @@ def test_line_of_storms_metadata_is_preserved() -> None:
             assert warning["attributes"]["motion_speed_kt"] == 42.0
             assert len(warning["attributes"]["current_line"]) == 2
             assert len(warning["attributes"]["previous_line"]) == 2
+
+
+
+def test_svs_con_can_workflow_preserves_history_and_blocks_expansion() -> None:
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/sessions",
+            json={"scenario_id": "mardi-gras-dss-001"},
+        ).json()
+        code = created["session_code"]
+
+        with client.websocket_connect(
+            f"/ws/{code}?display_name=Radar&team_id=Team+1&role=radar"
+        ) as socket:
+            receive_type(socket, "session_state")
+            receive_type(socket, "event_history")
+            receive_type(socket, "warning_state")
+
+            socket.send_json(
+                {
+                    "type": "warning_issue",
+                    "hazard": "SVR",
+                    "duration_minutes": 45,
+                    "points": [
+                        {"lat": 29.90, "lon": -90.30},
+                        {"lat": 30.20, "lon": -90.30},
+                        {"lat": 30.20, "lon": -89.90},
+                        {"lat": 29.90, "lon": -89.90},
+                    ],
+                    "text": "...THIS IS AN EXERCISE...",
+                    "attributes": {"track_type": "line_of_storms"},
+                }
+            )
+            issued = receive_type(socket, "warning_state")
+            warning_id = issued["warnings"][0]["id"]
+
+            trimmed = [
+                {"lat": 29.95, "lon": -90.25},
+                {"lat": 30.15, "lon": -90.25},
+                {"lat": 30.15, "lon": -90.00},
+                {"lat": 29.95, "lon": -90.00},
+            ]
+            socket.send_json(
+                {
+                    "type": "warning_followup",
+                    "warning_id": warning_id,
+                    "action": "CON",
+                    "points": trimmed,
+                    "text": "SEVERE WEATHER STATEMENT\n...THIS IS AN EXERCISE...",
+                    "attributes": {"still_wind": True},
+                }
+            )
+            continued = receive_type(socket, "warning_state")
+            warning = continued["warnings"][0]
+            assert warning["status"] == "active"
+            assert warning["points"] == trimmed
+            assert len(warning["followups"]) == 1
+            assert warning["followups"][0]["action"] == "CON"
+            assert warning["followups"][0]["attributes"]["still_wind"] is True
+
+            socket.send_json(
+                {
+                    "type": "warning_followup",
+                    "warning_id": warning_id,
+                    "action": "CON",
+                    "points": [
+                        {"lat": 29.94, "lon": -90.26},
+                        {"lat": 30.16, "lon": -90.26},
+                        {"lat": 30.30, "lon": -89.80},
+                        {"lat": 29.94, "lon": -90.00},
+                    ],
+                    "text": "Attempted expanded continuation",
+                }
+            )
+            error = receive_type(socket, "error")
+            assert "cannot expand" in error["message"].lower()
+
+            socket.send_json(
+                {
+                    "type": "warning_followup",
+                    "warning_id": warning_id,
+                    "action": "CAN",
+                    "text": "SEVERE WEATHER STATEMENT\n...WARNING CANCELLED...",
+                    "attributes": {"reason": "weakened"},
+                }
+            )
+            cancelled = receive_type(socket, "warning_state")
+            warning = cancelled["warnings"][0]
+            assert warning["status"] == "cancelled"
+            assert len(warning["followups"]) == 2
+            assert warning["followups"][1]["action"] == "CAN"
+            assert warning["followups"][1]["attributes"]["reason"] == "weakened"
+
+
+def test_direct_warning_update_and_cancel_require_svs() -> None:
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/sessions",
+            json={"scenario_id": "mardi-gras-dss-001"},
+        ).json()
+        code = created["session_code"]
+
+        with client.websocket_connect(
+            f"/ws/{code}?display_name=Radar&team_id=Team+1&role=radar"
+        ) as socket:
+            receive_type(socket, "session_state")
+            receive_type(socket, "event_history")
+            receive_type(socket, "warning_state")
+
+            socket.send_json({"type": "warning_update", "warning_id": "unused"})
+            error = receive_type(socket, "error")
+            assert "svs" in error["message"].lower()
+
+            socket.send_json({"type": "warning_cancel", "warning_id": "unused"})
+            error = receive_type(socket, "error")
+            assert "svs" in error["message"].lower()
