@@ -151,6 +151,16 @@ export type RadarWarningOverlay = {
 };
 
 
+export type WarningFollowupRecord = {
+  id: string;
+  action: "COR" | "CON" | "CAN" | "EXP" | string;
+  issued_at: string;
+  issuer: string;
+  text: string;
+  attributes?: Record<string, unknown>;
+  points?: RadarOverlayPoint[];
+};
+
 export type WarningRecord = {
   id: string;
   hazard: "TOR" | "SVR" | string;
@@ -164,6 +174,7 @@ export type WarningRecord = {
   inherited: boolean;
   text?: string;
   attributes?: Record<string, unknown>;
+  followups?: WarningFollowupRecord[];
 };
 
 export type RadarPointOverlay = {
