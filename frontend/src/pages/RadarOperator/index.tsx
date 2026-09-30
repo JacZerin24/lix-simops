@@ -513,38 +513,83 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     return { first, second, ...vector, minutes, speedKt };
   }, [toolPoints]);
 
+  const warnCurrentReference = useMemo(() => {
+    if (warnTrackType === "one_storm") return warnCurrentPoint;
+    if (
+      warnCurrentLine?.length === 2 &&
+      data?.radar_latitude != null &&
+      data.radar_longitude != null
+    ) {
+      return radarMidpoint(
+        warnCurrentLine[0],
+        warnCurrentLine[1],
+        data.radar_latitude,
+        data.radar_longitude,
+      );
+    }
+    return null;
+  }, [
+    data?.radar_latitude,
+    data?.radar_longitude,
+    warnCurrentLine,
+    warnCurrentPoint,
+    warnTrackType,
+  ]);
+
+  const warnPreviousReference = useMemo(() => {
+    if (warnTrackType === "one_storm") return warnPreviousPoint;
+    if (
+      warnPreviousLine?.length === 2 &&
+      data?.radar_latitude != null &&
+      data.radar_longitude != null
+    ) {
+      return radarMidpoint(
+        warnPreviousLine[0],
+        warnPreviousLine[1],
+        data.radar_latitude,
+        data.radar_longitude,
+      );
+    }
+    return null;
+  }, [
+    data?.radar_latitude,
+    data?.radar_longitude,
+    warnPreviousLine,
+    warnPreviousPoint,
+    warnTrackType,
+  ]);
+
   const warnMeasurement = useMemo(() => {
-    if (!warnPreviousPoint || !warnCurrentPoint) return null;
-    const minutes = minutesBetween(warnPreviousPoint.timestamp, warnCurrentPoint.timestamp);
+    if (!warnPreviousReference || !warnCurrentReference) return null;
+    const minutes = minutesBetween(
+      warnPreviousReference.timestamp,
+      warnCurrentReference.timestamp,
+    );
     if (minutes <= 0) return null;
-    const vector = distanceBearing(warnPreviousPoint, warnCurrentPoint);
-    const dx = warnCurrentPoint.xKm - warnPreviousPoint.xKm;
-    const dy = warnCurrentPoint.yKm - warnPreviousPoint.yKm;
+    const vector = distanceBearing(warnPreviousReference, warnCurrentReference);
+    const dx = warnCurrentReference.xKm - warnPreviousReference.xKm;
+    const dy = warnCurrentReference.yKm - warnPreviousReference.yKm;
     const speedKt = vector.distanceNm / (minutes / 60);
     return { ...vector, minutes, speedKt, dx, dy };
-  }, [warnCurrentPoint, warnPreviousPoint]);
+  }, [warnCurrentReference, warnPreviousReference]);
 
   const warnProjection = useMemo(() => {
     if (
       !warnMeasurement ||
-      !warnCurrentPoint ||
+      !warnCurrentReference ||
       data?.radar_latitude == null ||
       data.radar_longitude == null
     ) {
       return null;
     }
 
-    const xPerMinute = warnMeasurement.dx / warnMeasurement.minutes;
-    const yPerMinute = warnMeasurement.dy / warnMeasurement.minutes;
-    const futureX = warnCurrentPoint.xKm + xPerMinute * warningDuration;
-    const futureY = warnCurrentPoint.yKm + yPerMinute * warningDuration;
     const trackLength = Math.hypot(warnMeasurement.dx, warnMeasurement.dy);
     if (trackLength < 0.01) return null;
 
-    const perpX = -warnMeasurement.dy / trackLength;
-    const perpY = warnMeasurement.dx / trackLength;
-    const rearHalfWidthKm = 10;
-    const forwardHalfWidthKm = 15;
+    const motionX = warnMeasurement.dx / trackLength;
+    const motionY = warnMeasurement.dy / trackLength;
+    const futureDistanceKm =
+      (trackLength / warnMeasurement.minutes) * warningDuration;
 
     const makePoint = (xKm: number, yKm: number): RadarMapPoint => ({
       xKm,
@@ -555,26 +600,80 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
         data.radar_latitude!,
         data.radar_longitude!,
       ),
-      timestamp: warnCurrentPoint.timestamp,
+      timestamp: warnCurrentReference.timestamp,
     });
 
-    const future = makePoint(futureX, futureY);
+    const future = makePoint(
+      warnCurrentReference.xKm + motionX * futureDistanceKm,
+      warnCurrentReference.yKm + motionY * futureDistanceKm,
+    );
+
+    if (warnTrackType === "line_of_storms") {
+      if (!warnCurrentLine || warnCurrentLine.length !== 2) return null;
+
+      const first = warnCurrentLine[0];
+      const second = warnCurrentLine[1];
+      const lineDx = second.xKm - first.xKm;
+      const lineDy = second.yKm - first.yKm;
+      const lineLength = Math.hypot(lineDx, lineDy);
+      if (lineLength < 0.01) return null;
+
+      const lineX = lineDx / lineLength;
+      const lineY = lineDy / lineLength;
+
+      // Mirrors the AWIPS WarnGen Line of Storms construction:
+      // ~8 km behind the current line, project through the warning duration,
+      // add ~14.4 km beyond the projected line, and extend the forward line
+      // ends ~16 km (rear line ends ~8 km).
+      const rearBufferKm = 8;
+      const aheadExtraKm = 14.4;
+      const forwardEndExtensionKm = 16;
+      const rearEndExtensionKm = 8;
+      const frontDistanceKm = futureDistanceKm + aheadExtraKm;
+
+      const frontFirst = makePoint(
+        first.xKm + motionX * frontDistanceKm - lineX * forwardEndExtensionKm,
+        first.yKm + motionY * frontDistanceKm - lineY * forwardEndExtensionKm,
+      );
+      const frontSecond = makePoint(
+        second.xKm + motionX * frontDistanceKm + lineX * forwardEndExtensionKm,
+        second.yKm + motionY * frontDistanceKm + lineY * forwardEndExtensionKm,
+      );
+      const rearSecond = makePoint(
+        second.xKm - motionX * rearBufferKm + lineX * rearEndExtensionKm,
+        second.yKm - motionY * rearBufferKm + lineY * rearEndExtensionKm,
+      );
+      const rearFirst = makePoint(
+        first.xKm - motionX * rearBufferKm - lineX * rearEndExtensionKm,
+        first.yKm - motionY * rearBufferKm - lineY * rearEndExtensionKm,
+      );
+
+      return {
+        future,
+        polygon: [frontFirst, frontSecond, rearSecond, rearFirst],
+      };
+    }
+
+    const perpX = -motionY;
+    const perpY = motionX;
+    const rearHalfWidthKm = 10;
+    const forwardHalfWidthKm = 15;
     const polygon = [
       makePoint(
-        warnCurrentPoint.xKm + perpX * rearHalfWidthKm,
-        warnCurrentPoint.yKm + perpY * rearHalfWidthKm,
+        warnCurrentReference.xKm + perpX * rearHalfWidthKm,
+        warnCurrentReference.yKm + perpY * rearHalfWidthKm,
       ),
       makePoint(
-        warnCurrentPoint.xKm - perpX * rearHalfWidthKm,
-        warnCurrentPoint.yKm - perpY * rearHalfWidthKm,
+        warnCurrentReference.xKm - perpX * rearHalfWidthKm,
+        warnCurrentReference.yKm - perpY * rearHalfWidthKm,
       ),
       makePoint(
-        futureX - perpX * forwardHalfWidthKm,
-        futureY - perpY * forwardHalfWidthKm,
+        future.xKm - perpX * forwardHalfWidthKm,
+        future.yKm - perpY * forwardHalfWidthKm,
       ),
       makePoint(
-        futureX + perpX * forwardHalfWidthKm,
-        futureY + perpY * forwardHalfWidthKm,
+        future.xKm + perpX * forwardHalfWidthKm,
+        future.yKm + perpY * forwardHalfWidthKm,
       ),
     ];
 
@@ -582,16 +681,18 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
   }, [
     data?.radar_latitude,
     data?.radar_longitude,
-    warnCurrentPoint,
+    warnCurrentLine,
+    warnCurrentReference,
     warnMeasurement,
+    warnTrackType,
     warningDuration,
   ]);
 
-  const warnCurrentFrameIndex = warnCurrentPoint
-    ? frames.findIndex((item) => item.timestamp === warnCurrentPoint.timestamp)
+  const warnCurrentFrameIndex = warnCurrentReference
+    ? frames.findIndex((item) => item.timestamp === warnCurrentReference.timestamp)
     : -1;
-  const warnPreviousFrameIndex = warnPreviousPoint
-    ? frames.findIndex((item) => item.timestamp === warnPreviousPoint.timestamp)
+  const warnPreviousFrameIndex = warnPreviousReference
+    ? frames.findIndex((item) => item.timestamp === warnPreviousReference.timestamp)
     : -1;
   const warnFrameSeparation =
     warnCurrentFrameIndex >= 0 && warnPreviousFrameIndex >= 0
