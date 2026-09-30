@@ -493,6 +493,25 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     )
                     continue
 
+                warning_text = str(message.get("text", "")).strip()
+                attributes = (
+                    message.get("attributes")
+                    if isinstance(message.get("attributes"), dict)
+                    else {}
+                )
+                if not warning_text:
+                    await send_error(
+                        websocket,
+                        "Use WarnGen Create Text and review the product before issuing",
+                    )
+                    continue
+                if attributes.get("track_type") not in {"one_storm", "line_of_storms"}:
+                    await send_error(
+                        websocket,
+                        "WarnGen storm-track metadata is required before issuing",
+                    )
+                    continue
+
                 warning = WarningState(
                     id=uuid4().hex,
                     hazard=hazard,
@@ -502,10 +521,8 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     issued_at=session.sim_time,
                     expires_at=session.sim_time + timedelta(minutes=duration_minutes),
                     issuer=participant.display_name,
-                    text=str(message.get("text", "")).strip(),
-                    attributes=message.get("attributes")
-                    if isinstance(message.get("attributes"), dict)
-                    else {},
+                    text=warning_text,
+                    attributes=attributes,
                 )
                 session.warnings.append(warning)
                 session.record(
