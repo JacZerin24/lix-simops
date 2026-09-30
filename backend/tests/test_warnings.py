@@ -49,6 +49,8 @@ def test_radar_warning_is_team_scoped_and_reset_clears_it() -> None:
                             {"lat": 30.00, "lon": -90.10},
                             {"lat": 29.90, "lon": -90.05},
                         ],
+                        "text": "...THIS IS AN EXERCISE...",
+                        "attributes": {"track_type": "one_storm"},
                     }
                 )
 
