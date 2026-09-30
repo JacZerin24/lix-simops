@@ -24,6 +24,7 @@ import {
   RadarMapPoint,
   RadarView,
   distanceBearing,
+  getWarnGenAffectedCounties,
   localToLatLon,
 } from "./RadarGeographicCanvas";
 
@@ -102,6 +103,7 @@ export function RadarOperator({ sessionCode, warnings }: Props) {
   const [warnPreviousPoint, setWarnPreviousPoint] = useState<RadarMapPoint | null>(null);
   const [warnPolygon, setWarnPolygon] = useState<RadarMapPoint[]>([]);
   const [warnTracked, setWarnTracked] = useState(false);
+  const [warnHatched, setWarnHatched] = useState(false);
   const [legacyZoom, setLegacyZoom] = useState(1);
   const [legacyPan, setLegacyPan] = useState({ x: 0, y: 0 });
   const [error, setError] = useState("");
@@ -562,6 +564,7 @@ export function RadarOperator({ sessionCode, warnings }: Props) {
     setWarnPreviousPoint(null);
     setWarnPolygon([]);
     setWarnTracked(false);
+    setWarnHatched(false);
     goLatest();
   };
 
@@ -571,6 +574,7 @@ export function RadarOperator({ sessionCode, warnings }: Props) {
     setWarnPreviousPoint(null);
     setWarnPolygon([]);
     setWarnTracked(false);
+    setWarnHatched(false);
     goLatest();
   };
 
@@ -578,6 +582,7 @@ export function RadarOperator({ sessionCode, warnings }: Props) {
     if (!warnProjection || !warnMeasurement) return;
     setWarnPolygon(warnProjection.polygon);
     setWarnTracked(true);
+    setWarnHatched(false);
   };
 
   const warnHandles = useMemo<RadarDraggableHandle[]>(() => {
@@ -650,6 +655,7 @@ export function RadarOperator({ sessionCode, warnings }: Props) {
             : existing,
         ),
       );
+      setWarnHatched(false);
       return;
     }
 
@@ -673,6 +679,24 @@ export function RadarOperator({ sessionCode, warnings }: Props) {
     setWarnPolygon([]);
     setWarnTracked(false);
   };
+
+  const warnAffectedCounties = useMemo(
+    () =>
+      warnPolygon.length >= 3 &&
+      data?.radar_latitude != null &&
+      data.radar_longitude != null
+        ? getWarnGenAffectedCounties(
+            warnPolygon,
+            data.radar_latitude,
+            data.radar_longitude,
+          )
+        : [],
+    [
+      data?.radar_latitude,
+      data?.radar_longitude,
+      warnPolygon,
+    ],
+  );
 
   const activeWarnings = warnings.filter((warning) => warning.status === "active");
 
@@ -1049,9 +1073,34 @@ export function RadarOperator({ sessionCode, warnings }: Props) {
                   </span>
                   <span>Drag the polygon vertices on the radar to refine the warning area.</span>
                 </div>
-                <div className="warngen-next-step">
-                  Next: Warned/Hatched Area → warning attributes → Create Text → Issue.
-                </div>
+                <button
+                  className={warnHatched ? "primary-action" : ""}
+                  onClick={() => setWarnHatched(true)}
+                >
+                  Warned / Hatched Area
+                </button>
+                {warnHatched ? (
+                  <div className="warngen-step complete">
+                    <strong>Warned area preview</strong>
+                    <span>
+                      {warnAffectedCounties.length} LIX parish/count{
+                        warnAffectedCounties.length === 1 ? "y" : "ies"
+                      } intersect the polygon.
+                    </span>
+                    <span>
+                      {warnAffectedCounties.map((county) => county.name).join(", ") || "No LIX area"}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="warngen-next-step">
+                    Preview the CWA-clipped warned area before continuing.
+                  </div>
+                )}
+                {warnHatched && (
+                  <div className="warngen-next-step">
+                    Next: warning attributes → Create Text → Issue.
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -1113,6 +1162,11 @@ export function RadarOperator({ sessionCode, warnings }: Props) {
               pointOverlays={pointOverlays}
               annotations={annotations}
               draggableHandles={warnHandles}
+              warnedAreaPreview={
+                warnHatched
+                  ? { polygon: warnPolygon, counties: warnAffectedCounties }
+                  : null
+              }
               onDraggableHandleChange={onWarnHandleChange}
               onViewChange={setView}
               onCursorSample={setCursorSample}
