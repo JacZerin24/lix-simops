@@ -985,10 +985,14 @@ export function RadarOperator({ sessionCode, warnings }: Props) {
               disabled={warnTracked}
               onChange={(event) => setWarningDuration(Number(event.target.value))}
             >
-              <option value={15}>15 min</option>
-              <option value={30}>30 min</option>
-              <option value={45}>45 min</option>
-              <option value={60}>60 min</option>
+              {(warningHazard === "TOR"
+                ? [15, 20, 25, 30, 40, 45, 50, 60]
+                : [15, 20, 25, 30, 40, 45, 50, 60, 75, 90]
+              ).map((minutes) => (
+                <option value={minutes} key={minutes}>
+                  {minutes} min
+                </option>
+              ))}
             </select>
           </label>
 
