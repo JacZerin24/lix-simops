@@ -1,7 +1,10 @@
+from datetime import datetime, timedelta, timezone
+
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
-from backend.app.state import manager
+from backend.app.state import manager, warning_from_definition
 
 
 def receive_type(socket, expected: str) -> dict:
@@ -96,3 +99,36 @@ def test_non_radar_role_cannot_issue_warning() -> None:
 
             error = receive_type(socket, "error")
             assert "Radar Operator" in error["message"]
+
+
+def test_inherited_warning_must_be_active_at_t0() -> None:
+    start = datetime(2027, 2, 6, 20, 45, tzinfo=timezone.utc)
+    polygon = [
+        {"lat": 29.95, "lon": -90.20},
+        {"lat": 30.00, "lon": -90.10},
+        {"lat": 29.90, "lon": -90.05},
+    ]
+
+    active = warning_from_definition(
+        {
+            "id": "prior-tor",
+            "hazard": "TOR",
+            "issued_at": (start - timedelta(minutes=15)).isoformat(),
+            "expires_at": (start + timedelta(minutes=15)).isoformat(),
+            "points": polygon,
+        },
+        scenario_start=start,
+    )
+    assert active.inherited is True
+
+    with pytest.raises(ValueError):
+        warning_from_definition(
+            {
+                "id": "future-tor",
+                "hazard": "TOR",
+                "issued_at": (start + timedelta(minutes=5)).isoformat(),
+                "expires_at": (start + timedelta(minutes=35)).isoformat(),
+                "points": polygon,
+            },
+            scenario_start=start,
+        )
