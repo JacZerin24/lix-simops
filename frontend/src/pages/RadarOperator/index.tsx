@@ -703,10 +703,28 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     if (tool === "warngen") {
       const items: RadarAnnotation[] = [];
 
-      if (warnPreviousPoint && warnCurrentPoint) {
+      if (warnTrackType === "line_of_storms") {
+        if (warnCurrentLine?.length === 2) {
+          items.push({
+            id: "warngen-current-line",
+            points: warnCurrentLine,
+            label: "Current storm line",
+          });
+        }
+        if (warnPreviousLine?.length === 2) {
+          items.push({
+            id: "warngen-previous-line",
+            points: warnPreviousLine,
+            dashed: true,
+            label: "Earlier storm line",
+          });
+        }
+      }
+
+      if (warnPreviousReference && warnCurrentReference) {
         const trackPoints = warnProjection
-          ? [warnPreviousPoint, warnCurrentPoint, warnProjection.future]
-          : [warnPreviousPoint, warnCurrentPoint];
+          ? [warnPreviousReference, warnCurrentReference, warnProjection.future]
+          : [warnPreviousReference, warnCurrentReference];
         items.push({
           id: "warngen-track",
           points: trackPoints,
@@ -810,11 +828,16 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     measurement,
     tool,
     toolPoints,
+    warnCurrentLine,
     warnCurrentPoint,
+    warnCurrentReference,
     warnMeasurement,
     warnPolygon,
+    warnPreviousLine,
     warnPreviousPoint,
+    warnPreviousReference,
     warnProjection,
+    warnTrackType,
     warnTracked,
     warningHazard,
   ]);
