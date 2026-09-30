@@ -5,6 +5,10 @@ event:
   scheduled_start_local: "16:00"
   timezone: America/Chicago
   primary_operational_area: Mid-City to Caesars Superdome, New Orleans
+  radar_marker:
+    label: Endymion Start / Samedi Gras
+    lat: 29.9864
+    lon: -90.1006
   pre_parade:
     name: Samedi Gras
     location: Orleans Avenue near the start of the parade route
