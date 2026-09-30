@@ -247,6 +247,61 @@ def normalize_warning_points(raw_points) -> list[dict[str, float]]:
     return points
 
 
+def point_in_warning_polygon(
+    point: dict[str, float],
+    polygon: list[dict[str, float]],
+) -> bool:
+    x = point["lon"]
+    y = point["lat"]
+    inside = False
+    tolerance = 1e-9
+
+    for index, first in enumerate(polygon):
+        second = polygon[(index + 1) % len(polygon)]
+        x1, y1 = first["lon"], first["lat"]
+        x2, y2 = second["lon"], second["lat"]
+
+        dx = x2 - x1
+        dy = y2 - y1
+        cross = (x - x1) * dy - (y - y1) * dx
+        if abs(cross) <= tolerance:
+            dot = (x - x1) * dx + (y - y1) * dy
+            length_squared = dx * dx + dy * dy
+            if -tolerance <= dot <= length_squared + tolerance:
+                return True
+
+        if (y1 > y) != (y2 > y):
+            intersection_x = (x2 - x1) * (y - y1) / (y2 - y1) + x1
+            if x < intersection_x:
+                inside = not inside
+
+    return inside
+
+
+def polygon_within_warning(
+    candidate: list[dict[str, float]],
+    current: list[dict[str, float]],
+) -> bool:
+    if len(candidate) < 3 or len(current) < 3:
+        return False
+
+    # Sample each candidate edge densely enough to reject operationally
+    # meaningful expansion across a concave warning boundary without adding a
+    # heavyweight GIS dependency to the portable backend.
+    samples_per_edge = 24
+    for index, first in enumerate(candidate):
+        second = candidate[(index + 1) % len(candidate)]
+        for sample in range(samples_per_edge + 1):
+            fraction = sample / samples_per_edge
+            point = {
+                "lat": first["lat"] + (second["lat"] - first["lat"]) * fraction,
+                "lon": first["lon"] + (second["lon"] - first["lon"]) * fraction,
+            }
+            if not point_in_warning_polygon(point, current):
+                return False
+    return True
+
+
 async def expire_due_warnings(session: SessionState) -> None:
     changed = False
     for warning in session.warnings:
@@ -542,9 +597,9 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                 )
                 await broadcast_warnings(session)
 
-            elif kind == "warning_update":
+            elif kind == "warning_followup":
                 if role != Role.RADAR:
-                    await send_error(websocket, "Only the Radar Operator can update warnings")
+                    await send_error(websocket, "Only the Radar Operator can issue warning follow-ups")
                     continue
 
                 warning_id = str(message.get("warning_id", "")).strip()
@@ -553,79 +608,98 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     await send_error(websocket, "Warning not found for this team")
                     continue
                 if warning.inherited:
-                    await send_error(websocket, "Inherited warnings cannot be edited")
-                    continue
-                if warning.status != "active":
-                    await send_error(websocket, "Only active warnings can be updated")
+                    await send_error(
+                        websocket,
+                        "Inherited warnings are not yet editable in multi-team follow-up mode",
+                    )
                     continue
 
-                raw_points = message.get("points")
-                if raw_points is not None:
+                action = str(message.get("action", "")).upper()
+                if action not in {"COR", "CON", "CAN", "EXP"}:
+                    await send_error(websocket, "SVS action must be COR, CON, CAN, or EXP")
+                    continue
+
+                if action in {"COR", "CON", "CAN"} and warning.status != "active":
+                    await send_error(websocket, "This follow-up requires an active warning")
+                    continue
+                if action == "EXP" and warning.status not in {"active", "expired"}:
+                    await send_error(websocket, "EXP can only follow an active or expired warning")
+                    continue
+
+                followup_text = str(message.get("text", "")).strip()
+                if not followup_text:
+                    await send_error(
+                        websocket,
+                        "Use SVS Create Text and review the product before issuing",
+                    )
+                    continue
+
+                attributes = (
+                    message.get("attributes")
+                    if isinstance(message.get("attributes"), dict)
+                    else {}
+                )
+                followup_points = copy.deepcopy(warning.points)
+
+                if action == "CON" and message.get("points") is not None:
                     try:
-                        warning.points = normalize_warning_points(raw_points)
+                        candidate_points = normalize_warning_points(message.get("points"))
                     except (TypeError, ValueError) as exc:
                         await send_error(websocket, str(exc))
                         continue
+                    if not polygon_within_warning(candidate_points, warning.points):
+                        await send_error(
+                            websocket,
+                            "A CON follow-up may trim the warned area but cannot expand it",
+                        )
+                        continue
+                    followup_points = candidate_points
+                    warning.points = copy.deepcopy(candidate_points)
 
-                extend_minutes = message.get("extend_minutes")
-                if extend_minutes is not None:
-                    try:
-                        extend_minutes = int(extend_minutes)
-                    except (TypeError, ValueError):
-                        await send_error(websocket, "Warning extension must be a whole number of minutes")
-                        continue
-                    if extend_minutes not in {15, 30}:
-                        await send_error(websocket, "Warning extension must be 15 or 30 minutes")
-                        continue
-                    warning.expires_at += timedelta(minutes=extend_minutes)
+                followup = {
+                    "id": uuid4().hex,
+                    "action": action,
+                    "issued_at": session.sim_time.isoformat(),
+                    "issuer": participant.display_name,
+                    "text": followup_text,
+                    "attributes": attributes,
+                    "points": copy.deepcopy(followup_points),
+                }
+                warning.followups.append(followup)
+
+                if action == "CAN":
+                    warning.status = "cancelled"
+                elif action == "EXP":
+                    warning.status = "expired"
 
                 session.record(
                     {
                         "type": "warning_action",
                         "event_id": uuid4().hex,
-                        "action": "update",
+                        "action": "followup",
+                        "vtec_action": action,
                         "warning_id": warning.id,
                         "hazard": warning.hazard,
                         "team_id": warning.team_id,
                         "issuer": participant.display_name,
-                        "points": warning.points,
-                        "expires_at": warning.expires_at.isoformat(),
+                        "points": copy.deepcopy(followup_points),
+                        "attributes": attributes,
                         "sim_time": session.sim_time.isoformat(),
                     }
                 )
                 await broadcast_warnings(session)
+
+            elif kind == "warning_update":
+                await send_error(
+                    websocket,
+                    "Use an SVS CON/COR follow-up instead of directly updating a warning",
+                )
 
             elif kind == "warning_cancel":
-                if role != Role.RADAR:
-                    await send_error(websocket, "Only the Radar Operator can cancel warnings")
-                    continue
-
-                warning_id = str(message.get("warning_id", "")).strip()
-                warning = session.warning_by_id(warning_id)
-                if warning is None or warning.team_id != participant.team_id:
-                    await send_error(websocket, "Warning not found for this team")
-                    continue
-                if warning.inherited:
-                    await send_error(websocket, "Inherited warnings cannot be cancelled")
-                    continue
-                if warning.status != "active":
-                    await send_error(websocket, "Only active warnings can be cancelled")
-                    continue
-
-                warning.status = "cancelled"
-                session.record(
-                    {
-                        "type": "warning_action",
-                        "event_id": uuid4().hex,
-                        "action": "cancel",
-                        "warning_id": warning.id,
-                        "hazard": warning.hazard,
-                        "team_id": warning.team_id,
-                        "issuer": participant.display_name,
-                        "sim_time": session.sim_time.isoformat(),
-                    }
+                await send_error(
+                    websocket,
+                    "Use an SVS CAN follow-up instead of directly cancelling a warning",
                 )
-                await broadcast_warnings(session)
 
             elif kind == "partner_message":
                 if role != Role.FACILITATOR:
