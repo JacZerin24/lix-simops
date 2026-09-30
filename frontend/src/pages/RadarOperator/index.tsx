@@ -38,6 +38,7 @@ type Props = {
 
 type WarnBasis =
   | "doppler"
+  | "doppler_squall"
   | "radar_confirmed"
   | "spotter"
   | "law_enforcement"
@@ -177,6 +178,7 @@ function defaultWarnLine(
 function warningBasisDetails(hazard: "TOR" | "SVR", basis: WarnBasis) {
   const sourceLabels: Record<WarnBasis, string> = {
     doppler: "RADAR INDICATED",
+    doppler_squall: "RADAR INDICATED",
     radar_confirmed: "RADAR CONFIRMED",
     spotter: "TRAINED WEATHER SPOTTERS",
     law_enforcement: "LAW ENFORCEMENT",
@@ -190,6 +192,8 @@ function warningBasisDetails(hazard: "TOR" | "SVR", basis: WarnBasis) {
 
   const phrases: Record<WarnBasis, string> = {
     doppler: `Doppler radar indicated ${subject}`,
+    doppler_squall:
+      "Doppler radar indicated a line of severe thunderstorms capable of producing embedded tornadoes",
     radar_confirmed: "Doppler radar confirmed a tornado",
     spotter: hazard === "TOR"
       ? "trained weather spotters reported a tornado"
@@ -1184,11 +1188,11 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
 
   const warnNearestCity = useMemo(
     () =>
-      warnCurrentPoint &&
+      warnCurrentReference &&
       data?.radar_latitude != null &&
       data.radar_longitude != null
         ? getNearestWarnGenCity(
-            warnCurrentPoint,
+            warnCurrentReference,
             data.radar_latitude,
             data.radar_longitude,
           )
@@ -1196,7 +1200,7 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     [
       data?.radar_latitude,
       data?.radar_longitude,
-      warnCurrentPoint,
+      warnCurrentReference,
     ],
   );
 
@@ -1222,7 +1226,7 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     if (
       !data?.sim_time ||
       !warnMeasurement ||
-      !warnCurrentPoint ||
+      !warnCurrentReference ||
       warnPolygon.length < 3
     ) {
       return;
@@ -1236,6 +1240,12 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     const motionDirection = compassDirection(warnMeasurement.bearing);
     const motionMph = Math.max(1, Math.round(warnMeasurement.speedKt * 1.15078));
     const basis = warningBasisDetails(warningHazard, warnBasis);
+    const basisPhrase =
+      warnTrackType === "line_of_storms" && warnBasis === "doppler"
+        ? warningHazard === "TOR"
+          ? "Doppler radar indicated a line of severe thunderstorms capable of producing tornadoes"
+          : "Doppler radar indicated a line of severe thunderstorms"
+        : basis.phrase;
     const nearestCity = warnNearestCity?.name ?? "the warned area";
     const areaLabels = warnAffectedCounties.map((county) =>
       warningAreaLabel(county.fips, county.name),
@@ -1262,7 +1272,7 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
         ? areaLabels.map((area) => `  ${area.toUpperCase()}`)
         : ["  PORTIONS OF THE LIX WARNING AREA"]),
       `* UNTIL ${expireLabel}.`,
-      `* AT ${issueLabel}, ${basis.phrase} NEAR ${nearestCity.toUpperCase()}, MOVING ${motionDirection} AT ${motionMph} MPH.`,
+      `* AT ${issueLabel}, ${basisPhrase} NEAR ${nearestCity.toUpperCase()}, MOVING ${motionDirection} AT ${motionMph} MPH.`,
       "",
     ];
 
@@ -1361,7 +1371,7 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
       points: warnPolygon.map((point) => ({ lat: point.lat, lon: point.lon })),
       text: warnDraftText,
       attributes: {
-        track_type: "one_storm",
+        track_type: warnTrackType,
         motion_bearing_deg: warnMeasurement.bearing,
         motion_speed_kt: warnMeasurement.speedKt,
         duration_minutes: warningDuration,
@@ -1383,6 +1393,20 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
           name: county.name,
         })),
         impacted_cities: warnImpactedCities,
+        current_line:
+          warnTrackType === "line_of_storms"
+            ? warnCurrentLine?.map((point) => ({
+                lat: point.lat,
+                lon: point.lon,
+              }))
+            : null,
+        previous_line:
+          warnTrackType === "line_of_storms"
+            ? warnPreviousLine?.map((point) => ({
+                lat: point.lat,
+                lon: point.lon,
+              }))
+            : null,
       },
     });
 
