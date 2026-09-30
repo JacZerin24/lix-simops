@@ -1352,7 +1352,14 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
             <select
               value={warningHazard}
               disabled={warnTracked}
-              onChange={(event) => setWarningHazard(event.target.value as "TOR" | "SVR")}
+              onChange={(event) => {
+                const next = event.target.value as "TOR" | "SVR";
+                setWarningHazard(next);
+                if (next === "SVR" && warnBasis === "radar_confirmed") {
+                  setWarnBasis("doppler");
+                }
+                setWarnDraftText("");
+              }}
             >
               <option value="TOR">Tornado Warning</option>
               <option value="SVR">Severe Thunderstorm Warning</option>
@@ -1364,7 +1371,10 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
             <select
               value={warningDuration}
               disabled={warnTracked}
-              onChange={(event) => setWarningDuration(Number(event.target.value))}
+              onChange={(event) => {
+                setWarningDuration(Number(event.target.value));
+                setWarnDraftText("");
+              }}
             >
               {(warningHazard === "TOR"
                 ? [15, 20, 25, 30, 40, 45, 50, 60]
@@ -1454,8 +1464,267 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
                   </div>
                 )}
                 {warnHatched && (
-                  <div className="warngen-next-step">
-                    Next: warning attributes → Create Text → Issue.
+                  <div className="warngen-attributes">
+                    <div className="warngen-section-title">
+                      <strong>Warning Attributes</strong>
+                      <span>Selections used by Create Text</span>
+                    </div>
+
+                    {warningHazard === "TOR" ? (
+                      <>
+                        <label>
+                          Type of Warning
+                          <select
+                            value={warnTorHeadline}
+                            onChange={(event) => {
+                              setWarnTorHeadline(event.target.value as TorHeadline);
+                              setWarnDraftText("");
+                            }}
+                          >
+                            <option value="base">Base Tornado Warning</option>
+                            <option value="considerable">Considerable Tornado Tag</option>
+                            <option value="emergency">Tornado Emergency</option>
+                            <option value="landspout">Landspout / Very Weak Tornado</option>
+                          </select>
+                        </label>
+
+                        <label>
+                          Basis for Warning
+                          <select
+                            value={warnBasis}
+                            onChange={(event) => {
+                              setWarnBasis(event.target.value as WarnBasis);
+                              setWarnDraftText("");
+                            }}
+                          >
+                            <option value="doppler">Doppler radar indicated</option>
+                            <option value="radar_confirmed">Radar confirmed tornado / TDS</option>
+                            <option value="spotter">Trained weather spotters</option>
+                            <option value="law_enforcement">Law enforcement</option>
+                            <option value="emergency_management">Emergency management</option>
+                            <option value="broadcast_media">Broadcast media</option>
+                            <option value="public">Public report</option>
+                          </select>
+                        </label>
+
+                        <label>
+                          Accompanying Hail
+                          <select
+                            value={warnTorHail}
+                            onChange={(event) => {
+                              setWarnTorHail(event.target.value);
+                              setWarnDraftText("");
+                            }}
+                          >
+                            <option value="none">No hail</option>
+                            <option value="small">Small hail</option>
+                            {[1, 1.25, 1.5, 1.75, 2, 2.5, 2.75, 3, 4, 4.5, 5].map(
+                              (size) => (
+                                <option value={String(size)} key={size}>
+                                  {size.toFixed(2)} in hail
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+                      </>
+                    ) : (
+                      <>
+                        <label>
+                          Basis for Warning
+                          <select
+                            value={warnBasis}
+                            onChange={(event) => {
+                              setWarnBasis(event.target.value as WarnBasis);
+                              setWarnDraftText("");
+                            }}
+                          >
+                            <option value="doppler">Doppler radar indicated</option>
+                            <option value="spotter">Trained weather spotters</option>
+                            <option value="law_enforcement">Law enforcement</option>
+                            <option value="emergency_management">Emergency management</option>
+                            <option value="broadcast_media">Broadcast media</option>
+                            <option value="public">Public report</option>
+                          </select>
+                        </label>
+
+                        <label>
+                          Wind Threat
+                          <select
+                            value={warnSvrWind}
+                            onChange={(event) => {
+                              setWarnSvrWind(Number(event.target.value));
+                              setWarnDraftText("");
+                            }}
+                          >
+                            {[60, 70, 80, 90, 100].map((speed) => (
+                              <option value={speed} key={speed}>
+                                {speed} mph
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label>
+                          Hail Threat
+                          <select
+                            value={warnSvrHail}
+                            onChange={(event) => {
+                              setWarnSvrHail(Number(event.target.value));
+                              setWarnDraftText("");
+                            }}
+                          >
+                            {[0.75, 0.88, 1, 1.25, 1.5, 1.75, 2, 2.5, 2.75, 3, 4, 4.5, 5].map(
+                              (size) => (
+                                <option value={size} key={size}>
+                                  {size.toFixed(2)} in
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+
+                        <label className="radar-check warngen-check">
+                          <input
+                            type="checkbox"
+                            checked={warnObservedWind}
+                            onChange={(event) => {
+                              setWarnObservedWind(event.target.checked);
+                              setWarnDraftText("");
+                            }}
+                          />
+                          Observed wind
+                        </label>
+
+                        <label className="radar-check warngen-check">
+                          <input
+                            type="checkbox"
+                            checked={warnObservedHail}
+                            onChange={(event) => {
+                              setWarnObservedHail(event.target.checked);
+                              setWarnDraftText("");
+                            }}
+                          />
+                          Observed hail
+                        </label>
+
+                        <label className="radar-check warngen-check">
+                          <input
+                            type="checkbox"
+                            checked={warnTornadoPossible}
+                            onChange={(event) => {
+                              setWarnTornadoPossible(event.target.checked);
+                              setWarnDraftText("");
+                            }}
+                          />
+                          TORNADO...POSSIBLE
+                        </label>
+                      </>
+                    )}
+
+                    <label>
+                      Locations Impacted
+                      <select
+                        value={warnLocationMode}
+                        onChange={(event) => {
+                          setWarnLocationMode(event.target.value as WarnLocationMode);
+                          setWarnDraftText("");
+                        }}
+                      >
+                        <option value="pathcast">Pathcast</option>
+                        <option value="cities">List of cities</option>
+                      </select>
+                    </label>
+
+                    <label className="radar-check warngen-check">
+                      <input
+                        type="checkbox"
+                        checked={warnSpecialEvent}
+                        onChange={(event) => {
+                          setWarnSpecialEvent(event.target.checked);
+                          setWarnDraftText("");
+                        }}
+                      />
+                      Special heads-up for event / venue
+                    </label>
+
+                    {warningHazard === "TOR" && (
+                      <>
+                        <label className="radar-check warngen-check">
+                          <input
+                            type="checkbox"
+                            checked={warnRainWrappedCta}
+                            onChange={(event) => {
+                              setWarnRainWrappedCta(event.target.checked);
+                              setWarnDraftText("");
+                            }}
+                          />
+                          Rain-wrapped tornado CTA
+                        </label>
+                        <label className="radar-check warngen-check">
+                          <input
+                            type="checkbox"
+                            checked={warnNighttimeCta}
+                            onChange={(event) => {
+                              setWarnNighttimeCta(event.target.checked);
+                              setWarnDraftText("");
+                            }}
+                          />
+                          Nighttime tornado CTA
+                        </label>
+                      </>
+                    )}
+
+                    <label className="radar-check warngen-check">
+                      <input
+                        type="checkbox"
+                        checked={warnTorrentialRainfallCta}
+                        onChange={(event) => {
+                          setWarnTorrentialRainfallCta(event.target.checked);
+                          setWarnDraftText("");
+                        }}
+                      />
+                      Torrential rainfall CTA
+                    </label>
+
+                    <button
+                      className="primary-action"
+                      onClick={createWarnGenText}
+                      disabled={!warnMeasurement || warnAffectedCounties.length === 0}
+                    >
+                      Create Text
+                    </button>
+
+                    {warningHazard === "TOR" && warnTorHeadline === "emergency" && (
+                      <span className="warngen-caution">
+                        Tornado Emergency selection requires appropriate exercise-supervisor approval.
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {warnDraftText && (
+                  <div className="warngen-text-editor">
+                    <div className="warngen-section-title">
+                      <strong>Warning Text Editor</strong>
+                      <span>Review and edit before issuing.</span>
+                    </div>
+                    <textarea
+                      value={warnDraftText}
+                      onChange={(event) => setWarnDraftText(event.target.value)}
+                      spellCheck={false}
+                      aria-label="WarnGen warning text"
+                    />
+                    <div className="warngen-text-actions">
+                      <button onClick={createWarnGenText}>Recreate Text</button>
+                      <button
+                        className="primary-action"
+                        onClick={issueWarnGenWarning}
+                        disabled={!warnDraftText.trim()}
+                      >
+                        Issue Warning
+                      </button>
+                    </div>
                   </div>
                 )}
               </>
