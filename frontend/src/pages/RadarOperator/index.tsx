@@ -1827,7 +1827,7 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     [annotations, svsAction, svsPolygon, svsWarningId],
   );
 
-    const activeWarnings = warnings.filter((warning) => warning.status === "active");
+  const activeWarnings = warnings.filter((warning) => warning.status === "active");
 
   const toolStatus = useMemo(() => {
     if (tool === "cursor") return "Cursor interrogation";
@@ -2568,7 +2568,7 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
                 {warning.inherited && <span>Inherited at exercise start</span>}
                 {(warning.followups?.length ?? 0) > 0 && (
                   <span>
-                    Last SVS: {warning.followups?.[warning.followups.length - 1]?.action}
+                    Last SVS: {warning.followups?.at(-1)?.action}
                   </span>
                 )}
               </div>
