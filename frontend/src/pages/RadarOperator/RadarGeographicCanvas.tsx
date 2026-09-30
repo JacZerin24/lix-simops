@@ -60,6 +60,17 @@ export type RadarDraggableHandle = {
   kind?: "storm" | "vertex";
 };
 
+export type WarnGenAffectedCounty = {
+  fips: string;
+  name: string;
+  labelPoint: RadarMapPoint;
+};
+
+export type WarnGenHatchedPreview = {
+  polygon: RadarMapPoint[];
+  counties: WarnGenAffectedCounty[];
+};
+
 type Props = {
   frame: RadarFrame;
   product: RadarProductSummary;
@@ -74,6 +85,7 @@ type Props = {
   pointOverlays?: RadarPointOverlay[];
   annotations?: RadarAnnotation[];
   draggableHandles?: RadarDraggableHandle[];
+  warnedAreaPreview?: WarnGenHatchedPreview | null;
   onDraggableHandleChange?: (id: string, point: RadarMapPoint) => void;
   onViewChange: (view: RadarView) => void;
   onCursorSample: (sample: CursorSample | null) => void;
@@ -111,6 +123,39 @@ const CITIES = [
   { name: "Biloxi", lat: 30.396, lon: -88.8853 },
   { name: "Grand Isle", lat: 29.2366, lon: -89.9873 },
 ];
+
+const LIX_CWA_COUNTY_NAMES = new Map<string, string>([
+  ["22005", "Ascension"],
+  ["22007", "Assumption"],
+  ["22033", "East Baton Rouge"],
+  ["22037", "East Feliciana"],
+  ["22047", "Iberville"],
+  ["22051", "Jefferson"],
+  ["22057", "Lafourche"],
+  ["22063", "Livingston"],
+  ["22071", "Orleans"],
+  ["22075", "Plaquemines"],
+  ["22077", "Pointe Coupee"],
+  ["22087", "St. Bernard"],
+  ["22089", "St. Charles"],
+  ["22091", "St. Helena"],
+  ["22093", "St. James"],
+  ["22095", "St. John the Baptist"],
+  ["22103", "St. Tammany"],
+  ["22105", "Tangipahoa"],
+  ["22109", "Terrebonne"],
+  ["22117", "Washington"],
+  ["22121", "West Baton Rouge"],
+  ["22125", "West Feliciana"],
+  ["28005", "Amite"],
+  ["28045", "Hancock"],
+  ["28047", "Harrison"],
+  ["28059", "Jackson"],
+  ["28109", "Pearl River"],
+  ["28113", "Pike"],
+  ["28147", "Walthall"],
+  ["28157", "Wilkinson"],
+]);
 
 const MAJOR_HIGHWAYS = [
   {
@@ -542,7 +587,18 @@ const REGIONAL_BOUNDARIES = (() => {
     .filter((item: any) => REGION_STATE_FIPS.has(String(item.id).padStart(2, "0")))
     .flatMap((item: any) => getGeometryRings(item.geometry));
 
-  return { counties, states };
+  const lixCounties = countyCollection.features
+    .map((item: any) => {
+      const fips = String(item.id).padStart(5, "0");
+      return {
+        fips,
+        name: LIX_CWA_COUNTY_NAMES.get(fips),
+        rings: getGeometryRings(item.geometry),
+      };
+    })
+    .filter((item: any) => Boolean(item.name));
+
+  return { counties, states, lixCounties };
 })();
 
 function screenPoint(
@@ -584,6 +640,112 @@ function pathForRings(
     .join(" ");
 }
 
+function pointInPolygon(
+  point: { xKm: number; yKm: number },
+  polygon: Array<{ xKm: number; yKm: number }>,
+) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].xKm;
+    const yi = polygon[i].yKm;
+    const xj = polygon[j].xKm;
+    const yj = polygon[j].yKm;
+    const intersects =
+      yi > point.yKm !== yj > point.yKm &&
+      point.xKm < ((xj - xi) * (point.yKm - yi)) / (yj - yi || 1e-12) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function segmentIntersection(
+  a: { xKm: number; yKm: number },
+  b: { xKm: number; yKm: number },
+  c: { xKm: number; yKm: number },
+  d: { xKm: number; yKm: number },
+): { xKm: number; yKm: number } | null {
+  const rX = b.xKm - a.xKm;
+  const rY = b.yKm - a.yKm;
+  const sX = d.xKm - c.xKm;
+  const sY = d.yKm - c.yKm;
+  const denominator = rX * sY - rY * sX;
+  if (Math.abs(denominator) < 1e-9) return null;
+
+  const qX = c.xKm - a.xKm;
+  const qY = c.yKm - a.yKm;
+  const t = (qX * sY - qY * sX) / denominator;
+  const u = (qX * rY - qY * rX) / denominator;
+  if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+  return { xKm: a.xKm + t * rX, yKm: a.yKm + t * rY };
+}
+
+function ringIntersectionPoint(
+  warning: RadarMapPoint[],
+  ring: Array<{ xKm: number; yKm: number }>,
+) {
+  const warningCenter = {
+    xKm: warning.reduce((sum, point) => sum + point.xKm, 0) / warning.length,
+    yKm: warning.reduce((sum, point) => sum + point.yKm, 0) / warning.length,
+  };
+  if (pointInPolygon(warningCenter, ring)) return warningCenter;
+
+  const ringCenter = {
+    xKm: ring.reduce((sum, point) => sum + point.xKm, 0) / ring.length,
+    yKm: ring.reduce((sum, point) => sum + point.yKm, 0) / ring.length,
+  };
+  if (pointInPolygon(ringCenter, warning)) return ringCenter;
+
+  const warningInside = warning.find((point) => pointInPolygon(point, ring));
+  if (warningInside) return warningInside;
+
+  const ringInside = ring.find((point) => pointInPolygon(point, warning));
+  if (ringInside) return ringInside;
+
+  for (let i = 0; i < warning.length; i += 1) {
+    const a = warning[i];
+    const b = warning[(i + 1) % warning.length];
+    for (let j = 0; j < ring.length; j += 1) {
+      const hit = segmentIntersection(a, b, ring[j], ring[(j + 1) % ring.length]);
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
+
+export function getWarnGenAffectedCounties(
+  warning: RadarMapPoint[],
+  radarLatitude: number,
+  radarLongitude: number,
+): WarnGenAffectedCounty[] {
+  if (warning.length < 3) return [];
+
+  return REGIONAL_BOUNDARIES.lixCounties.flatMap((county: any) => {
+    for (const rawRing of county.rings as Array<Array<[number, number]>>) {
+      const ring = rawRing.map(([lon, lat]) =>
+        latLonToLocal(lat, lon, radarLatitude, radarLongitude),
+      );
+      const hit = ringIntersectionPoint(warning, ring);
+      if (!hit) continue;
+      return [
+        {
+          fips: county.fips,
+          name: county.name,
+          labelPoint: {
+            ...hit,
+            ...localToLatLon(
+              hit.xKm,
+              hit.yKm,
+              radarLatitude,
+              radarLongitude,
+            ),
+          },
+        },
+      ];
+    }
+    return [];
+  });
+}
+
 function mapPointFromClient(
   clientX: number,
   clientY: number,
@@ -614,6 +776,7 @@ export function RadarGeographicCanvas({
   pointOverlays = [],
   annotations = [],
   draggableHandles = [],
+  warnedAreaPreview = null,
   onDraggableHandleChange,
   onViewChange,
   onCursorSample,
@@ -980,6 +1143,21 @@ export function RadarGeographicCanvas({
 
   const radarScreen = screenPoint({ xKm: 0, yKm: 0 }, view, size);
   const showHighwayLabels = view.kmPerPixel <= 0.38;
+  const lixCountyScreenRings = useMemo(
+    () =>
+      REGIONAL_BOUNDARIES.lixCounties.flatMap((county: any) =>
+        (county.rings as Array<Array<[number, number]>>).map((ring) =>
+          ring.map(([lon, lat]) =>
+            screenPoint(
+              latLonToLocal(lat, lon, radarLatitude, radarLongitude),
+              view,
+              size,
+            ),
+          ),
+        ),
+      ),
+    [radarLatitude, radarLongitude, view, size],
+  );
 
   return (
     <div
@@ -997,6 +1175,25 @@ export function RadarGeographicCanvas({
       <canvas ref={canvasRef} className="radar-webgl-layer" />
 
       <svg className="radar-map-overlay" width={size.width} height={size.height}>
+        <defs>
+          <pattern
+            id="warngen-hatch-pattern"
+            width="8"
+            height="8"
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <line x1="0" y1="0" x2="0" y2="8" className="warngen-hatch-line" />
+          </pattern>
+          <clipPath id="warngen-lix-cwa-clip">
+            {lixCountyScreenRings.map((ring, index) => (
+              <polygon
+                key={index}
+                points={ring.map((point) => `${point.x},${point.y}`).join(" ")}
+              />
+            ))}
+          </clipPath>
+        </defs>
         {layers.counties && countyPath && (
           <path d={countyPath} className="radar-county-boundary" />
         )}
@@ -1174,6 +1371,26 @@ export function RadarGeographicCanvas({
               </g>
             );
           })}
+
+        {warnedAreaPreview && warnedAreaPreview.polygon.length >= 3 && (
+          <g className="warngen-hatched-preview">
+            <polygon
+              points={warnedAreaPreview.polygon
+                .map((point) => screenPoint(point, view, size))
+                .map((point) => `${point.x},${point.y}`)
+                .join(" ")}
+              clipPath="url(#warngen-lix-cwa-clip)"
+            />
+            {warnedAreaPreview.counties.map((county) => {
+              const point = screenPoint(county.labelPoint, view, size);
+              return (
+                <g key={county.fips} transform={`translate(${point.x} ${point.y})`}>
+                  <text className="warngen-w-marker" textAnchor="middle">W</text>
+                </g>
+              );
+            })}
+          </g>
+        )}
 
         {draggableHandles.map((handle) => {
           const point = screenPoint(handle.point, view, size);
