@@ -27,6 +27,7 @@ import {
   getNearestWarnGenCity,
   getWarnGenAffectedCounties,
   getWarnGenImpactedCities,
+  latLonToLocal,
   localToLatLon,
 } from "./RadarGeographicCanvas";
 
@@ -49,6 +50,13 @@ type WarnBasis =
 type TorHeadline = "base" | "considerable" | "emergency" | "landspout";
 type WarnLocationMode = "pathcast" | "cities";
 type WarnTrackType = "one_storm" | "line_of_storms";
+type SvsAction = "COR" | "CON" | "CAN" | "EXP";
+type SvsEndReason =
+  | "weakened"
+  | "moved_out"
+  | "weakened_and_moved"
+  | "tor_downgrade"
+  | "tor_reissue";
 
 type RadarTool =
   | "cursor"
@@ -300,6 +308,14 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
   const [warnNighttimeCta, setWarnNighttimeCta] = useState(false);
   const [warnTorrentialRainfallCta, setWarnTorrentialRainfallCta] = useState(false);
   const [warnDraftText, setWarnDraftText] = useState("");
+  const [svsWarningId, setSvsWarningId] = useState<string | null>(null);
+  const [svsAction, setSvsAction] = useState<SvsAction>("CON");
+  const [svsReason, setSvsReason] = useState<SvsEndReason>("weakened");
+  const [svsStillHail, setSvsStillHail] = useState(false);
+  const [svsStillWind, setSvsStillWind] = useState(false);
+  const [svsStillRain, setSvsStillRain] = useState(false);
+  const [svsPolygon, setSvsPolygon] = useState<RadarMapPoint[]>([]);
+  const [svsDraftText, setSvsDraftText] = useState("");
   const [legacyZoom, setLegacyZoom] = useState(1);
   const [legacyPan, setLegacyPan] = useState({ x: 0, y: 0 });
   const [error, setError] = useState("");
