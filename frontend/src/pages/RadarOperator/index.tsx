@@ -936,6 +936,13 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
 
   const changeWarnTrackType = (next: WarnTrackType) => {
     setWarnTrackType(next);
+    if (warningHazard === "TOR") {
+      if (next === "line_of_storms" && warnBasis === "doppler") {
+        setWarnBasis("doppler_squall");
+      } else if (next === "one_storm" && warnBasis === "doppler_squall") {
+        setWarnBasis("doppler");
+      }
+    }
     setWarnCurrentPoint(null);
     setWarnPreviousPoint(null);
     setWarnCurrentLine(null);
@@ -1435,11 +1442,15 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
       if (warnTracked) {
         return `WarnGen: track polygon generated · drag vertices to refine`;
       }
-      if (!warnCurrentPoint) {
-        return "WarnGen: drag the marker onto the threat on the current scan";
+      if (!warnCurrentReference) {
+        return warnTrackType === "line_of_storms"
+          ? "WarnGen: position the two-point line parallel to the threat on the current scan"
+          : "WarnGen: drag the marker onto the threat on the current scan";
       }
-      if (!warnPreviousPoint) {
-        return "WarnGen: step back 3–4 scans, then drag the marker to the earlier threat position";
+      if (!warnPreviousReference) {
+        return warnTrackType === "line_of_storms"
+          ? "WarnGen: step back 3–4 scans, then reposition the line on the earlier storm line"
+          : "WarnGen: step back 3–4 scans, then drag the marker to the earlier threat position";
       }
       return warnMeasurement
         ? `WarnGen: ${warnMeasurement.bearing.toFixed(1)}° at ${warnMeasurement.speedKt.toFixed(1)} kt · ${warnFrameSeparation} scan${warnFrameSeparation === 1 ? "" : "s"} apart`
@@ -1454,10 +1465,11 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     measurement,
     tool,
     toolPoints.length,
-    warnCurrentPoint,
+    warnCurrentReference,
     warnFrameSeparation,
     warnMeasurement,
-    warnPreviousPoint,
+    warnPreviousReference,
+    warnTrackType,
     warnTracked,
   ]);
 
@@ -1699,11 +1711,27 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
       {tool === "warngen" && (
         <div className="radar-warngen-panel radar-warngen-track-panel">
           <div className="radar-warngen-intro">
-            <strong>WarnGen — One Storm</strong>
+            <strong>
+              WarnGen — {warnTrackType === "line_of_storms" ? "Line of Storms" : "One Storm"}
+            </strong>
             <span className="muted">
               Track the threat first. The warning polygon is generated from the storm motion.
             </span>
           </div>
+
+          <label>
+            Track Type
+            <select
+              value={warnTrackType}
+              disabled={warnTracked}
+              onChange={(event) =>
+                changeWarnTrackType(event.target.value as WarnTrackType)
+              }
+            >
+              <option value="one_storm">One Storm</option>
+              <option value="line_of_storms">Line of Storms</option>
+            </select>
+          </label>
 
           <label>
             Product
@@ -1713,8 +1741,17 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
               onChange={(event) => {
                 const next = event.target.value as "TOR" | "SVR";
                 setWarningHazard(next);
-                if (next === "SVR" && warnBasis === "radar_confirmed") {
+                if (
+                  next === "SVR" &&
+                  (warnBasis === "radar_confirmed" || warnBasis === "doppler_squall")
+                ) {
                   setWarnBasis("doppler");
+                } else if (
+                  next === "TOR" &&
+                  warnTrackType === "line_of_storms" &&
+                  warnBasis === "doppler"
+                ) {
+                  setWarnBasis("doppler_squall");
                 }
                 setWarnDraftText("");
               }}
@@ -1748,20 +1785,34 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
           <button onClick={restartWarnGen}>Restart</button>
 
           <div className="radar-warngen-workflow">
-            {!warnCurrentPoint ? (
+            {!warnCurrentReference ? (
               <div className="warngen-step active">
-                <strong>1. Current position</strong>
-                <span>Drag “Drag Me to Storm” onto the threat on the current scan.</span>
+                <strong>
+                  1. {warnTrackType === "line_of_storms" ? "Current storm line" : "Current position"}
+                </strong>
+                <span>
+                  {warnTrackType === "line_of_storms"
+                    ? "Position the line parallel to the threat. Drag the center to translate it; drag either endpoint to rotate or resize it."
+                    : "Drag “Drag Me to Storm” onto the threat on the current scan."}
+                </span>
               </div>
-            ) : !warnPreviousPoint ? (
+            ) : !warnPreviousReference ? (
               <>
                 <div className="warngen-step complete">
-                  <strong>1. Current position set</strong>
-                  <span>{frameTime(warnCurrentPoint.timestamp)}</span>
+                  <strong>
+                    1. {warnTrackType === "line_of_storms" ? "Current line set" : "Current position set"}
+                  </strong>
+                  <span>{frameTime(warnCurrentReference.timestamp)}</span>
                 </div>
                 <div className="warngen-step active">
-                  <strong>2. Previous position</strong>
-                  <span>Step back about 3–4 scans, then drag the marker onto the same feature.</span>
+                  <strong>
+                    2. {warnTrackType === "line_of_storms" ? "Earlier storm line" : "Previous position"}
+                  </strong>
+                  <span>
+                    {warnTrackType === "line_of_storms"
+                      ? "Step back about 3–4 scans, then reposition the same line on the earlier position of the threat."
+                      : "Step back about 3–4 scans, then drag the marker onto the same feature."}
+                  </span>
                 </div>
               </>
             ) : !warnTracked ? (
@@ -1856,6 +1907,7 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
                             }}
                           >
                             <option value="doppler">Doppler radar indicated</option>
+                            <option value="doppler_squall">Squall line with embedded tornadoes</option>
                             <option value="radar_confirmed">Radar confirmed tornado / TDS</option>
                             <option value="spotter">Trained weather spotters</option>
                             <option value="law_enforcement">Law enforcement</option>
