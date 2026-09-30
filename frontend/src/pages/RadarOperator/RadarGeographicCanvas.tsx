@@ -921,6 +921,35 @@ export function RadarGeographicCanvas({
           <path d={statePath} className="radar-state-boundary" />
         )}
 
+        {layers.highways &&
+          MAJOR_HIGHWAYS.map((highway) => {
+            const points = highway.points.map(([lat, lon]) =>
+              screenPoint(
+                latLonToLocal(lat, lon, radarLatitude, radarLongitude),
+                view,
+                size,
+              ),
+            );
+            const labelPoint = points[Math.floor(points.length / 2)];
+            return (
+              <g key={highway.name} className="radar-highway">
+                <polyline
+                  className="casing"
+                  points={points.map((point) => `${point.x},${point.y}`).join(" ")}
+                />
+                <polyline
+                  className="centerline"
+                  points={points.map((point) => `${point.x},${point.y}`).join(" ")}
+                />
+                {labelPoint && (
+                  <text x={labelPoint.x + 5} y={labelPoint.y - 5}>
+                    {highway.name}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
         {layers.rangeRings &&
           [25, 50, 75, 100, 150, 200]
             .filter((value) => value < rangeKm)
@@ -945,10 +974,13 @@ export function RadarGeographicCanvas({
               );
             })}
 
-        <g transform={`translate(${radarScreen.x} ${radarScreen.y})`} className="radar-site-marker">
-          <circle r="4" />
-          <path d="M -8 0 L 8 0 M 0 -8 L 0 8" />
-        </g>
+        {layers.radarSite && (
+          <g transform={`translate(${radarScreen.x} ${radarScreen.y})`} className="radar-site-marker">
+            <circle r="4" />
+            <path d="M -8 0 L 8 0 M 0 -8 L 0 8" />
+            <text x="10" y="-8">KLIX</text>
+          </g>
+        )}
 
         {layers.cities &&
           CITIES.map((city) => {
@@ -973,6 +1005,79 @@ export function RadarGeographicCanvas({
                 <text x={point.x + 5} y={point.y - 5}>
                   {city.name}
                 </text>
+              </g>
+            );
+          })}
+
+        {layers.event && eventMarker && (() => {
+          const local = latLonToLocal(
+            eventMarker.lat,
+            eventMarker.lon,
+            radarLatitude,
+            radarLongitude,
+          );
+          const point = screenPoint(local, view, size);
+          return (
+            <g className="radar-event-marker" transform={`translate(${point.x} ${point.y})`}>
+              <path d="M 0 -8 L 8 0 L 0 8 L -8 0 Z" />
+              <circle r="2.5" />
+              <text x="12" y="-10">{eventMarker.label}</text>
+            </g>
+          );
+        })()}
+
+        {layers.warnings &&
+          warningPolygons.map((warning) => {
+            if (warning.points.length < 3) return null;
+            const points = warning.points.map((point) =>
+              screenPoint(
+                latLonToLocal(
+                  point.lat,
+                  point.lon,
+                  radarLatitude,
+                  radarLongitude,
+                ),
+                view,
+                size,
+              ),
+            );
+            const labelPoint = points[0];
+            return (
+              <g
+                key={warning.id}
+                className={`radar-warning radar-warning-${(warning.hazard ?? "warning").toLowerCase()}`}
+              >
+                <polygon
+                  points={points.map((point) => `${point.x},${point.y}`).join(" ")}
+                />
+                <text x={labelPoint.x + 6} y={labelPoint.y - 6}>
+                  {warning.label}
+                </text>
+              </g>
+            );
+          })}
+
+        {layers.reports &&
+          pointOverlays.map((overlay) => {
+            const point = screenPoint(
+              latLonToLocal(
+                overlay.lat,
+                overlay.lon,
+                radarLatitude,
+                radarLongitude,
+              ),
+              view,
+              size,
+            );
+            return (
+              <g
+                key={overlay.id}
+                className={`radar-point-overlay radar-point-${(overlay.kind ?? "report").toLowerCase()}`}
+                transform={`translate(${point.x} ${point.y})`}
+              >
+                <circle r="5" />
+                <path d="M -7 0 L 7 0 M 0 -7 L 0 7" />
+                <text x="9" y="-8">{overlay.label}</text>
               </g>
             );
           })}
