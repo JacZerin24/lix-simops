@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
-from backend.app.state import manager, warning_from_definition
+from backend.app.state import SessionManager, manager, warning_from_definition
 
 
 def receive_type(socket, expected: str) -> dict:
@@ -381,3 +381,43 @@ def test_direct_warning_update_and_cancel_require_svs() -> None:
             socket.send_json({"type": "warning_cancel", "warning_id": "unused"})
             error = receive_type(socket, "error")
             assert "svs" in error["message"].lower()
+
+
+
+def test_inherited_warning_is_forked_per_team() -> None:
+    start = datetime(2027, 2, 6, 20, 45, tzinfo=timezone.utc)
+    local_manager = SessionManager()
+    state = local_manager.create(
+        scenario_id="test",
+        scenario_name="Test",
+        scenario_start=start,
+        default_speed=1.0,
+        initial_warnings=[
+            {
+                "id": "inherited-tor",
+                "hazard": "TOR",
+                "issued_at": (start - timedelta(minutes=10)).isoformat(),
+                "expires_at": (start + timedelta(minutes=20)).isoformat(),
+                "points": [
+                    {"lat": 29.90, "lon": -90.30},
+                    {"lat": 30.10, "lon": -90.20},
+                    {"lat": 29.95, "lon": -90.00},
+                ],
+            }
+        ],
+    )
+
+    assert state.warnings == []
+
+    state.ensure_team_warnings("Team 1")
+    state.ensure_team_warnings("Team 2")
+
+    assert len(state.warnings) == 2
+    team_one = next(w for w in state.warnings if w.team_id == "Team 1")
+    team_two = next(w for w in state.warnings if w.team_id == "Team 2")
+    assert team_one.id != team_two.id
+    assert team_one.inherited is True
+    assert team_two.inherited is True
+
+    team_one.status = "cancelled"
+    assert team_two.status == "active"
