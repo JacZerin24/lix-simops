@@ -299,7 +299,6 @@ function App() {
             <RadarOperator
               sessionCode={activeSessionCode}
               warnings={warnings}
-              onWarningAction={send}
             />
           )}
           {role === "mesoanalyst" && <Mesoanalyst sessionCode={activeSessionCode} />}
