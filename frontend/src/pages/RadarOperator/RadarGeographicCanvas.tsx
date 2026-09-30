@@ -897,6 +897,7 @@ export function RadarGeographicCanvas({
   };
 
   const radarScreen = screenPoint({ xKm: 0, yKm: 0 }, view, size);
+  const showHighwayLabels = view.kmPerPixel <= 0.38;
 
   return (
     <div
@@ -931,8 +932,12 @@ export function RadarGeographicCanvas({
               ),
             );
             const labelPoint = points[Math.floor(points.length / 2)];
+            const isInterstate = highway.name.startsWith("I-");
             return (
-              <g key={highway.name} className="radar-highway">
+              <g
+                key={highway.name}
+                className={`radar-highway ${isInterstate ? "interstate" : "us-highway"}`}
+              >
                 <polyline
                   className="casing"
                   points={points.map((point) => `${point.x},${point.y}`).join(" ")}
@@ -941,10 +946,16 @@ export function RadarGeographicCanvas({
                   className="centerline"
                   points={points.map((point) => `${point.x},${point.y}`).join(" ")}
                 />
-                {labelPoint && (
-                  <text x={labelPoint.x + 5} y={labelPoint.y - 5}>
-                    {highway.name}
-                  </text>
+                {showHighwayLabels && labelPoint && (
+                  <g
+                    className="radar-highway-shield"
+                    transform={`translate(${labelPoint.x} ${labelPoint.y})`}
+                  >
+                    <rect x="-18" y="-9" width="36" height="18" rx="6" />
+                    <text x="0" y="4" textAnchor="middle">
+                      {highway.name}
+                    </text>
+                  </g>
                 )}
               </g>
             );
