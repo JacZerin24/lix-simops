@@ -417,6 +417,8 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
         websocket=websocket,
         participant=participant,
     )
+    if role != Role.FACILITATOR:
+        session.ensure_team_warnings(participant.team_id)
 
     await websocket.send_json(
         session.session_snapshot(include_schedule=role == Role.FACILITATOR)
@@ -608,13 +610,6 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                 if warning is None or warning.team_id != participant.team_id:
                     await send_error(websocket, "Warning not found for this team")
                     continue
-                if warning.inherited:
-                    await send_error(
-                        websocket,
-                        "Inherited warnings are not yet editable in multi-team follow-up mode",
-                    )
-                    continue
-
                 action = str(message.get("action", "")).upper()
                 if action not in {"COR", "CON", "CAN", "EXP"}:
                     await send_error(websocket, "SVS action must be COR, CON, CAN, or EXP")
