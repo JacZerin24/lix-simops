@@ -963,6 +963,46 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
       }));
     }
 
+    if (warnTrackType === "line_of_storms") {
+      if (
+        !warnDisplayedLine ||
+        warnDisplayedLine.length !== 2 ||
+        data?.radar_latitude == null ||
+        data.radar_longitude == null
+      ) {
+        return [];
+      }
+
+      const center = radarMidpoint(
+        warnDisplayedLine[0],
+        warnDisplayedLine[1],
+        data.radar_latitude,
+        data.radar_longitude,
+      );
+      center.timestamp = frame.timestamp;
+
+      return [
+        {
+          id: "warn-line-0",
+          point: warnDisplayedLine[0],
+          label: "Line end",
+          kind: "line" as const,
+        },
+        {
+          id: "warn-line-center",
+          point: center,
+          label: "Drag line",
+          kind: "storm" as const,
+        },
+        {
+          id: "warn-line-1",
+          point: warnDisplayedLine[1],
+          label: "Line end",
+          kind: "line" as const,
+        },
+      ];
+    }
+
     let point: RadarMapPoint;
     if (!warnCurrentPoint) {
       const geographic =
@@ -1005,8 +1045,10 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     view.centerXKm,
     view.centerYKm,
     warnCurrentPoint,
+    warnDisplayedLine,
     warnPolygon,
     warnPreviousPoint,
+    warnTrackType,
     warnTracked,
   ]);
 
@@ -1017,7 +1059,11 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
       setWarnPolygon((current) =>
         current.map((existing, itemIndex) =>
           itemIndex === index
-            ? { ...point, timestamp: existing.timestamp ?? warnCurrentPoint?.timestamp }
+            ? {
+                ...point,
+                timestamp:
+                  existing.timestamp ?? warnCurrentReference?.timestamp,
+              }
             : existing,
         ),
       );
@@ -1026,7 +1072,76 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
       return;
     }
 
-    if (id !== "warn-storm" || !frame) return;
+    if (!frame) return;
+
+    if (warnTrackType === "line_of_storms") {
+      if (
+        !warnDisplayedLine ||
+        warnDisplayedLine.length !== 2 ||
+        data?.radar_latitude == null ||
+        data.radar_longitude == null
+      ) {
+        return;
+      }
+
+      let nextLine = warnDisplayedLine.map((existing) => ({
+        ...existing,
+        timestamp: frame.timestamp,
+      }));
+
+      if (id === "warn-line-center") {
+        const center = radarMidpoint(
+          nextLine[0],
+          nextLine[1],
+          data.radar_latitude,
+          data.radar_longitude,
+        );
+        const dx = point.xKm - center.xKm;
+        const dy = point.yKm - center.yKm;
+        nextLine = nextLine.map((existing) => {
+          const xKm = existing.xKm + dx;
+          const yKm = existing.yKm + dy;
+          return {
+            xKm,
+            yKm,
+            ...localToLatLon(
+              xKm,
+              yKm,
+              data.radar_latitude!,
+              data.radar_longitude!,
+            ),
+            timestamp: frame.timestamp,
+          };
+        });
+      } else if (id === "warn-line-0" || id === "warn-line-1") {
+        const index = id === "warn-line-0" ? 0 : 1;
+        nextLine[index] = { ...point, timestamp: frame.timestamp };
+      } else {
+        return;
+      }
+
+      const currentTimestamp =
+        warnCurrentLine?.[0]?.timestamp ?? frame.timestamp;
+      const frameMs = new Date(frame.timestamp).getTime();
+      const currentMs = new Date(currentTimestamp).getTime();
+
+      if (!warnCurrentLine || frameMs >= currentMs) {
+        setWarnCurrentLine(nextLine);
+        if (warnCurrentLine && frameMs > currentMs) {
+          setWarnPreviousLine(null);
+        }
+      } else {
+        setWarnPreviousLine(nextLine);
+      }
+
+      setWarnPolygon([]);
+      setWarnTracked(false);
+      setWarnHatched(false);
+      setWarnDraftText("");
+      return;
+    }
+
+    if (id !== "warn-storm") return;
 
     if (!warnCurrentPoint) {
       setWarnCurrentPoint({ ...point, timestamp: frame.timestamp });
