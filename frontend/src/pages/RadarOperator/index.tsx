@@ -910,6 +910,8 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     setToolPoints([]);
     setWarnCurrentPoint(null);
     setWarnPreviousPoint(null);
+    setWarnCurrentLine(null);
+    setWarnPreviousLine(null);
     setWarnPolygon([]);
     setWarnTracked(false);
     setWarnHatched(false);
@@ -925,6 +927,19 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     setWarnTracked(false);
     setWarnHatched(false);
     resetWarnGenSelections();
+    goLatest();
+  };
+
+  const changeWarnTrackType = (next: WarnTrackType) => {
+    setWarnTrackType(next);
+    setWarnCurrentPoint(null);
+    setWarnPreviousPoint(null);
+    setWarnCurrentLine(null);
+    setWarnPreviousLine(null);
+    setWarnPolygon([]);
+    setWarnTracked(false);
+    setWarnHatched(false);
+    setWarnDraftText("");
     goLatest();
   };
 
