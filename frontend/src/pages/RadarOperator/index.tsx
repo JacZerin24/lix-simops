@@ -47,6 +47,7 @@ type WarnBasis =
 
 type TorHeadline = "base" | "considerable" | "emergency" | "landspout";
 type WarnLocationMode = "pathcast" | "cities";
+type WarnTrackType = "one_storm" | "line_of_storms";
 
 type RadarTool =
   | "cursor"
@@ -137,6 +138,42 @@ function warningAreaLabel(fips: string, name: string) {
   return fips.startsWith("22") ? `${name} Parish` : `${name} County`;
 }
 
+function radarMidpoint(
+  first: RadarMapPoint,
+  second: RadarMapPoint,
+  radarLatitude: number,
+  radarLongitude: number,
+): RadarMapPoint {
+  const xKm = (first.xKm + second.xKm) / 2;
+  const yKm = (first.yKm + second.yKm) / 2;
+  return {
+    xKm,
+    yKm,
+    ...localToLatLon(xKm, yKm, radarLatitude, radarLongitude),
+    timestamp: first.timestamp ?? second.timestamp,
+  };
+}
+
+function defaultWarnLine(
+  centerXKm: number,
+  centerYKm: number,
+  timestamp: string,
+  radarLatitude: number,
+  radarLongitude: number,
+): RadarMapPoint[] {
+  const halfLengthKm = 30;
+  return [-halfLengthKm, halfLengthKm].map((offset) => {
+    const xKm = centerXKm;
+    const yKm = centerYKm + offset;
+    return {
+      xKm,
+      yKm,
+      ...localToLatLon(xKm, yKm, radarLatitude, radarLongitude),
+      timestamp,
+    };
+  });
+}
+
 function warningBasisDetails(hazard: "TOR" | "SVR", basis: WarnBasis) {
   const sourceLabels: Record<WarnBasis, string> = {
     doppler: "RADAR INDICATED",
@@ -212,8 +249,11 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
   const [toolPoints, setToolPoints] = useState<RadarMapPoint[]>([]);
   const [warningHazard, setWarningHazard] = useState<"TOR" | "SVR">("TOR");
   const [warningDuration, setWarningDuration] = useState(30);
+  const [warnTrackType, setWarnTrackType] = useState<WarnTrackType>("one_storm");
   const [warnCurrentPoint, setWarnCurrentPoint] = useState<RadarMapPoint | null>(null);
   const [warnPreviousPoint, setWarnPreviousPoint] = useState<RadarMapPoint | null>(null);
+  const [warnCurrentLine, setWarnCurrentLine] = useState<RadarMapPoint[] | null>(null);
+  const [warnPreviousLine, setWarnPreviousLine] = useState<RadarMapPoint[] | null>(null);
   const [warnPolygon, setWarnPolygon] = useState<RadarMapPoint[]>([]);
   const [warnTracked, setWarnTracked] = useState(false);
   const [warnHatched, setWarnHatched] = useState(false);
