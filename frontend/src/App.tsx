@@ -287,6 +287,7 @@ function App() {
           participants={participants}
           events={events}
           schedule={schedule}
+          warnings={warnings}
           onControl={sendControl}
           onInject={sendInject}
           onPartnerMessage={sendPartnerMessage}
