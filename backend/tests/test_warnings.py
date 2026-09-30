@@ -186,7 +186,11 @@ def test_warngen_durations_and_attributes_are_preserved() -> None:
                         {"lat": 30.20, "lon": -90.10},
                         {"lat": 30.00, "lon": -90.00},
                     ],
-                    "attributes": {"severe_wind_mph": 80},
+                    "text": "...THIS IS AN EXERCISE...",
+                    "attributes": {
+                        "track_type": "one_storm",
+                        "severe_wind_mph": 80,
+                    },
                 }
             )
 
