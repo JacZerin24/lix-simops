@@ -73,7 +73,7 @@ def radar_payload(
         selected_elevation,
     )
 
-    scenario_root = f"/scenario-data/{session.scenario_id}"
+    session_root = f"/api/sessions/{session.code}/assets"
     return {
         "available": True,
         "scenario_id": session.scenario_id,
@@ -103,9 +103,9 @@ def radar_payload(
                 "timestamp": frame.timestamp.isoformat(),
                 "product": frame.product,
                 "elevation": frame.elevation,
-                "asset_url": f"{scenario_root}/{frame.asset.lstrip('/')}",
+                "asset_url": f"{session_root}/{frame.asset.lstrip('/')}",
                 "data_url": (
-                    f"{scenario_root}/{frame.data.asset.lstrip('/')}"
+                    f"{session_root}/{frame.data.asset.lstrip('/')}"
                     if frame.data is not None
                     else None
                 ),
