@@ -8,7 +8,7 @@ type SocketOptions = {
 };
 
 export function createSimulationSocket(options: SocketOptions): WebSocket {
-  const base = import.meta.env.VITE_WS_BASE ?? "ws://localhost:8000";
+  const defaultBase = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;\n  const base = import.meta.env.VITE_WS_BASE || defaultBase;
   const params = new URLSearchParams({
     display_name: options.displayName,
     team_id: options.teamId,
