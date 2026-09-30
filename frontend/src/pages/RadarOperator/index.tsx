@@ -738,12 +738,17 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
             ["distance-bearing", "Distance / Bearing"],
             ["distance-speed", "Distance / Speed"],
             ["storm-track", "Storm Track"],
+            ["warngen", "WarnGen"],
           ] as const
         ).map(([id, label]) => (
           <button
             key={id}
             className={tool === id ? "active" : ""}
-            onClick={() => setTool(id)}
+            onClick={() => {
+              setTool(id);
+              setToolPoints([]);
+              setEditingWarningId(null);
+            }}
           >
             {label}
           </button>
@@ -755,6 +760,106 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
           </button>
         )}
       </div>
+
+      {tool === "warngen" && (
+        <div className="radar-warngen-panel">
+          <div>
+            <strong>WarnGen</strong>
+            <span className="muted">
+              Click 3–12 vertices on the radar to define the warning polygon.
+            </span>
+          </div>
+          <label>
+            Warning
+            <select
+              value={warningHazard}
+              disabled={Boolean(editingWarningId)}
+              onChange={(event) => setWarningHazard(event.target.value as "TOR" | "SVR")}
+            >
+              <option value="TOR">Tornado Warning</option>
+              <option value="SVR">Severe Thunderstorm Warning</option>
+            </select>
+          </label>
+          <label>
+            Duration
+            <select
+              value={warningDuration}
+              disabled={Boolean(editingWarningId)}
+              onChange={(event) => setWarningDuration(Number(event.target.value))}
+            >
+              <option value={15}>15 min</option>
+              <option value={30}>30 min</option>
+              <option value={45}>45 min</option>
+              <option value={60}>60 min</option>
+            </select>
+          </label>
+          <span className="radar-warngen-count">
+            {toolPoints.length} {toolPoints.length === 1 ? "vertex" : "vertices"}
+          </span>
+          <button
+            className="primary-action"
+            disabled={toolPoints.length < 3}
+            onClick={issueOrUpdateWarning}
+          >
+            {editingWarningId ? "Update Warning Polygon" : "Issue Warning"}
+          </button>
+          <button
+            onClick={() => {
+              setToolPoints([]);
+              setEditingWarningId(null);
+            }}
+            disabled={toolPoints.length === 0 && !editingWarningId}
+          >
+            Clear / Cancel
+          </button>
+        </div>
+      )}
+
+      {activeWarnings.length > 0 && (
+        <div className="radar-active-warnings">
+          <strong>Active Warnings</strong>
+          {activeWarnings.map((warning) => (
+            <div className="radar-active-warning" key={warning.id}>
+              <div>
+                <span className={`warning-badge ${warning.hazard.toLowerCase()}`}>
+                  {warning.hazard}
+                </span>
+                <strong>{warning.label}</strong>
+                <span>
+                  expires {new Date(warning.expires_at).toISOString().slice(11, 16)}Z
+                </span>
+                {warning.inherited && <span>Inherited at exercise start</span>}
+              </div>
+              {!warning.inherited && (
+                <div className="radar-warning-actions">
+                  <button onClick={() => beginWarningRedraw(warning)}>Redraw</button>
+                  <button
+                    onClick={() =>
+                      onWarningAction({
+                        type: "warning_update",
+                        warning_id: warning.id,
+                        extend_minutes: 15,
+                      })
+                    }
+                  >
+                    +15 min
+                  </button>
+                  <button
+                    onClick={() =>
+                      onWarningAction({
+                        type: "warning_cancel",
+                        warning_id: warning.id,
+                      })
+                    }
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {error && <div className="error-banner">{error}</div>}
 
