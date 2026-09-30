@@ -1045,6 +1045,27 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   stroke-linejoin: round;
 }
 
+.warngen-hatch-line {
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 2;
+}
+.warngen-hatched-preview > polygon {
+  fill: url(#warngen-hatch-pattern);
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.warngen-w-marker {
+  fill: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 18px;
+  font-weight: 900;
+  paint-order: stroke;
+  stroke: #050a11;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
 .radar-render-status,
 .radar-render-fallback,
 .radar-legacy-badge {
