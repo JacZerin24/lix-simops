@@ -893,7 +893,11 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
 
   const resetWarnGenSelections = () => {
     setWarnTorHeadline("base");
-    setWarnBasis("doppler");
+    setWarnBasis(
+      warningHazard === "TOR" && warnTrackType === "line_of_storms"
+        ? "doppler_squall"
+        : "doppler",
+    );
     setWarnTorHail("small");
     setWarnSvrWind(60);
     setWarnSvrHail(1);
@@ -927,6 +931,8 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     setPlaying(false);
     setWarnCurrentPoint(null);
     setWarnPreviousPoint(null);
+    setWarnCurrentLine(null);
+    setWarnPreviousLine(null);
     setWarnPolygon([]);
     setWarnTracked(false);
     setWarnHatched(false);
