@@ -6,7 +6,7 @@ rem maps the package's UNC folder to a temporary drive letter when needed.
 pushd "%~dp0"
 if errorlevel 1 (
   echo ERROR: SimOps could not access the extracted package folder:
-  echo %~dp0
+  echo "%~dp0"
   echo.
   echo Please copy this entire window and send it for troubleshooting.
   pause
@@ -120,6 +120,14 @@ echo.
 start "" powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 2; Start-Process 'http://localhost:8000'"
 
 "%SIMOPS_VENV%\Scripts\python.exe" -m uvicorn backend.app.main:app --host %SIMOPS_HOST% --port 8000
+if errorlevel 1 (
+  echo.
+  echo ERROR: The SimOps server stopped unexpectedly.
+  echo Please copy this entire window and send it for troubleshooting.
+  pause
+  popd
+  exit /b 1
+)
 popd
 goto :eof
 
