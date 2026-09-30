@@ -150,6 +150,21 @@ export type RadarWarningOverlay = {
   points: RadarOverlayPoint[];
 };
 
+
+export type WarningRecord = {
+  id: string;
+  hazard: "TOR" | "SVR" | string;
+  label: string;
+  team_id: string;
+  points: RadarOverlayPoint[];
+  issued_at: string;
+  expires_at: string;
+  issuer: string;
+  status: "active" | "cancelled" | "expired" | string;
+  inherited: boolean;
+  text?: string;
+};
+
 export type RadarPointOverlay = {
   id: string;
   label: string;
