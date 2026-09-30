@@ -103,6 +103,14 @@ def warning_from_definition(
         for point in definition.get("points", [])
         if "lat" in point and "lon" in point
     ]
+    if hazard not in {"TOR", "SVR"}:
+        raise ValueError("Inherited warning type must be TOR or SVR")
+    if len(points) < 3:
+        raise ValueError("Inherited warning polygon requires at least three vertices")
+    if issued_at > scenario_start or expires_at <= scenario_start:
+        raise ValueError(
+            "Inherited warnings must be issued before or at T=0 and remain valid after T=0"
+        )
     return WarningState(
         id=str(definition.get("id") or f"inherited-{hazard.lower()}"),
         hazard=hazard,
