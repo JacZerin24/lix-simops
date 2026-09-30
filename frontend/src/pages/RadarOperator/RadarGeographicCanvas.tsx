@@ -10,7 +10,7 @@ import {
 import { feature } from "topojson-client";
 import countiesTopology from "us-atlas/counties-10m.json";
 
-import type { RadarFrame, RadarGridMetadata, RadarProductSummary } from "../../types/simulation";
+import type { RadarEventMarker, RadarFrame, RadarGridMetadata, RadarPointOverlay, RadarProductSummary, RadarWarningOverlay } from "../../types/simulation";
 
 export type RadarView = {
   centerXKm: number;
@@ -22,7 +22,12 @@ export type RadarLayerState = {
   counties: boolean;
   states: boolean;
   cities: boolean;
+  highways: boolean;
   rangeRings: boolean;
+  radarSite: boolean;
+  event: boolean;
+  warnings: boolean;
+  reports: boolean;
 };
 
 export type RadarMapPoint = {
@@ -56,6 +61,9 @@ type Props = {
   rangeKm: number;
   view: RadarView;
   layers: RadarLayerState;
+  eventMarker?: RadarEventMarker | null;
+  warningPolygons?: RadarWarningOverlay[];
+  pointOverlays?: RadarPointOverlay[];
   annotations?: RadarAnnotation[];
   onViewChange: (view: RadarView) => void;
   onCursorSample: (sample: CursorSample | null) => void;
@@ -93,6 +101,103 @@ const CITIES = [
   { name: "Biloxi", lat: 30.396, lon: -88.8853 },
   { name: "Grand Isle", lat: 29.2366, lon: -89.9873 },
 ];
+
+const MAJOR_HIGHWAYS = [
+  {
+    name: "I-10",
+    points: [
+      [30.4515, -91.1871],
+      [30.315, -91.02],
+      [30.218, -90.922],
+      [30.105, -90.671],
+      [30.062, -90.482],
+      [29.994, -90.286],
+      [29.963, -90.119],
+      [29.974, -90.067],
+      [30.031, -89.97],
+      [30.142, -89.88],
+      [30.274, -89.781],
+      [30.36, -89.39],
+      [30.396, -88.91],
+    ],
+  },
+  {
+    name: "I-12",
+    points: [
+      [30.46, -91.14],
+      [30.47, -90.96],
+      [30.50, -90.75],
+      [30.505, -90.46],
+      [30.47, -90.23],
+      [30.45, -90.10],
+      [30.30, -89.79],
+    ],
+  },
+  {
+    name: "I-55",
+    points: [
+      [30.06, -90.48],
+      [30.25, -90.45],
+      [30.44, -90.44],
+      [30.51, -90.46],
+      [30.73, -90.51],
+      [31.24, -90.45],
+    ],
+  },
+  {
+    name: "I-59",
+    points: [
+      [30.29, -89.78],
+      [30.53, -89.68],
+      [30.84, -89.54],
+      [31.31, -89.31],
+    ],
+  },
+  {
+    name: "I-310",
+    points: [
+      [30.00, -90.31],
+      [29.96, -90.36],
+      [29.90, -90.39],
+    ],
+  },
+  {
+    name: "I-610",
+    points: [
+      [29.986, -90.118],
+      [29.994, -90.083],
+      [30.006, -90.045],
+      [30.015, -90.014],
+    ],
+  },
+  {
+    name: "I-510",
+    points: [
+      [30.015, -89.964],
+      [29.972, -89.973],
+      [29.922, -89.982],
+    ],
+  },
+  {
+    name: "I-110",
+    points: [
+      [30.36, -91.19],
+      [30.43, -91.18],
+      [30.52, -91.17],
+    ],
+  },
+  {
+    name: "US 90",
+    points: [
+      [29.95, -90.07],
+      [29.91, -90.20],
+      [29.90, -90.39],
+      [29.80, -90.53],
+      [29.73, -90.60],
+      [29.70, -91.20],
+    ],
+  },
+] as const;
 
 const REGION_STATE_FIPS = new Set(["01", "22", "28"]);
 
@@ -494,6 +599,9 @@ export function RadarGeographicCanvas({
   rangeKm,
   view,
   layers,
+  eventMarker = null,
+  warningPolygons = [],
+  pointOverlays = [],
   annotations = [],
   onViewChange,
   onCursorSample,
