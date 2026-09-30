@@ -1,6 +1,6 @@
 import type { EventOperationsConfig, MesoFrameResponse, RadarFrameResponse, ScenarioSummary, SessionState } from "../types/simulation";
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE || "";
 
 export async function listScenarios(): Promise<ScenarioSummary[]> {
   const response = await fetch(`${API_BASE}/api/scenarios`);
