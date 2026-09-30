@@ -6,11 +6,12 @@ from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .models import Role, SessionCreateRequest
-from .services.meso_data import meso_payload
-from .services.radar_data import CACHE_ROOT, radar_payload
+from .services.meso_data import load_meso_manifest, meso_payload
+from .services.radar_data import CACHE_ROOT, load_radar_manifest, radar_payload
 from .services.scenario_loader import (
     list_scenarios,
     load_event_config,
@@ -19,7 +20,8 @@ from .services.scenario_loader import (
 )
 from .state import ClientConnection, Participant, ScheduledItem, SessionState, manager
 
-app = FastAPI(title="LIX SimOps API", version="0.5.0")
+app = FastAPI(title="LIX SimOps API", version="0.8.0")
+FRONTEND_DIST = CACHE_ROOT.parents[1] / "frontend" / "dist"
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,13 +30,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.mount(
-    "/scenario-data",
-    StaticFiles(directory=str(CACHE_ROOT), check_dir=False),
-    name="scenario-data",
-)
-
 
 @app.get("/health")
 def health() -> dict[str, str]:
@@ -87,6 +82,49 @@ def get_event_config(session_code: str) -> dict:
         raise HTTPException(status_code=404, detail="Session not found")
     scenario = load_scenario_by_id(session.scenario_id)
     return load_event_config(scenario)
+
+
+@app.get("/api/sessions/{session_code}/assets/{asset_path:path}")
+def get_participant_asset(session_code: str, asset_path: str):
+    session = manager.get(session_code)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    allowed = False
+    radar_manifest = load_radar_manifest(session.scenario_id)
+    if radar_manifest is not None:
+        allowed = any(
+            (
+                frame.asset == asset_path
+                or (frame.data is not None and frame.data.asset == asset_path)
+            )
+            and frame.timestamp <= session.sim_time
+            for frame in radar_manifest.frames
+        )
+
+    if not allowed:
+        meso_manifest = load_meso_manifest(session.scenario_id)
+        if meso_manifest is not None:
+            allowed = any(
+                frame.asset == asset_path and frame.timestamp <= session.sim_time
+                for frame in meso_manifest.frames
+            )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=404,
+            detail="Asset not available at the current simulation time",
+        )
+
+    scenario_root = (CACHE_ROOT / session.scenario_id).resolve()
+    candidate = (scenario_root / asset_path).resolve()
+    if not candidate.is_relative_to(scenario_root) or not candidate.is_file():
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    return FileResponse(
+        candidate,
+        headers={"Cache-Control": "private, max-age=3600, immutable"},
+    )
 
 
 @app.get("/api/sessions/{session_code}/radar/frames")
@@ -462,3 +500,9 @@ async def start_clock_task() -> None:
                         await broadcast_clock(session)
 
     asyncio.create_task(ticker())
+
+
+# Portable/single-server mode: serve the prebuilt React app from FastAPI.
+# API and WebSocket routes above retain precedence over this catch-all mount.
+if FRONTEND_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
