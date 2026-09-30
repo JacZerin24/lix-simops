@@ -683,6 +683,23 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     setToolPoints((current) => (current.length >= 2 ? [point] : [...current, point]));
   };
 
+  const resetWarnGenSelections = () => {
+    setWarnTorHeadline("base");
+    setWarnBasis("doppler");
+    setWarnTorHail("small");
+    setWarnSvrWind(60);
+    setWarnSvrHail(1);
+    setWarnObservedWind(false);
+    setWarnObservedHail(false);
+    setWarnTornadoPossible(false);
+    setWarnLocationMode("pathcast");
+    setWarnSpecialEvent(false);
+    setWarnRainWrappedCta(false);
+    setWarnNighttimeCta(false);
+    setWarnTorrentialRainfallCta(false);
+    setWarnDraftText("");
+  };
+
   const startWarnGen = () => {
     setPlaying(false);
     setTool("warngen");
@@ -692,6 +709,7 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     setWarnPolygon([]);
     setWarnTracked(false);
     setWarnHatched(false);
+    resetWarnGenSelections();
     goLatest();
   };
 
@@ -702,6 +720,7 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     setWarnPolygon([]);
     setWarnTracked(false);
     setWarnHatched(false);
+    resetWarnGenSelections();
     goLatest();
   };
 
@@ -710,6 +729,7 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     setWarnPolygon(warnProjection.polygon);
     setWarnTracked(true);
     setWarnHatched(false);
+    setWarnDraftText("");
   };
 
   const warnHandles = useMemo<RadarDraggableHandle[]>(() => {
@@ -783,6 +803,7 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
         ),
       );
       setWarnHatched(false);
+      setWarnDraftText("");
       return;
     }
 
@@ -805,6 +826,8 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     }
     setWarnPolygon([]);
     setWarnTracked(false);
+    setWarnHatched(false);
+    setWarnDraftText("");
   };
 
   const warnAffectedCounties = useMemo(
@@ -825,7 +848,214 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     ],
   );
 
-  const activeWarnings = warnings.filter((warning) => warning.status === "active");
+  const warnNearestCity = useMemo(
+    () =>
+      warnCurrentPoint &&
+      data?.radar_latitude != null &&
+      data.radar_longitude != null
+        ? getNearestWarnGenCity(
+            warnCurrentPoint,
+            data.radar_latitude,
+            data.radar_longitude,
+          )
+        : null,
+    [
+      data?.radar_latitude,
+      data?.radar_longitude,
+      warnCurrentPoint,
+    ],
+  );
+
+  const warnImpactedCities = useMemo(
+    () =>
+      warnPolygon.length >= 3 &&
+      data?.radar_latitude != null &&
+      data.radar_longitude != null
+        ? getWarnGenImpactedCities(
+            warnPolygon,
+            data.radar_latitude,
+            data.radar_longitude,
+          )
+        : [],
+    [
+      data?.radar_latitude,
+      data?.radar_longitude,
+      warnPolygon,
+    ],
+  );
+
+  const createWarnGenText = () => {
+    if (
+      !data?.sim_time ||
+      !warnMeasurement ||
+      !warnCurrentPoint ||
+      warnPolygon.length < 3
+    ) {
+      return;
+    }
+
+    const timeZone = eventConfig?.event?.timezone ?? "America/Chicago";
+    const issueTime = new Date(data.sim_time);
+    const expireTime = new Date(issueTime.getTime() + warningDuration * 60000);
+    const issueLabel = localWarnTime(issueTime, timeZone);
+    const expireLabel = localWarnTime(expireTime, timeZone);
+    const motionDirection = compassDirection(warnMeasurement.bearing);
+    const motionMph = Math.max(1, Math.round(warnMeasurement.speedKt * 1.15078));
+    const basis = warningBasisDetails(warningHazard, warnBasis);
+    const nearestCity = warnNearestCity?.name ?? "the warned area";
+    const areaLabels = warnAffectedCounties.map((county) =>
+      warningAreaLabel(county.fips, county.name),
+    );
+    const locations = warnImpactedCities.length > 0
+      ? warnImpactedCities
+      : areaLabels;
+    const eventName =
+      eventConfig?.event?.name ??
+      eventConfig?.event?.pre_parade?.name ??
+      "the special event";
+
+    const lines: string[] = [
+      "BULLETIN - EAS ACTIVATION REQUESTED",
+      warningHazard === "TOR" ? "TORNADO WARNING" : "SEVERE THUNDERSTORM WARNING",
+      "NATIONAL WEATHER SERVICE NEW ORLEANS/BATON ROUGE LA",
+      warningHeaderTime(issueTime, timeZone),
+      "",
+      "...THIS IS AN EXERCISE...",
+      "",
+      "THE NATIONAL WEATHER SERVICE IN NEW ORLEANS HAS ISSUED A",
+      `* ${warningHazard === "TOR" ? "TORNADO WARNING" : "SEVERE THUNDERSTORM WARNING"} FOR...`,
+      ...(areaLabels.length > 0
+        ? areaLabels.map((area) => `  ${area.toUpperCase()}`)
+        : ["  PORTIONS OF THE LIX WARNING AREA"]),
+      `* UNTIL ${expireLabel}.`,
+      `* AT ${issueLabel}, ${basis.phrase} NEAR ${nearestCity.toUpperCase()}, MOVING ${motionDirection} AT ${motionMph} MPH.`,
+      "",
+    ];
+
+    if (warningHazard === "TOR") {
+      const hailText =
+        warnTorHail === "none"
+          ? ""
+          : warnTorHail === "small"
+            ? " Small hail is also possible."
+            : ` Hail up to ${Number(warnTorHail).toFixed(2)} inches is also possible.`;
+
+      if (warnTorHeadline === "emergency") {
+        lines.push("...TORNADO EMERGENCY...");
+        lines.push("TORNADO DAMAGE THREAT...CATASTROPHIC");
+      } else if (warnTorHeadline === "considerable") {
+        lines.push("TORNADO DAMAGE THREAT...CONSIDERABLE");
+      }
+
+      lines.push("HAZARD...Tornado." + hailText);
+      lines.push(`SOURCE...${basis.source}.`);
+      lines.push(
+        warnTorHeadline === "landspout"
+          ? "IMPACT...Damage to roofs, siding, trees, and mobile homes is possible."
+          : "IMPACT...Flying debris will be dangerous. Mobile homes may be damaged or destroyed. Damage to roofs, windows, vehicles, and trees is possible.",
+      );
+    } else {
+      lines.push(
+        `HAZARD...${warnSvrWind} MPH wind gusts and ${warnSvrHail.toFixed(2)} inch hail.`,
+      );
+      lines.push(`SOURCE...${basis.source}.`);
+      if (warnObservedWind) lines.push("WIND THREAT...OBSERVED.");
+      if (warnObservedHail) lines.push("HAIL THREAT...OBSERVED.");
+      if (warnTornadoPossible) lines.push("TORNADO...POSSIBLE.");
+      lines.push(
+        "IMPACT...Hail damage to vehicles is expected. Expect wind damage to roofs, siding, and trees.",
+      );
+    }
+
+    lines.push("");
+    lines.push(
+      warnLocationMode === "pathcast"
+        ? "* THIS STORM WILL BE NEAR..."
+        : "* LOCATIONS IMPACTED INCLUDE...",
+    );
+    if (locations.length > 0) {
+      locations.slice(0, 10).forEach((location) => {
+        lines.push(`  ${location.toUpperCase()}`);
+      });
+    } else {
+      lines.push("  PORTIONS OF THE WARNED AREA");
+    }
+
+    if (warnSpecialEvent) {
+      lines.push("");
+      lines.push(
+        `THOSE ATTENDING ${eventName.toUpperCase()} SHOULD FOLLOW INSTRUCTIONS FROM EVENT OFFICIALS AND BE PREPARED TO MOVE TO SAFE SHELTER.`,
+      );
+    }
+
+    lines.push("");
+    lines.push("PRECAUTIONARY/PREPAREDNESS ACTIONS...");
+    if (warningHazard === "TOR") {
+      lines.push(
+        "TAKE COVER NOW. MOVE TO AN INTERIOR ROOM ON THE LOWEST FLOOR OF A STURDY BUILDING. AVOID WINDOWS.",
+      );
+    } else {
+      lines.push(
+        "FOR YOUR PROTECTION MOVE TO AN INTERIOR ROOM ON THE LOWEST FLOOR OF A BUILDING.",
+      );
+    }
+    if (warnRainWrappedCta) {
+      lines.push("HEAVY RAINFALL MAY HIDE THE TORNADO. DO NOT WAIT TO SEE OR HEAR IT.");
+    }
+    if (warnNighttimeCta) {
+      lines.push("TORNADOES AT NIGHT CAN BE DIFFICULT TO SEE. TAKE ACTION BASED ON THE WARNING.");
+    }
+    if (warnTorrentialRainfallCta) {
+      lines.push("TORRENTIAL RAINFALL IS OCCURRING WITH THIS STORM.");
+    }
+
+    lines.push("");
+    lines.push(`LAT...LON ${formatLatLonPolygon(warnPolygon)}`);
+    lines.push("");
+    lines.push("...END EXERCISE MESSAGE...");
+
+    setWarnDraftText(lines.join("\n"));
+  };
+
+  const issueWarnGenWarning = () => {
+    if (!warnDraftText.trim() || warnPolygon.length < 3 || !warnMeasurement) return;
+
+    onWarningAction({
+      type: "warning_issue",
+      hazard: warningHazard,
+      duration_minutes: warningDuration,
+      points: warnPolygon.map((point) => ({ lat: point.lat, lon: point.lon })),
+      text: warnDraftText,
+      attributes: {
+        track_type: "one_storm",
+        motion_bearing_deg: warnMeasurement.bearing,
+        motion_speed_kt: warnMeasurement.speedKt,
+        duration_minutes: warningDuration,
+        basis: warnBasis,
+        tornado_headline: warningHazard === "TOR" ? warnTorHeadline : null,
+        tornado_hail: warningHazard === "TOR" ? warnTorHail : null,
+        severe_wind_mph: warningHazard === "SVR" ? warnSvrWind : null,
+        severe_hail_inches: warningHazard === "SVR" ? warnSvrHail : null,
+        observed_wind: warningHazard === "SVR" ? warnObservedWind : false,
+        observed_hail: warningHazard === "SVR" ? warnObservedHail : false,
+        tornado_possible: warningHazard === "SVR" ? warnTornadoPossible : false,
+        location_mode: warnLocationMode,
+        special_event: warnSpecialEvent,
+        rain_wrapped_cta: warnRainWrappedCta,
+        nighttime_cta: warnNighttimeCta,
+        torrential_rainfall_cta: warnTorrentialRainfallCta,
+        affected_areas: warnAffectedCounties.map((county) => ({
+          fips: county.fips,
+          name: county.name,
+        })),
+        impacted_cities: warnImpactedCities,
+      },
+    });
+
+    restartWarnGen();
+  };
+
+    const activeWarnings = warnings.filter((warning) => warning.status === "active");
 
   const toolStatus = useMemo(() => {
     if (tool === "cursor") return "Cursor interrogation";
