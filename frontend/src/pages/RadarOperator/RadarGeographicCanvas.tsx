@@ -746,6 +746,47 @@ export function getWarnGenAffectedCounties(
   });
 }
 
+export function getNearestWarnGenCity(
+  point: RadarMapPoint,
+  radarLatitude: number,
+  radarLongitude: number,
+) {
+  let nearest: { name: string; distanceKm: number } | null = null;
+  for (const city of CITIES) {
+    const local = latLonToLocal(
+      city.lat,
+      city.lon,
+      radarLatitude,
+      radarLongitude,
+    );
+    const distanceKm = Math.hypot(
+      local.xKm - point.xKm,
+      local.yKm - point.yKm,
+    );
+    if (!nearest || distanceKm < nearest.distanceKm) {
+      nearest = { name: city.name, distanceKm };
+    }
+  }
+  return nearest;
+}
+
+export function getWarnGenImpactedCities(
+  warning: RadarMapPoint[],
+  radarLatitude: number,
+  radarLongitude: number,
+) {
+  if (warning.length < 3) return [];
+  return CITIES.filter((city) => {
+    const local = latLonToLocal(
+      city.lat,
+      city.lon,
+      radarLatitude,
+      radarLongitude,
+    );
+    return pointInPolygon(local, warning);
+  }).map((city) => city.name);
+}
+
 function mapPointFromClient(
   clientX: number,
   clientY: number,
@@ -1339,6 +1380,7 @@ export function RadarGeographicCanvas({
               >
                 <polygon
                   points={points.map((point) => `${point.x},${point.y}`).join(" ")}
+                  clipPath="url(#warngen-lix-cwa-clip)"
                 />
                 <text x={labelPoint.x + 6} y={labelPoint.y - 6}>
                   {warning.label}
