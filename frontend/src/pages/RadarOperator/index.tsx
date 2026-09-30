@@ -24,14 +24,29 @@ import {
   RadarMapPoint,
   RadarView,
   distanceBearing,
+  getNearestWarnGenCity,
   getWarnGenAffectedCounties,
+  getWarnGenImpactedCities,
   localToLatLon,
 } from "./RadarGeographicCanvas";
 
 type Props = {
   sessionCode: string;
   warnings: WarningRecord[];
+  onWarningAction: (payload: object) => void;
 };
+
+type WarnBasis =
+  | "doppler"
+  | "radar_confirmed"
+  | "spotter"
+  | "law_enforcement"
+  | "emergency_management"
+  | "broadcast_media"
+  | "public";
+
+type TorHeadline = "base" | "considerable" | "emergency" | "landspout";
+type WarnLocationMode = "pathcast" | "cities";
 
 type RadarTool =
   | "cursor"
@@ -70,7 +85,105 @@ function minutesBetween(first?: string, second?: string) {
   return (new Date(second).getTime() - new Date(first).getTime()) / 60000;
 }
 
-export function RadarOperator({ sessionCode, warnings }: Props) {
+function compassDirection(bearing: number) {
+  const labels = [
+    "NORTH",
+    "NORTH-NORTHEAST",
+    "NORTHEAST",
+    "EAST-NORTHEAST",
+    "EAST",
+    "EAST-SOUTHEAST",
+    "SOUTHEAST",
+    "SOUTH-SOUTHEAST",
+    "SOUTH",
+    "SOUTH-SOUTHWEST",
+    "SOUTHWEST",
+    "WEST-SOUTHWEST",
+    "WEST",
+    "WEST-NORTHWEST",
+    "NORTHWEST",
+    "NORTH-NORTHWEST",
+  ];
+  return labels[Math.round((((bearing % 360) + 360) % 360) / 22.5) % 16];
+}
+
+function localWarnTime(value: string | Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  })
+    .format(new Date(value))
+    .toUpperCase();
+}
+
+function warningHeaderTime(value: string | Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  })
+    .format(new Date(value))
+    .toUpperCase();
+}
+
+function warningAreaLabel(fips: string, name: string) {
+  return fips.startsWith("22") ? `${name} Parish` : `${name} County`;
+}
+
+function warningBasisDetails(hazard: "TOR" | "SVR", basis: WarnBasis) {
+  const sourceLabels: Record<WarnBasis, string> = {
+    doppler: "RADAR INDICATED",
+    radar_confirmed: "RADAR CONFIRMED",
+    spotter: "TRAINED WEATHER SPOTTERS",
+    law_enforcement: "LAW ENFORCEMENT",
+    emergency_management: "EMERGENCY MANAGEMENT",
+    broadcast_media: "BROADCAST MEDIA",
+    public: "PUBLIC",
+  };
+  const subject = hazard === "TOR"
+    ? "a severe thunderstorm capable of producing a tornado"
+    : "a severe thunderstorm";
+
+  const phrases: Record<WarnBasis, string> = {
+    doppler: `Doppler radar indicated ${subject}`,
+    radar_confirmed: "Doppler radar confirmed a tornado",
+    spotter: hazard === "TOR"
+      ? "trained weather spotters reported a tornado"
+      : "trained weather spotters reported severe weather",
+    law_enforcement: hazard === "TOR"
+      ? "law enforcement reported a tornado"
+      : "law enforcement reported severe weather",
+    emergency_management: hazard === "TOR"
+      ? "emergency management reported a tornado"
+      : "emergency management reported severe weather",
+    broadcast_media: hazard === "TOR"
+      ? "broadcast media reported a tornado"
+      : "broadcast media reported severe weather",
+    public: hazard === "TOR"
+      ? "the public reported a tornado"
+      : "the public reported severe weather",
+  };
+  return { source: sourceLabels[basis], phrase: phrases[basis] };
+}
+
+function formatLatLonPolygon(points: RadarMapPoint[]) {
+  return points
+    .map((point) => {
+      const lat = Math.round(Math.abs(point.lat) * 100).toString().padStart(4, "0");
+      const lon = Math.round(Math.abs(point.lon) * 100).toString().padStart(4, "0");
+      return `${lat} ${lon}`;
+    })
+    .join(" ");
+}
+
+export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props) {
   const [product, setProduct] = useState("REF");
   const [elevation, setElevation] = useState(0.5);
   const [data, setData] = useState<RadarFrameResponse | null>(null);
@@ -104,6 +217,20 @@ export function RadarOperator({ sessionCode, warnings }: Props) {
   const [warnPolygon, setWarnPolygon] = useState<RadarMapPoint[]>([]);
   const [warnTracked, setWarnTracked] = useState(false);
   const [warnHatched, setWarnHatched] = useState(false);
+  const [warnTorHeadline, setWarnTorHeadline] = useState<TorHeadline>("base");
+  const [warnBasis, setWarnBasis] = useState<WarnBasis>("doppler");
+  const [warnTorHail, setWarnTorHail] = useState("small");
+  const [warnSvrWind, setWarnSvrWind] = useState(60);
+  const [warnSvrHail, setWarnSvrHail] = useState(1);
+  const [warnObservedWind, setWarnObservedWind] = useState(false);
+  const [warnObservedHail, setWarnObservedHail] = useState(false);
+  const [warnTornadoPossible, setWarnTornadoPossible] = useState(false);
+  const [warnLocationMode, setWarnLocationMode] = useState<WarnLocationMode>("pathcast");
+  const [warnSpecialEvent, setWarnSpecialEvent] = useState(false);
+  const [warnRainWrappedCta, setWarnRainWrappedCta] = useState(false);
+  const [warnNighttimeCta, setWarnNighttimeCta] = useState(false);
+  const [warnTorrentialRainfallCta, setWarnTorrentialRainfallCta] = useState(false);
+  const [warnDraftText, setWarnDraftText] = useState("");
   const [legacyZoom, setLegacyZoom] = useState(1);
   const [legacyPan, setLegacyPan] = useState({ x: 0, y: 0 });
   const [error, setError] = useState("");
