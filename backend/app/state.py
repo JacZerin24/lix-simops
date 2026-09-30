@@ -62,6 +62,7 @@ class WarningState:
     status: str = "active"
     inherited: bool = False
     text: str = ""
+    attributes: dict[str, Any] = field(default_factory=dict)
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -76,6 +77,7 @@ class WarningState:
             "status": self.status,
             "inherited": self.inherited,
             "text": self.text,
+            "attributes": copy.deepcopy(self.attributes),
         }
 
 
@@ -123,6 +125,7 @@ def warning_from_definition(
         status="active",
         inherited=True,
         text=str(definition.get("text") or ""),
+        attributes=copy.deepcopy(definition.get("attributes") or {}),
     )
 
 
