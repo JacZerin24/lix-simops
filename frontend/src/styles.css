@@ -743,15 +743,30 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 }
 .radar-highway .casing {
   fill: none;
-  stroke: rgba(3, 7, 12, 0.88);
-  stroke-width: 4;
+  stroke: rgba(2, 7, 12, 0.52);
+  stroke-width: 2.4;
 }
 .radar-highway .centerline {
   fill: none;
-  stroke: #f6d365;
-  stroke-width: 1.6;
+  stroke: rgba(238, 244, 250, 0.68);
+  stroke-width: 1;
 }
-.radar-highway text,
+.radar-highway.us-highway .centerline {
+  stroke: rgba(226, 232, 240, 0.48);
+  stroke-dasharray: 4 3;
+}
+.radar-highway-shield rect {
+  fill: rgba(18, 52, 86, 0.9);
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 1;
+}
+.radar-highway-shield text {
+  fill: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  stroke: none;
+}
 .radar-site-marker text,
 .radar-event-marker text,
 .radar-warning text,
