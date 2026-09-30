@@ -209,3 +209,55 @@ def test_warngen_durations_and_attributes_are_preserved() -> None:
 
             error = receive_type(socket, "error")
             assert "duration" in error["message"].lower()
+
+
+
+def test_line_of_storms_metadata_is_preserved() -> None:
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/sessions",
+            json={"scenario_id": "mardi-gras-dss-001"},
+        ).json()
+        code = created["session_code"]
+
+        with client.websocket_connect(
+            f"/ws/{code}?display_name=Radar&team_id=Team+1&role=radar"
+        ) as socket:
+            receive_type(socket, "session_state")
+            receive_type(socket, "event_history")
+            receive_type(socket, "warning_state")
+
+            socket.send_json(
+                {
+                    "type": "warning_issue",
+                    "hazard": "SVR",
+                    "duration_minutes": 45,
+                    "points": [
+                        {"lat": 29.90, "lon": -90.30},
+                        {"lat": 30.20, "lon": -90.25},
+                        {"lat": 30.30, "lon": -89.90},
+                        {"lat": 29.95, "lon": -89.85},
+                    ],
+                    "text": "...THIS IS AN EXERCISE...",
+                    "attributes": {
+                        "track_type": "line_of_storms",
+                        "motion_bearing_deg": 70.0,
+                        "motion_speed_kt": 42.0,
+                        "current_line": [
+                            {"lat": 29.95, "lon": -90.20},
+                            {"lat": 30.15, "lon": -90.15},
+                        ],
+                        "previous_line": [
+                            {"lat": 29.92, "lon": -90.28},
+                            {"lat": 30.12, "lon": -90.23},
+                        ],
+                    },
+                }
+            )
+
+            state = receive_type(socket, "warning_state")
+            warning = state["warnings"][0]
+            assert warning["attributes"]["track_type"] == "line_of_storms"
+            assert warning["attributes"]["motion_speed_kt"] == 42.0
+            assert len(warning["attributes"]["current_line"]) == 2
+            assert len(warning["attributes"]["previous_line"]) == 2
