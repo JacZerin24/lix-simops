@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import secrets
 import string
 from dataclasses import dataclass, field
@@ -48,6 +49,75 @@ class ScheduledItem:
         }
 
 
+@dataclass
+class WarningState:
+    id: str
+    hazard: str
+    label: str
+    team_id: str
+    points: list[dict[str, float]]
+    issued_at: datetime
+    expires_at: datetime
+    issuer: str
+    status: str = "active"
+    inherited: bool = False
+    text: str = ""
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "hazard": self.hazard,
+            "label": self.label,
+            "team_id": self.team_id,
+            "points": copy.deepcopy(self.points),
+            "issued_at": self.issued_at.isoformat(),
+            "expires_at": self.expires_at.isoformat(),
+            "issuer": self.issuer,
+            "status": self.status,
+            "inherited": self.inherited,
+            "text": self.text,
+        }
+
+
+def warning_from_definition(
+    definition: dict[str, Any],
+    *,
+    scenario_start: datetime,
+) -> WarningState:
+    hazard = str(definition.get("hazard", "SVR")).upper()
+    label = str(definition.get("label") or ("Tornado Warning" if hazard == "TOR" else "Severe Thunderstorm Warning"))
+    issued_at_raw = definition.get("issued_at")
+    expires_at_raw = definition.get("expires_at")
+    issued_at = (
+        datetime.fromisoformat(str(issued_at_raw).replace("Z", "+00:00"))
+        if issued_at_raw
+        else scenario_start
+    )
+    expires_at = (
+        datetime.fromisoformat(str(expires_at_raw).replace("Z", "+00:00"))
+        if expires_at_raw
+        else scenario_start + timedelta(minutes=30)
+    )
+    points = [
+        {"lat": float(point["lat"]), "lon": float(point["lon"])}
+        for point in definition.get("points", [])
+        if "lat" in point and "lon" in point
+    ]
+    return WarningState(
+        id=str(definition.get("id") or f"inherited-{hazard.lower()}"),
+        hazard=hazard,
+        label=label,
+        team_id=str(definition.get("team_id") or "*"),
+        points=points,
+        issued_at=issued_at,
+        expires_at=expires_at,
+        issuer=str(definition.get("issuer") or "Inherited warning"),
+        status="active",
+        inherited=True,
+        text=str(definition.get("text") or ""),
+    )
+
+
 def resolve_schedule_time(spec: str, scenario_start: datetime) -> datetime | None:
     value = spec.strip()
     if value.lower() == "manual":
@@ -71,6 +141,8 @@ class SessionState:
     clients: dict[str, ClientConnection] = field(default_factory=dict)
     log: list[dict[str, Any]] = field(default_factory=list)
     schedule: list[ScheduledItem] = field(default_factory=list)
+    initial_warnings: list[WarningState] = field(default_factory=list)
+    warnings: list[WarningState] = field(default_factory=list)
     send_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     def clock_snapshot(self) -> dict[str, Any]:
@@ -97,6 +169,20 @@ class SessionState:
             "items": [item.snapshot() for item in self.schedule],
         }
 
+
+    def warning_snapshot(self, team_id: str | None = None) -> dict[str, Any]:
+        visible = [
+            warning.snapshot()
+            for warning in self.warnings
+            if team_id is None
+            or warning.team_id == "*"
+            or warning.team_id == team_id
+        ]
+        return {"type": "warning_state", "warnings": visible}
+
+    def warning_by_id(self, warning_id: str) -> WarningState | None:
+        return next((warning for warning in self.warnings if warning.id == warning_id), None)
+
     def session_snapshot(self, *, include_schedule: bool = False) -> dict[str, Any]:
         payload = {
             "type": "session_state",
@@ -120,6 +206,7 @@ class SessionState:
         self.running = False
         self.speed = self.default_speed
         self.log.clear()
+        self.warnings = copy.deepcopy(self.initial_warnings)
         for item in self.schedule:
             item.status = "pending"
 
@@ -155,6 +242,7 @@ class SessionManager:
         scenario_start: datetime,
         default_speed: float,
         scheduled_events: list[ScheduledExerciseEvent] | None = None,
+        initial_warnings: list[dict[str, Any]] | None = None,
     ) -> SessionState:
         code = self._new_code()
         schedule = [
@@ -163,6 +251,10 @@ class SessionManager:
                 due_at=resolve_schedule_time(definition.at_sim_time, scenario_start),
             )
             for definition in (scheduled_events or [])
+        ]
+        warning_seed = [
+            warning_from_definition(definition, scenario_start=scenario_start)
+            for definition in (initial_warnings or [])
         ]
         state = SessionState(
             code=code,
@@ -173,6 +265,8 @@ class SessionManager:
             speed=default_speed,
             default_speed=default_speed,
             schedule=schedule,
+            initial_warnings=copy.deepcopy(warning_seed),
+            warnings=copy.deepcopy(warning_seed),
         )
         self.sessions[code] = state
         return state
