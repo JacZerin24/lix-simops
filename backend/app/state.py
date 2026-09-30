@@ -197,6 +197,27 @@ class SessionState:
     def warning_by_id(self, warning_id: str) -> WarningState | None:
         return next((warning for warning in self.warnings if warning.id == warning_id), None)
 
+    def ensure_team_warnings(self, team_id: str) -> None:
+        if not team_id or team_id == "FACILITATOR":
+            return
+
+        for initial in self.initial_warnings:
+            if initial.team_id not in {"*", team_id}:
+                continue
+
+            clone_id = f"{initial.id}:{team_id}"
+            if any(warning.id == clone_id for warning in self.warnings):
+                continue
+
+            clone = copy.deepcopy(initial)
+            clone.id = clone_id
+            clone.team_id = team_id
+            clone.attributes = {
+                **clone.attributes,
+                "_inherited_source_id": initial.id,
+            }
+            self.warnings.append(clone)
+
     def session_snapshot(self, *, include_schedule: bool = False) -> dict[str, Any]:
         payload = {
             "type": "session_state",
@@ -220,7 +241,14 @@ class SessionState:
         self.running = False
         self.speed = self.default_speed
         self.log.clear()
-        self.warnings = copy.deepcopy(self.initial_warnings)
+        self.warnings = []
+        connected_teams = {
+            connection.participant.team_id
+            for connection in self.clients.values()
+            if connection.participant.role != Role.FACILITATOR
+        }
+        for team_id in connected_teams:
+            self.ensure_team_warnings(team_id)
         for item in self.schedule:
             item.status = "pending"
 
@@ -280,7 +308,7 @@ class SessionManager:
             default_speed=default_speed,
             schedule=schedule,
             initial_warnings=copy.deepcopy(warning_seed),
-            warnings=copy.deepcopy(warning_seed),
+            warnings=[],
         )
         self.sessions[code] = state
         return state
