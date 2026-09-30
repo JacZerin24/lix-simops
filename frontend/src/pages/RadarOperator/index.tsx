@@ -533,6 +533,7 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     data?.radar_longitude,
     warnCurrentLine,
     warnCurrentPoint,
+    warnDisplayedLine,
     warnTrackType,
   ]);
 
@@ -699,26 +700,65 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
       ? warnCurrentFrameIndex - warnPreviousFrameIndex
       : 0;
 
+  const warnDisplayedLine = useMemo(() => {
+    if (
+      warnTrackType !== "line_of_storms" ||
+      !frame ||
+      data?.radar_latitude == null ||
+      data.radar_longitude == null
+    ) {
+      return null;
+    }
+
+    if (!warnCurrentLine) {
+      return defaultWarnLine(
+        view.centerXKm,
+        view.centerYKm,
+        frame.timestamp,
+        data.radar_latitude,
+        data.radar_longitude,
+      );
+    }
+
+    const currentMs = new Date(
+      warnCurrentLine[0]?.timestamp ?? frame.timestamp,
+    ).getTime();
+    const frameMs = new Date(frame.timestamp).getTime();
+    if (frameMs < currentMs) {
+      return (
+        warnPreviousLine ??
+        warnCurrentLine.map((point) => ({
+          ...point,
+          timestamp: frame.timestamp,
+        }))
+      );
+    }
+    return warnCurrentLine;
+  }, [
+    data?.radar_latitude,
+    data?.radar_longitude,
+    frame,
+    view.centerXKm,
+    view.centerYKm,
+    warnCurrentLine,
+    warnPreviousLine,
+    warnTrackType,
+  ]);
+
   const annotations = useMemo<RadarAnnotation[]>(() => {
     if (tool === "warngen") {
       const items: RadarAnnotation[] = [];
 
-      if (warnTrackType === "line_of_storms") {
-        if (warnCurrentLine?.length === 2) {
-          items.push({
-            id: "warngen-current-line",
-            points: warnCurrentLine,
-            label: "Current storm line",
-          });
-        }
-        if (warnPreviousLine?.length === 2) {
-          items.push({
-            id: "warngen-previous-line",
-            points: warnPreviousLine,
-            dashed: true,
-            label: "Earlier storm line",
-          });
-        }
+      if (
+        warnTrackType === "line_of_storms" &&
+        !warnTracked &&
+        warnDisplayedLine?.length === 2
+      ) {
+        items.push({
+          id: "warngen-drag-line",
+          points: warnDisplayedLine,
+          label: "Drag Me to Storm",
+        });
       }
 
       if (warnPreviousReference && warnCurrentReference) {
