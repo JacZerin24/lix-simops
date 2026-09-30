@@ -4,6 +4,7 @@ import type {
   ExerciseEvent,
   Participant,
   ScheduledExerciseItem,
+  WarningRecord,
 } from "../../types/simulation";
 
 type InjectDraft = {
@@ -19,6 +20,7 @@ type Props = {
   participants: Participant[];
   events: ExerciseEvent[];
   schedule: ScheduledExerciseItem[];
+  warnings: WarningRecord[];
   onControl: (action: string, speed?: number) => void;
   onInject: (draft: InjectDraft) => void;
   onPartnerMessage: (teamId: string, sender: string, body: string) => void;
@@ -45,6 +47,7 @@ export function Facilitator({
   participants,
   events,
   schedule,
+  warnings,
   onControl,
   onInject,
   onPartnerMessage,
@@ -143,6 +146,36 @@ export function Facilitator({
             </article>
           ))}
         </div>
+      </div>
+
+      <div className="panel">
+        <h2>Warning Operations</h2>
+        <p className="muted">
+          Participant-issued warnings are shown here for facilitator awareness. Teams do not see
+          one another&apos;s warning decisions.
+        </p>
+        {warnings.length === 0 ? (
+          <p className="muted">No warnings have been issued.</p>
+        ) : (
+          <div className="facilitator-warning-list">
+            {warnings.map((warning) => (
+              <article className="facilitator-warning-row" key={warning.id}>
+                <div>
+                  <span className={`warning-badge ${warning.hazard.toLowerCase()}`}>
+                    {warning.hazard}
+                  </span>
+                  <strong>{warning.label}</strong>
+                  <span>{warning.team_id === "*" ? "Inherited" : warning.team_id}</span>
+                </div>
+                <div>
+                  <span>{warning.status}</span>
+                  <span>by {warning.issuer}</span>
+                  <span>{simTime(warning.issued_at)} → {simTime(warning.expires_at)}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="panel">
