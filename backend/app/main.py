@@ -430,8 +430,7 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
         and event_visible_to(event, participant)
     ]
     await websocket.send_json({"type": "event_history", "events": history[-100:]})
-    team_scope = None if role == Role.FACILITATOR else participant.team_id
-    await websocket.send_json(session.warning_snapshot(team_scope))
+    await broadcast_warnings(session)
     await broadcast_presence(session)
 
     try:
