@@ -61,6 +61,117 @@ injects:
       We need a clear recommendation now. What is the most significant threat to the route over the
       next 30 minutes, what areas are most exposed, and what action should Unified Command take?
 
+  # Historical May 12, 2021 LIX-area storm reports displaced into the
+  # exercise clock. observed_at_sim_time preserves the historical event-time
+  # offset from the 06:00 UTC source-window start. at_sim_time is an explicit
+  # exercise delivery time (generally 1-2 minutes later) and is not claimed to
+  # reproduce the exact historical LSR product-ingest timestamp.
+  #
+  # The later NWS EF0 survey confirmation is intentionally omitted from the
+  # live participant timeline because it is hindsight information.
+  - id: report-downtown-62mph
+    at_sim_time: "T+01:10:00"
+    kind: storm_report
+    title: 62 mph Wind Gust — Downtown New Orleans
+    body: >-
+      Downtown Heliport AWOS measured a thunderstorm wind gust of 54 kt (62 mph).
+    audience: all
+    target_team_id: "*"
+    sender: Downtown Heliport AWOS
+    report_kind: wind
+    lat: 29.952683
+    lon: -90.082733
+    magnitude: "62 mph"
+    source: Downtown Heliport AWOS (7N0)
+    observed_at_sim_time: "T+01:09:00"
+    plot_on_radar: true
+    display_minutes: 60
+
+  - id: report-pine-spruce-roof
+    at_sim_time: "T+01:12:00"
+    kind: storm_report
+    title: Structural Damage — Uptown New Orleans
+    body: >-
+      Metal roof removed from a structure near Pine Street and Spruce Street.
+    audience: all
+    target_team_id: "*"
+    sender: Local storm report
+    report_kind: wind
+    lat: 29.9500
+    lon: -90.1200
+    source: Local storm report
+    observed_at_sim_time: "T+01:10:00"
+    plot_on_radar: true
+    display_minutes: 60
+
+  - id: report-claiborne-calhoun-tree
+    at_sim_time: "T+01:13:00"
+    kind: storm_report
+    title: Tree Down — Near Tulane University
+    body: >-
+      Oak tree blocking South Claiborne Avenue near Calhoun Street and Tulane University.
+    audience: all
+    target_team_id: "*"
+    sender: Local storm report
+    report_kind: wind
+    lat: 29.9390
+    lon: -90.1200
+    source: Local storm report
+    observed_at_sim_time: "T+01:11:00"
+    plot_on_radar: true
+    display_minutes: 60
+
+  - id: report-cohn-lowerline-damage
+    at_sim_time: "T+01:16:00"
+    kind: storm_report
+    title: Power Pole / Tree Damage — Uptown
+    body: >-
+      Power pole down on a car and a tree blocking the roadway near Cohn Street and Lowerline Street.
+    audience: all
+    target_team_id: "*"
+    sender: Local storm report
+    report_kind: wind
+    lat: 29.9500
+    lon: -90.1200
+    source: Local storm report
+    observed_at_sim_time: "T+01:14:00"
+    plot_on_radar: true
+    display_minutes: 60
+
+  - id: report-bouny-power-pole
+    at_sim_time: "T+01:18:00"
+    kind: storm_report
+    title: Power Pole Down — Algiers Point
+    body: >-
+      Power pole down on a truck in the 400 block of Bouny Street.
+    audience: all
+    target_team_id: "*"
+    sender: Local storm report
+    report_kind: wind
+    lat: 29.9520
+    lon: -90.0520
+    source: Local storm report
+    observed_at_sim_time: "T+01:16:00"
+    plot_on_radar: true
+    display_minutes: 60
+
+  - id: report-behrman-opelousas-debris
+    at_sim_time: "T+01:19:00"
+    kind: storm_report
+    title: Power Lines / Debris — Federal City
+    body: >-
+      Power lines down with debris scattered near Behrman Avenue and Opelousas Avenue in the Federal City area.
+    audience: all
+    target_team_id: "*"
+    sender: Local storm report
+    report_kind: wind
+    lat: 29.9500
+    lon: -90.0500
+    source: Local storm report
+    observed_at_sim_time: "T+01:17:00"
+    plot_on_radar: true
+    display_minutes: 60
+
   - id: active-hold
     at_sim_time: "T+01:20:00"
     kind: partner_message
