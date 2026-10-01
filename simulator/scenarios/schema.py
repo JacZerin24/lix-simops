@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class SimulationConfig(BaseModel):
@@ -38,6 +38,17 @@ class ScheduledExerciseEvent(BaseModel):
     observed_at_sim_time: str | None = None
     plot_on_radar: bool = True
     display_minutes: int = Field(default=60, ge=1, le=240)
+
+    @model_validator(mode="after")
+    def validate_storm_report(self):
+        if self.kind == "storm_report":
+            if self.report_kind is None:
+                raise ValueError("storm_report requires report_kind")
+            if self.lat is None or self.lon is None:
+                raise ValueError("storm_report requires lat and lon")
+            if not -90 <= self.lat <= 90 or not -180 <= self.lon <= 180:
+                raise ValueError("storm_report lat/lon are out of range")
+        return self
 
 
 class ScenarioConfig(BaseModel):
