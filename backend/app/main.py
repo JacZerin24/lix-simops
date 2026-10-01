@@ -678,6 +678,7 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     label="Tornado Warning" if hazard == "TOR" else "Severe Thunderstorm Warning",
                     team_id=participant.team_id,
                     points=points,
+                    initial_points=copy.deepcopy(points),
                     issued_at=session.sim_time,
                     expires_at=session.sim_time + timedelta(minutes=duration_minutes),
                     issuer=participant.display_name,
