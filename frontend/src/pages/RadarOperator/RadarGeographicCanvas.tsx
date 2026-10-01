@@ -1279,12 +1279,16 @@ export function RadarGeographicCanvas({
             <line x1="0" y1="0" x2="0" y2="8" className="warngen-hatch-line" />
           </pattern>
           <clipPath id="warngen-lix-cwa-clip">
-            {lixCountyScreenRings.map((ring, index) => (
-              <polygon
-                key={index}
-                points={ring.map((point) => `${point.x},${point.y}`).join(" ")}
-              />
-            ))}
+            {lixCountyScreenRings.map(
+              (ring: Array<{ x: number; y: number }>, index: number) => (
+                <polygon
+                  key={index}
+                  points={ring
+                    .map((point: { x: number; y: number }) => `${point.x},${point.y}`)
+                    .join(" ")}
+                />
+              ),
+            )}
           </clipPath>
         </defs>
         {layers.counties && countyPath && (
