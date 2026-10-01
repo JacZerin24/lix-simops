@@ -21,12 +21,20 @@ export type ScenarioSummary = {
 export type ScheduledExerciseItem = {
   id: string;
   at_sim_time: string;
-  kind: "inject" | "partner_message";
+  kind: "inject" | "partner_message" | "storm_report";
   title: string;
   body: string;
   audience: string;
   target_team_id?: string | null;
   sender: string;
+  report_kind?: "tornado" | "hail" | "wind" | "report" | null;
+  lat?: number | null;
+  lon?: number | null;
+  magnitude?: string | null;
+  source?: string | null;
+  observed_at_sim_time?: string | null;
+  plot_on_radar?: boolean;
+  display_minutes?: number;
   due_at?: string | null;
   status: "pending" | "released" | "skipped";
 };
@@ -40,7 +48,7 @@ export type SessionState = ClockState & {
 };
 
 export type ExerciseEvent = {
-  type: "inject" | "partner_message" | "dss_response" | "team_message";
+  type: "inject" | "partner_message" | "dss_response" | "team_message" | "storm_report";
   event_id?: string;
   title?: string;
   body: string;
@@ -50,6 +58,17 @@ export type ExerciseEvent = {
   sender?: string;
   role?: Role;
   sim_time?: string;
+  scheduled_id?: string;
+  scheduled?: boolean;
+  scheduled_for?: string | null;
+  report_kind?: "tornado" | "hail" | "wind" | "report";
+  lat?: number;
+  lon?: number;
+  magnitude?: string | null;
+  source?: string | null;
+  observed_at?: string;
+  plot_on_radar?: boolean;
+  expires_at?: string;
 };
 
 export type Inject = ExerciseEvent;
