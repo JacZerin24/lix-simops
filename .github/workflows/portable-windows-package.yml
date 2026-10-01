@@ -99,6 +99,67 @@ jobs:
             throw "Portable runtime contains historical source-case identifiers"
           }
 
+      - name: Assemble source-only app update
+        shell: pwsh
+        run: |
+          $source = Join-Path $PWD "portable-build\LIX-SimOps"
+          $update = Join-Path $PWD "portable-update\LIX-SimOps"
+
+          New-Item -ItemType Directory -Force -Path $update | Out-Null
+          New-Item -ItemType Directory -Force -Path "$update\frontend" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$update\scripts" | Out-Null
+
+          Copy-Item "$source\backend" "$update\backend" -Recurse
+          Copy-Item "$source\simulator" "$update\simulator" -Recurse
+          Copy-Item "$source\scenarios" "$update\scenarios" -Recurse
+          Copy-Item "$source\frontend\dist" "$update\frontend\dist" -Recurse
+          Copy-Item "$source\scripts\validate_exercise_cache.py" "$update\scripts\validate_exercise_cache.py"
+          Copy-Item "$source\PACKAGE_INFO.txt" "$update\PACKAGE_INFO.txt"
+          Copy-Item "portable\windows\README-APP-UPDATE.txt" "$update\README-APP-UPDATE.txt"
+
+          @(
+            "update_type=app_only"
+            "requires_existing_portable_install=true"
+            "requires_existing_case_run_id=$env:CASE_RUN_ID"
+            "app_commit=$env:GITHUB_SHA"
+            "contains_weather_cache=false"
+            "contains_python_wheelhouse=false"
+            "contains_launcher=false"
+          ) | Set-Content "$update\APP_UPDATE_INFO.txt"
+
+      - name: Verify source-only update contains no installer or compiled payloads
+        shell: pwsh
+        run: |
+          $update = Join-Path $PWD "portable-update\LIX-SimOps"
+          $blockedExtensions = @(".bat", ".cmd", ".ps1", ".exe", ".msi", ".dll", ".pyd", ".whl")
+          $blocked = Get-ChildItem $update -Recurse -File |
+            Where-Object { $blockedExtensions -contains $_.Extension.ToLowerInvariant() }
+          if ($blocked) {
+            $blocked | Select-Object -ExpandProperty FullName | ForEach-Object { Write-Host $_ }
+            throw "Source-only update contains an installer, launcher, compiled binary, or wheel."
+          }
+          if (Test-Path "$update\wheelhouse") {
+            throw "Source-only update unexpectedly contains a wheelhouse."
+          }
+          if (Test-Path "$update\data\cache") {
+            throw "Source-only update unexpectedly contains a weather cache."
+          }
+          if (Test-Path "$update\scenarios\mardi-gras\source-case.yaml") {
+            throw "Source-only update contains facilitator-only source-case.yaml."
+          }
+
+          $textExtensions = @(".py", ".yaml", ".yml", ".json", ".txt", ".js", ".html", ".css", ".md")
+          $files = Get-ChildItem $update -Recurse -File |
+            Where-Object { $textExtensions -contains $_.Extension.ToLowerInvariant() }
+          $leaks = @()
+          foreach ($needle in @("2021-05-12", "20210512", "2021132")) {
+            $leaks += $files | Select-String -SimpleMatch $needle -List
+          }
+          if ($leaks) {
+            $leaks | Select-Object -ExpandProperty Path -Unique | ForEach-Object { Write-Host $_ }
+            throw "Source-only update contains historical source-case identifiers."
+          }
+
       - name: Build offline Python wheelhouse
         shell: pwsh
         run: |
@@ -145,15 +206,19 @@ jobs:
         working-directory: portable-build\LIX-SimOps
         run: START_SIMOPS.bat CHECK
 
-      - name: Create portable ZIP
-        shell: pwsh
-        run: |
-          Compress-Archive -Path "portable-build\LIX-SimOps\*" -DestinationPath "LIX-SimOps-Portable-Windows.zip" -CompressionLevel Optimal
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload full portable package
+        uses: actions/upload-artifact@v4
         with:
           name: LIX-SimOps-Portable-Windows
-          path: LIX-SimOps-Portable-Windows.zip
+          path: portable-build/LIX-SimOps
           if-no-files-found: error
           retention-days: 45
           compression-level: 0
+
+      - name: Upload source-only app update
+        uses: actions/upload-artifact@v4
+        with:
+          name: LIX-SimOps-App-Update
+          path: portable-update/LIX-SimOps
+          if-no-files-found: error
+          retention-days: 45
