@@ -578,7 +578,6 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
     data?.radar_longitude,
     warnCurrentLine,
     warnCurrentPoint,
-    warnDisplayedLine,
     warnTrackType,
   ]);
 
