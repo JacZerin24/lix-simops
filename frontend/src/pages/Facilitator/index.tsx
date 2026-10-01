@@ -56,6 +56,38 @@ function simTime(value?: string | null) {
   return `${new Date(value).toISOString().slice(11, 16)}Z`;
 }
 
+function minutesBetween(first: string, second: string) {
+  return (new Date(second).getTime() - new Date(first).getTime()) / 60000;
+}
+
+function pointInPolygon(
+  lat: number,
+  lon: number,
+  polygon: Array<{ lat: number; lon: number }>,
+) {
+  if (polygon.length < 3) return false;
+  let inside = false;
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index++) {
+    const xi = polygon[index].lon;
+    const yi = polygon[index].lat;
+    const xj = polygon[previous].lon;
+    const yj = polygon[previous].lat;
+    const intersects =
+      yi > lat !== yj > lat &&
+      lon < ((xj - xi) * (lat - yi)) / (yj - yi || 1e-12) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function deltaLabel(minutes: number, subject: string) {
+  const rounded = Math.round(Math.abs(minutes) * 10) / 10;
+  if (Math.abs(minutes) < 0.05) return `${subject}: same minute as NEW`;
+  return minutes > 0
+    ? `${subject}: +${rounded} min after NEW`
+    : `${subject}: ${rounded} min before NEW`;
+}
+
 export function Facilitator({
   sessionCode,
   scenarioName,
@@ -189,6 +221,69 @@ export function Facilitator({
       (first, second) =>
         new Date(first.time).getTime() - new Date(second.time).getTime(),
     );
+  }, [events, warnings]);
+
+  const radarAarMetrics = useMemo(() => {
+    const reports = events
+      .filter(
+        (event) =>
+          event.type === "storm_report" &&
+          event.sim_time &&
+          event.lat != null &&
+          event.lon != null,
+      )
+      .sort(
+        (first, second) =>
+          new Date(first.sim_time!).getTime() -
+          new Date(second.sim_time!).getTime(),
+      );
+
+    return warnings.map((warning) => {
+      const visibleReports = reports.filter((report) => {
+        const target = report.target_team_id;
+        const teamVisible = !target || target === "*" || target === warning.team_id;
+        const radarVisible = !report.audience || report.audience === "all" || report.audience === "radar";
+        return teamVisible && radarVisible;
+      });
+
+      const firstReport = visibleReports[0] ?? null;
+      const firstObservedAt = firstReport?.observed_at ?? firstReport?.sim_time ?? null;
+      const endFollowup = (warning.followups ?? []).find(
+        (followup) => followup.action === "CAN" || followup.action === "EXP",
+      );
+      const operationalEnd = endFollowup?.issued_at ?? warning.expires_at;
+      const duringWarning = visibleReports.filter((report) => {
+        const release = new Date(report.sim_time!).getTime();
+        return (
+          release >= new Date(warning.issued_at).getTime() &&
+          release <= new Date(operationalEnd).getTime()
+        );
+      });
+
+      const initialPolygon = warning.initial_points ?? warning.points;
+      const coveredReports = duringWarning.filter((report) =>
+        pointInPolygon(report.lat!, report.lon!, initialPolygon),
+      );
+      const followupTiming = (warning.followups ?? []).map((followup) => ({
+        action: followup.action,
+        minutes: minutesBetween(warning.issued_at, followup.issued_at),
+      }));
+
+      return {
+        warning,
+        firstReleaseDelta:
+          firstReport?.sim_time
+            ? minutesBetween(warning.issued_at, firstReport.sim_time)
+            : null,
+        firstObservedDelta:
+          firstObservedAt
+            ? minutesBetween(warning.issued_at, firstObservedAt)
+            : null,
+        duringWarningCount: duringWarning.length,
+        coveredCount: coveredReports.length,
+        followupTiming,
+      };
+    });
   }, [events, warnings]);
 
   const [partnerTeam, setPartnerTeam] = useState("Team 1");
@@ -371,6 +466,61 @@ export function Facilitator({
                     <span>{item.team ?? "All teams"}</span>
                   </div>
                   <p>{item.detail}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="panel">
+        <h2>Warning AAR Metrics</h2>
+        <p className="muted">
+          Uses the polygon issued with NEW, report release/observation timing, and subsequent SVS
+          actions. CON trimming does not rewrite the initial-polygon score.
+        </p>
+        {radarAarMetrics.length === 0 ? (
+          <p className="muted">Issue a warning to populate warning-performance metrics.</p>
+        ) : (
+          <div className="warning-metrics-grid">
+            {radarAarMetrics.map((metric) => (
+              <article className="warning-metric-card" key={metric.warning.id}>
+                <div className="warning-metric-heading">
+                  <span className={`warning-badge ${metric.warning.hazard.toLowerCase()}`}>
+                    {metric.warning.hazard}
+                  </span>
+                  <strong>{metric.warning.team_id}</strong>
+                  <span>{simTime(metric.warning.issued_at)} NEW</span>
+                </div>
+
+                <div className="warning-metric-values">
+                  <span>
+                    {metric.firstObservedDelta == null
+                      ? "First observed report: none"
+                      : deltaLabel(metric.firstObservedDelta, "First observed report")}
+                  </span>
+                  <span>
+                    {metric.firstReleaseDelta == null
+                      ? "First released report: none"
+                      : deltaLabel(metric.firstReleaseDelta, "First released report")}
+                  </span>
+                  <span>
+                    Initial polygon coverage: {metric.coveredCount}/{metric.duringWarningCount}{" "}
+                    reports released while warning active
+                  </span>
+                  <span>
+                    SVS timing:{" "}
+                    {metric.followupTiming.length
+                      ? metric.followupTiming
+                          .map(
+                            (followup) =>
+                              `${followup.action} +${(
+                                Math.round(followup.minutes * 10) / 10
+                              ).toFixed(1)} min`,
+                          )
+                          .join(" · ")
+                      : "no follow-ups"}
+                  </span>
                 </div>
               </article>
             ))}
