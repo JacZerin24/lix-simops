@@ -56,6 +56,7 @@ class WarningState:
     label: str
     team_id: str
     points: list[dict[str, float]]
+    initial_points: list[dict[str, float]]
     issued_at: datetime
     expires_at: datetime
     issuer: str
@@ -72,6 +73,7 @@ class WarningState:
             "label": self.label,
             "team_id": self.team_id,
             "points": copy.deepcopy(self.points),
+            "initial_points": copy.deepcopy(self.initial_points),
             "issued_at": self.issued_at.isoformat(),
             "expires_at": self.expires_at.isoformat(),
             "issuer": self.issuer,
@@ -121,6 +123,7 @@ def warning_from_definition(
         label=label,
         team_id=str(definition.get("team_id") or "*"),
         points=points,
+        initial_points=copy.deepcopy(points),
         issued_at=issued_at,
         expires_at=expires_at,
         issuer=str(definition.get("issuer") or "Inherited warning"),
