@@ -11,6 +11,7 @@ import {
 import { getEventOperations, getRadarFrames } from "../../services/api";
 import type {
   EventOperationsConfig,
+  ExerciseEvent,
   RadarFrameResponse,
   RadarProductSummary,
   WarningRecord,
@@ -34,6 +35,7 @@ import {
 type Props = {
   sessionCode: string;
   warnings: WarningRecord[];
+  events: ExerciseEvent[];
   onWarningAction: (payload: object) => void;
 };
 
@@ -257,7 +259,7 @@ function projectToSegment(
   };
 }
 
-export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props) {
+export function RadarOperator({ sessionCode, warnings, events, onWarningAction }: Props) {
   const [product, setProduct] = useState("REF");
   const [elevation, setElevation] = useState(0.5);
   const [data, setData] = useState<RadarFrameResponse | null>(null);
@@ -399,11 +401,36 @@ export function RadarOperator({ sessionCode, warnings, onWarningAction }: Props)
       valid_to: warning.expires_at,
       points: warning.points,
     }));
-  const pointOverlays = (eventConfig?.radar_overlays?.reports ?? []).filter((report) => {
+  const staticPointOverlays = (eventConfig?.radar_overlays?.reports ?? []).filter((report) => {
     const start = report.valid_at ? new Date(report.valid_at).getTime() : -Infinity;
     const end = report.expires_at ? new Date(report.expires_at).getTime() : Infinity;
     return Number.isNaN(overlayTime) || (overlayTime >= start && overlayTime <= end);
   });
+
+  const releasedReportOverlays = events
+    .filter(
+      (event) =>
+        event.type === "storm_report" &&
+        event.plot_on_radar !== false &&
+        event.lat != null &&
+        event.lon != null,
+    )
+    .filter((event) => {
+      const start = event.sim_time ? new Date(event.sim_time).getTime() : -Infinity;
+      const end = event.expires_at ? new Date(event.expires_at).getTime() : Infinity;
+      return Number.isNaN(overlayTime) || (overlayTime >= start && overlayTime <= end);
+    })
+    .map((event) => ({
+      id: event.event_id ?? event.scheduled_id ?? `report-${event.lat}-${event.lon}`,
+      label: [event.magnitude, event.title].filter(Boolean).join(" · ") || "Storm Report",
+      kind: event.report_kind ?? "report",
+      lat: event.lat!,
+      lon: event.lon!,
+      valid_at: event.sim_time,
+      expires_at: event.expires_at,
+    }));
+
+  const pointOverlays = [...staticPointOverlays, ...releasedReportOverlays];
 
   useEffect(() => {
     if (!playing || frames.length < 2) return;
