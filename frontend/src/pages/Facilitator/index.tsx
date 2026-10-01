@@ -85,6 +85,112 @@ export function Facilitator({
     ? participantTeams
     : ["Team 1", "Team 2", "Team 3", "Team 4"];
 
+  const radarAarTimeline = useMemo(() => {
+    const items: Array<{
+      id: string;
+      time: string;
+      kind: "warning" | "report";
+      action: string;
+      hazard?: string;
+      team?: string;
+      title: string;
+      detail: string;
+    }> = [];
+
+    for (const warning of warnings) {
+      const attributes = warning.attributes ?? {};
+      const bearing =
+        typeof attributes.motion_bearing_deg === "number"
+          ? attributes.motion_bearing_deg
+          : null;
+      const speed =
+        typeof attributes.motion_speed_kt === "number"
+          ? attributes.motion_speed_kt
+          : null;
+      const trackType =
+        typeof attributes.track_type === "string"
+          ? attributes.track_type.replaceAll("_", " ")
+          : null;
+
+      items.push({
+        id: `${warning.id}-new`,
+        time: warning.issued_at,
+        kind: "warning",
+        action: "NEW",
+        hazard: warning.hazard,
+        team: warning.team_id,
+        title: warning.label,
+        detail: [
+          `issued by ${warning.issuer}`,
+          trackType ? `track: ${trackType}` : null,
+          bearing != null && speed != null
+            ? `motion ${bearing.toFixed(0).padStart(3, "0")}° @ ${speed.toFixed(0)} kt`
+            : null,
+          `expires ${simTime(warning.expires_at)}`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      });
+
+      for (const followup of warning.followups ?? []) {
+        const reason =
+          typeof followup.attributes?.reason === "string"
+            ? followup.attributes.reason.replaceAll("_", " ")
+            : null;
+        items.push({
+          id: `${warning.id}-${followup.id}`,
+          time: followup.issued_at,
+          kind: "warning",
+          action: followup.action,
+          hazard: warning.hazard,
+          team: warning.team_id,
+          title: `${warning.label} follow-up`,
+          detail: [
+            `issued by ${followup.issuer}`,
+            reason ? `reason: ${reason}` : null,
+            followup.points?.length
+              ? `${followup.points.length} polygon vertices`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        });
+      }
+    }
+
+    for (const event of events) {
+      if (event.type !== "storm_report" || !event.sim_time) continue;
+      items.push({
+        id: event.event_id ?? `report-${event.sim_time}-${event.lat}-${event.lon}`,
+        time: event.sim_time,
+        kind: "report",
+        action: "REPORT",
+        team: event.target_team_id ?? "All teams",
+        title: [
+          event.report_kind?.toUpperCase(),
+          event.magnitude,
+          event.title,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        detail: [
+          event.source ? `source: ${event.source}` : null,
+          event.observed_at && event.observed_at !== event.sim_time
+            ? `observed ${simTime(event.observed_at)}`
+            : null,
+          `released ${simTime(event.sim_time)}`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      });
+    }
+
+    return items.sort(
+      (first, second) =>
+        new Date(first.time).getTime() - new Date(second.time).getTime(),
+    );
+  }, [events, warnings]);
+
   const [partnerTeam, setPartnerTeam] = useState("Team 1");
   const [partnerSender, setPartnerSender] = useState("Event Command");
   const [partnerBody, setPartnerBody] = useState("");
@@ -226,6 +332,45 @@ export function Facilitator({
                       {simTime(warning.followups?.at(-1)?.issued_at)}
                     </span>
                   )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="panel">
+        <h2>Radar AAR Timeline</h2>
+        <p className="muted">
+          Reconstructs warning decisions and the storm reports that had been released by each point
+          in simulated time. Unreleased reports never appear here.
+        </p>
+        {radarAarTimeline.length === 0 ? (
+          <p className="muted">No radar warning/report activity yet.</p>
+        ) : (
+          <div className="radar-aar-list">
+            {radarAarTimeline.map((item) => (
+              <article className="radar-aar-row" key={item.id}>
+                <div className="radar-aar-time">{simTime(item.time)}</div>
+                <div className="radar-aar-action">
+                  <span
+                    className={
+                      item.kind === "warning"
+                        ? `warning-badge ${(item.hazard ?? "").toLowerCase()}`
+                        : "report-badge"
+                    }
+                  >
+                    {item.kind === "warning"
+                      ? `${item.hazard ?? ""} ${item.action}`.trim()
+                      : item.action}
+                  </span>
+                </div>
+                <div className="radar-aar-copy">
+                  <div>
+                    <strong>{item.title}</strong>
+                    <span>{item.team ?? "All teams"}</span>
+                  </div>
+                  <p>{item.detail}</p>
                 </div>
               </article>
             ))}
