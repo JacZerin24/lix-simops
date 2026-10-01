@@ -76,7 +76,7 @@ def test_storm_report_visibility_respects_team_and_role() -> None:
     team_one_meso = Participant(
         display_name="Meso 1",
         team_id="Team 1",
-        role=Role.MESOANALYST,
+        role=Role.MESO,
     )
     facilitator = Participant(
         display_name="Fac",
