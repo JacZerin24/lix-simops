@@ -212,6 +212,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 }
 
 @media (max-width: 850px) {
+  .radar-aar-row { grid-template-columns: 64px 1fr; }
+  .radar-aar-copy { grid-column: 1 / -1; }
   .workspace, .topbar, .section-heading { flex-direction: column; }
   .workspace aside { width: auto; }
   .clockbar { align-items: flex-start; flex-direction: column; }
@@ -899,6 +901,66 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .facilitator-warning-row span {
   color: #b7c5d6;
   font-size: 0.84rem;
+}
+
+
+.radar-aar-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.radar-aar-row {
+  display: grid;
+  grid-template-columns: 72px 92px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid #2b405f;
+  border-radius: 8px;
+  background: #08121f;
+}
+.radar-aar-time {
+  color: #9eacc0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+}
+.radar-aar-action {
+  display: flex;
+}
+.radar-aar-action .warning-badge {
+  min-width: 70px;
+}
+.report-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 70px;
+  padding: 3px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 5px;
+  background: #254a67;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+.radar-aar-copy {
+  display: grid;
+  gap: 4px;
+}
+.radar-aar-copy > div {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+.radar-aar-copy span,
+.radar-aar-copy p {
+  color: #b7c5d6;
+  font-size: 0.84rem;
+}
+.radar-aar-copy p {
+  margin: 0;
 }
 
 .radar-geo-canvas {
