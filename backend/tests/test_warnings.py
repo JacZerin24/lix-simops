@@ -321,6 +321,12 @@ def test_svs_con_can_workflow_preserves_history_and_blocks_expansion() -> None:
             warning = continued["warnings"][0]
             assert warning["status"] == "active"
             assert warning["points"] == trimmed
+            assert warning["initial_points"] == [
+                {"lat": 29.90, "lon": -90.30},
+                {"lat": 30.20, "lon": -90.30},
+                {"lat": 30.20, "lon": -89.90},
+                {"lat": 29.90, "lon": -89.90},
+            ]
             assert len(warning["followups"]) == 1
             assert warning["followups"][0]["action"] == "CON"
             assert warning["followups"][0]["attributes"]["still_wind"] is True
