@@ -186,6 +186,7 @@ export type WarningRecord = {
   label: string;
   team_id: string;
   points: RadarOverlayPoint[];
+  initial_points?: RadarOverlayPoint[];
   issued_at: string;
   expires_at: string;
   issuer: string;
