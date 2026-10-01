@@ -14,6 +14,20 @@ type InjectDraft = {
   target_team_id?: string;
 };
 
+type StormReportDraft = {
+  title: string;
+  body: string;
+  audience: string;
+  target_team_id?: string;
+  report_kind: "tornado" | "hail" | "wind" | "report";
+  lat: number;
+  lon: number;
+  magnitude?: string;
+  source?: string;
+  plot_on_radar: boolean;
+  display_minutes: number;
+};
+
 type Props = {
   sessionCode: string;
   scenarioName: string;
@@ -24,6 +38,7 @@ type Props = {
   onControl: (action: string, speed?: number) => void;
   onInject: (draft: InjectDraft) => void;
   onPartnerMessage: (teamId: string, sender: string, body: string) => void;
+  onStormReport: (draft: StormReportDraft) => void;
   onScheduleControl: (
     itemId: string,
     action: "release_now" | "skip" | "restore",
@@ -51,6 +66,7 @@ export function Facilitator({
   onControl,
   onInject,
   onPartnerMessage,
+  onStormReport,
   onScheduleControl,
 }: Props) {
   const participantTeams = useMemo(
@@ -76,6 +92,17 @@ export function Facilitator({
   const [injectBody, setInjectBody] = useState("");
   const [injectAudience, setInjectAudience] = useState("all");
   const [injectTeam, setInjectTeam] = useState("");
+  const [reportTitle, setReportTitle] = useState("Storm Report");
+  const [reportKind, setReportKind] = useState<StormReportDraft["report_kind"]>("report");
+  const [reportLat, setReportLat] = useState("");
+  const [reportLon, setReportLon] = useState("");
+  const [reportMagnitude, setReportMagnitude] = useState("");
+  const [reportSource, setReportSource] = useState("Exercise report");
+  const [reportBody, setReportBody] = useState("");
+  const [reportAudience, setReportAudience] = useState("radar");
+  const [reportTeam, setReportTeam] = useState("");
+  const [reportPlotOnRadar, setReportPlotOnRadar] = useState(true);
+  const [reportDisplayMinutes, setReportDisplayMinutes] = useState(60);
 
   const submitPartner = (event: FormEvent) => {
     event.preventDefault();
@@ -96,6 +123,28 @@ export function Facilitator({
       target_team_id: injectTeam || undefined,
     });
     setInjectBody("");
+  };
+
+  const submitStormReport = (event: FormEvent) => {
+    event.preventDefault();
+    const lat = Number(reportLat);
+    const lon = Number(reportLon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    onStormReport({
+      title: reportTitle.trim() || "Storm Report",
+      body: reportBody.trim(),
+      audience: reportAudience,
+      target_team_id: reportTeam || undefined,
+      report_kind: reportKind,
+      lat,
+      lon,
+      magnitude: reportMagnitude.trim() || undefined,
+      source: reportSource.trim() || "Exercise report",
+      plot_on_radar: reportPlotOnRadar,
+      display_minutes: reportDisplayMinutes,
+    });
+    setReportBody("");
+    setReportMagnitude("");
   };
 
   return (
@@ -203,7 +252,13 @@ export function Facilitator({
                 <div className="schedule-copy">
                   <div className="schedule-title">
                     <strong>{item.title}</strong>
-                    <span>{item.kind === "partner_message" ? "Partner" : "Inject"}</span>
+                    <span>
+                      {item.kind === "partner_message"
+                        ? "Partner"
+                        : item.kind === "storm_report"
+                          ? "Storm Report"
+                          : "Inject"}
+                    </span>
                     <span className={`schedule-status ${item.status}`}>{item.status}</span>
                   </div>
                   <p>{item.body}</p>
@@ -298,6 +353,117 @@ export function Facilitator({
             />
           </label>
           <button className="primary-action" type="submit">Release Inject</button>
+        </form>
+
+        <form className="panel" onSubmit={submitStormReport}>
+          <h2>Storm Report Control</h2>
+          <p className="muted">
+            Release a geolocated report now. It remains hidden until you release it and can be
+            limited to Radar or a single team.
+          </p>
+          <div className="form-grid">
+            <label>
+              Report type
+              <select
+                value={reportKind}
+                onChange={(event) =>
+                  setReportKind(event.target.value as StormReportDraft["report_kind"])
+                }
+              >
+                <option value="tornado">Tornado</option>
+                <option value="hail">Hail</option>
+                <option value="wind">Wind</option>
+                <option value="report">Other report</option>
+              </select>
+            </label>
+            <label>
+              Title
+              <input value={reportTitle} onChange={(event) => setReportTitle(event.target.value)} />
+            </label>
+            <label>
+              Latitude
+              <input
+                inputMode="decimal"
+                value={reportLat}
+                onChange={(event) => setReportLat(event.target.value)}
+                placeholder="29.9500"
+                required
+              />
+            </label>
+            <label>
+              Longitude
+              <input
+                inputMode="decimal"
+                value={reportLon}
+                onChange={(event) => setReportLon(event.target.value)}
+                placeholder="-90.1000"
+                required
+              />
+            </label>
+            <label>
+              Magnitude / detail
+              <input
+                value={reportMagnitude}
+                onChange={(event) => setReportMagnitude(event.target.value)}
+                placeholder='e.g. 1.50" hail or 70 mph'
+              />
+            </label>
+            <label>
+              Source
+              <input
+                value={reportSource}
+                onChange={(event) => setReportSource(event.target.value)}
+              />
+            </label>
+            <label>
+              Audience
+              <select
+                value={reportAudience}
+                onChange={(event) => setReportAudience(event.target.value)}
+              >
+                <option value="radar">Radar operators</option>
+                <option value="all">All roles</option>
+                <option value="mesoanalyst">Mesoanalysts</option>
+                <option value="dss">DSS meteorologists</option>
+              </select>
+            </label>
+            <label>
+              Team filter
+              <select value={reportTeam} onChange={(event) => setReportTeam(event.target.value)}>
+                <option value="">All teams</option>
+                {teams.map((team) => <option key={team}>{team}</option>)}
+              </select>
+            </label>
+            <label>
+              Radar display
+              <select
+                value={reportDisplayMinutes}
+                onChange={(event) => setReportDisplayMinutes(Number(event.target.value))}
+              >
+                {[30, 60, 90, 120].map((minutes) => (
+                  <option value={minutes} key={minutes}>{minutes} min</option>
+                ))}
+              </select>
+            </label>
+            <label className="radar-check">
+              <input
+                type="checkbox"
+                checked={reportPlotOnRadar}
+                onChange={(event) => setReportPlotOnRadar(event.target.checked)}
+              />
+              Plot on radar
+            </label>
+          </div>
+          <label>
+            Report details
+            <textarea
+              value={reportBody}
+              onChange={(event) => setReportBody(event.target.value)}
+              rows={3}
+              placeholder="Optional report detail shown in the exercise feed"
+            />
+          </label>
+          <button className="primary-action" type="submit">Release Storm Report</button>
         </form>
       </div>
 
