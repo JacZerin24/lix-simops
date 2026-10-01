@@ -21,12 +21,23 @@ class DatasetConfig(BaseModel):
 class ScheduledExerciseEvent(BaseModel):
     id: str
     at_sim_time: str
-    kind: Literal["inject", "partner_message"] = "inject"
+    kind: Literal["inject", "partner_message", "storm_report"] = "inject"
     title: str = "Exercise Inject"
     body: str
     audience: str = "all"
     target_team_id: str | None = None
     sender: str = "Event Command"
+
+    # Optional geolocated storm-report metadata. These fields are ignored for
+    # ordinary injects/partner messages.
+    report_kind: Literal["tornado", "hail", "wind", "report"] | None = None
+    lat: float | None = None
+    lon: float | None = None
+    magnitude: str | None = None
+    source: str | None = None
+    observed_at_sim_time: str | None = None
+    plot_on_radar: bool = True
+    display_minutes: int = Field(default=60, ge=1, le=240)
 
 
 class ScenarioConfig(BaseModel):
