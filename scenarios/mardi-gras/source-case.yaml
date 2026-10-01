@@ -19,6 +19,84 @@ source_case:
     tornado onset to 3:50 PM in the Endymion exercise, preserving the full
     2:45–4:30 PM participant decision window.
 
+historical_report_timeline:
+  provenance_note: >-
+    Facilitator-only traceability for contemporaneous May 12, 2021 KLIX-area
+    reports used by the displaced-real-time exercise. Historical event times
+    are preserved relative to the 06:00 UTC source-window start. Participant
+    release times intentionally include short exercise delivery delays and are
+    not represented as exact historical LSR product-ingest timestamps.
+  live_report_policy: >-
+    Only information plausibly available during the live event is injected.
+    The later NWS damage-survey confirmation of the EF0 tornado is excluded
+    from the participant timeline because it is hindsight information.
+  sources:
+    - Iowa Environmental Mesonet archived Local Storm Reports for WFO LIX
+    - NWS/City of New Orleans May 12 tornado documentation
+    - Archived contemporary reports corroborating the 62 mph Downtown Heliport gust
+  reports:
+    - id: report-downtown-62mph
+      source_event_local: "02:09"
+      source_event_utc: "07:09"
+      mapped_observed_local: "15:54"
+      exercise_release_local: "15:55"
+      type: wind
+      magnitude: "62 mph"
+      location: New Orleans Downtown Heliport (7N0)
+      lat: 29.952683
+      lon: -90.082733
+      confidence: exact station coordinate
+    - id: report-pine-spruce-roof
+      source_event_local: "02:10"
+      source_event_utc: "07:10"
+      mapped_observed_local: "15:55"
+      exercise_release_local: "15:57"
+      type: wind_damage
+      location: Pine Street and Spruce Street, New Orleans
+      lat: 29.9500
+      lon: -90.1200
+      confidence: approximate street-intersection placement
+    - id: report-claiborne-calhoun-tree
+      source_event_local: "02:11"
+      source_event_utc: "07:11"
+      mapped_observed_local: "15:56"
+      exercise_release_local: "15:58"
+      type: wind_damage
+      location: South Claiborne Avenue near Calhoun Street / Tulane University
+      lat: 29.9390
+      lon: -90.1200
+      confidence: approximate street-intersection placement
+    - id: report-cohn-lowerline-damage
+      source_event_local: "02:14"
+      source_event_utc: "07:14"
+      mapped_observed_local: "15:59"
+      exercise_release_local: "16:01"
+      type: wind_damage
+      location: Cohn Street and Lowerline Street, New Orleans
+      lat: 29.9500
+      lon: -90.1200
+      confidence: approximate street-intersection placement
+    - id: report-bouny-power-pole
+      source_event_local: "02:16"
+      source_event_utc: "07:16"
+      mapped_observed_local: "16:01"
+      exercise_release_local: "16:03"
+      type: wind_damage
+      location: 400 block Bouny Street, Algiers Point
+      lat: 29.9520
+      lon: -90.0520
+      confidence: approximate block placement
+    - id: report-behrman-opelousas-debris
+      source_event_local: "02:17"
+      source_event_utc: "07:17"
+      mapped_observed_local: "16:02"
+      exercise_release_local: "16:04"
+      type: wind_damage
+      location: Behrman Avenue and Opelousas Avenue / Federal City
+      lat: 29.9500
+      lon: -90.0500
+      confidence: approximate street-intersection placement
+
 anchor_events:
   - id: new-orleans-ef0
     start_local: "02:05"
