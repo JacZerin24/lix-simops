@@ -25,11 +25,26 @@ type InjectDraft = {
   target_team_id?: string;
 };
 
+type StormReportDraft = {
+  title: string;
+  body: string;
+  audience: string;
+  target_team_id?: string;
+  report_kind: "tornado" | "hail" | "wind" | "report";
+  lat: number;
+  lon: number;
+  magnitude?: string;
+  source?: string;
+  plot_on_radar: boolean;
+  display_minutes: number;
+};
+
 const exerciseEventTypes = new Set([
   "inject",
   "partner_message",
   "dss_response",
   "team_message",
+  "storm_report",
 ]);
 
 function App() {
@@ -216,6 +231,13 @@ function App() {
     send({ type: "dss_response", body });
   };
 
+  const sendStormReport = (draft: StormReportDraft) => {
+    send({
+      type: "storm_report",
+      ...draft,
+    });
+  };
+
   const controlScheduledEvent = (
     itemId: string,
     action: "release_now" | "skip" | "restore",
@@ -291,6 +313,7 @@ function App() {
           onControl={sendControl}
           onInject={sendInject}
           onPartnerMessage={sendPartnerMessage}
+          onStormReport={sendStormReport}
           onScheduleControl={controlScheduledEvent}
         />
       ) : (
@@ -299,6 +322,7 @@ function App() {
             <RadarOperator
               sessionCode={activeSessionCode}
               warnings={warnings}
+              events={events}
               onWarningAction={send}
             />
           )}
