@@ -148,7 +148,7 @@ export function Facilitator({
         id: `${warning.id}-new`,
         time: warning.issued_at,
         kind: "warning",
-        action: "NEW",
+        action: warning.inherited ? "INHERITED" : "NEW",
         hazard: warning.hazard,
         team: warning.team_id,
         title: warning.label,
@@ -238,52 +238,76 @@ export function Facilitator({
           new Date(second.sim_time!).getTime(),
       );
 
-    return warnings.map((warning) => {
-      const visibleReports = reports.filter((report) => {
-        const target = report.target_team_id;
-        const teamVisible = !target || target === "*" || target === warning.team_id;
-        const radarVisible = !report.audience || report.audience === "all" || report.audience === "radar";
-        return teamVisible && radarVisible;
-      });
+    return warnings
+      .filter((warning) => !warning.inherited)
+      .map((warning) => {
+        const visibleReports = reports.filter((report) => {
+          const target = report.target_team_id;
+          const teamVisible = !target || target === "*" || target === warning.team_id;
+          const radarVisible =
+            !report.audience || report.audience === "all" || report.audience === "radar";
+          return teamVisible && radarVisible;
+        });
 
-      const firstReport = visibleReports[0] ?? null;
-      const firstObservedAt = firstReport?.observed_at ?? firstReport?.sim_time ?? null;
-      const endFollowup = (warning.followups ?? []).find(
-        (followup) => followup.action === "CAN" || followup.action === "EXP",
-      );
-      const operationalEnd = endFollowup?.issued_at ?? warning.expires_at;
-      const duringWarning = visibleReports.filter((report) => {
-        const release = new Date(report.sim_time!).getTime();
-        return (
-          release >= new Date(warning.issued_at).getTime() &&
-          release <= new Date(operationalEnd).getTime()
+        const firstReleasedReport = visibleReports[0] ?? null;
+        const firstObservedReport = visibleReports.reduce<ExerciseEvent | null>(
+          (earliest, report) => {
+            if (!earliest) return report;
+            const reportObservedAt = report.observed_at ?? report.sim_time!;
+            const earliestObservedAt = earliest.observed_at ?? earliest.sim_time!;
+            return new Date(reportObservedAt).getTime() < new Date(earliestObservedAt).getTime()
+              ? report
+              : earliest;
+          },
+          null,
         );
+        const firstObservedAt =
+          firstObservedReport?.observed_at ?? firstObservedReport?.sim_time ?? null;
+
+        const endFollowup = (warning.followups ?? [])
+          .filter((followup) => followup.action === "CAN" || followup.action === "EXP")
+          .sort(
+            (first, second) =>
+              new Date(first.issued_at).getTime() - new Date(second.issued_at).getTime(),
+          )[0];
+        const operationalEnd = endFollowup?.issued_at ?? warning.expires_at;
+        const duringWarning = visibleReports.filter((report) => {
+          const release = new Date(report.sim_time!).getTime();
+          return (
+            release >= new Date(warning.issued_at).getTime() &&
+            release <= new Date(operationalEnd).getTime()
+          );
+        });
+
+        const initialPolygon = warning.initial_points ?? warning.points;
+        const coveredReports = duringWarning.filter((report) =>
+          pointInPolygon(report.lat!, report.lon!, initialPolygon),
+        );
+        const followupTiming = [...(warning.followups ?? [])]
+          .sort(
+            (first, second) =>
+              new Date(first.issued_at).getTime() - new Date(second.issued_at).getTime(),
+          )
+          .map((followup) => ({
+            action: followup.action,
+            minutes: minutesBetween(warning.issued_at, followup.issued_at),
+          }));
+
+        return {
+          warning,
+          firstReleaseDelta:
+            firstReleasedReport?.sim_time
+              ? minutesBetween(warning.issued_at, firstReleasedReport.sim_time)
+              : null,
+          firstObservedDelta:
+            firstObservedAt
+              ? minutesBetween(warning.issued_at, firstObservedAt)
+              : null,
+          duringWarningCount: duringWarning.length,
+          coveredCount: coveredReports.length,
+          followupTiming,
+        };
       });
-
-      const initialPolygon = warning.initial_points ?? warning.points;
-      const coveredReports = duringWarning.filter((report) =>
-        pointInPolygon(report.lat!, report.lon!, initialPolygon),
-      );
-      const followupTiming = (warning.followups ?? []).map((followup) => ({
-        action: followup.action,
-        minutes: minutesBetween(warning.issued_at, followup.issued_at),
-      }));
-
-      return {
-        warning,
-        firstReleaseDelta:
-          firstReport?.sim_time
-            ? minutesBetween(warning.issued_at, firstReport.sim_time)
-            : null,
-        firstObservedDelta:
-          firstObservedAt
-            ? minutesBetween(warning.issued_at, firstObservedAt)
-            : null,
-        duringWarningCount: duringWarning.length,
-        coveredCount: coveredReports.length,
-        followupTiming,
-      };
-    });
   }, [events, warnings]);
 
   const [partnerTeam, setPartnerTeam] = useState("Team 1");
@@ -476,8 +500,10 @@ export function Facilitator({
       <div className="panel">
         <h2>Warning AAR Metrics</h2>
         <p className="muted">
-          Uses the polygon issued with NEW, report release/observation timing, and subsequent SVS
-          actions. CON trimming does not rewrite the initial-polygon score.
+          Participant-issued NEW warnings only. Uses the polygon issued with NEW, independent
+          report release/observation timing, and subsequent SVS actions. Inherited T=0 warnings
+          remain in the AAR timeline but are excluded here; CON trimming does not rewrite the
+          initial-polygon score.
         </p>
         {radarAarMetrics.length === 0 ? (
           <p className="muted">Issue a warning to populate warning-performance metrics.</p>
@@ -506,7 +532,8 @@ export function Facilitator({
                   </span>
                   <span>
                     Initial polygon coverage: {metric.coveredCount}/{metric.duringWarningCount}{" "}
-                    reports released while warning active
+                    reports released while warning active (
+                    {metric.duringWarningCount - metric.coveredCount} outside)
                   </span>
                   <span>
                     SVS timing:{" "}

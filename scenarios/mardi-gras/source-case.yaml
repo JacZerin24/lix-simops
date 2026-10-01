@@ -32,8 +32,26 @@ historical_report_timeline:
     from the participant timeline because it is hindsight information.
   sources:
     - Iowa Environmental Mesonet archived Local Storm Reports for WFO LIX
-    - NWS/City of New Orleans May 12 tornado documentation
+    - City of New Orleans / NOLA Ready May 12 tornado updates
     - Archived contemporary reports corroborating the 62 mph Downtown Heliport gust
+  source_references:
+    iem_lsr_archive:
+      label: Iowa Environmental Mesonet archived NWS Local Storm Reports
+      archive_page: "https://mesonet.agron.iastate.edu/request/gis/lsrs.phtml"
+      case_query: "https://mesonet.agron.iastate.edu/cgi-bin/request/gis/lsr.py?wfo=LIX&sts=2021-05-12T06:00Z&ets=2021-05-12T07:45Z&fmt=csv"
+      role: >-
+        Primary source for the six contemporaneous report event times and report wording.
+      limitation: >-
+        IEM states its LSR archive is not complete or official. Its archive times are the
+        report valid/event times, not the issuance time of the LSR text product, so they
+        must not be treated as exact participant-delivery timestamps.
+    nola_ready:
+      label: City of New Orleans / NOLA Ready May 12 Tornado Updates
+      url: "https://ready.nola.gov/incident/may-12-tornado/"
+      role: >-
+        Corroborates the live-event damage context and separates the early-morning
+        response from the later confirmed-tornado update used only for facilitator
+        traceability.
   reports:
     - id: report-downtown-62mph
       source_event_local: "02:09"
@@ -45,6 +63,7 @@ historical_report_timeline:
       location: New Orleans Downtown Heliport (7N0)
       lat: 29.952683
       lon: -90.082733
+      provenance: [iem_lsr_archive]
       confidence: exact station coordinate
     - id: report-pine-spruce-roof
       source_event_local: "02:10"
@@ -55,6 +74,7 @@ historical_report_timeline:
       location: Pine Street and Spruce Street, New Orleans
       lat: 29.9500
       lon: -90.1200
+      provenance: [iem_lsr_archive]
       confidence: approximate street-intersection placement
     - id: report-claiborne-calhoun-tree
       source_event_local: "02:11"
@@ -65,6 +85,7 @@ historical_report_timeline:
       location: South Claiborne Avenue near Calhoun Street / Tulane University
       lat: 29.9390
       lon: -90.1200
+      provenance: [iem_lsr_archive]
       confidence: approximate street-intersection placement
     - id: report-cohn-lowerline-damage
       source_event_local: "02:14"
@@ -75,6 +96,7 @@ historical_report_timeline:
       location: Cohn Street and Lowerline Street, New Orleans
       lat: 29.9500
       lon: -90.1200
+      provenance: [iem_lsr_archive]
       confidence: approximate street-intersection placement
     - id: report-bouny-power-pole
       source_event_local: "02:16"
@@ -85,6 +107,7 @@ historical_report_timeline:
       location: 400 block Bouny Street, Algiers Point
       lat: 29.9520
       lon: -90.0520
+      provenance: [iem_lsr_archive]
       confidence: approximate block placement
     - id: report-behrman-opelousas-debris
       source_event_local: "02:17"
@@ -95,6 +118,7 @@ historical_report_timeline:
       location: Behrman Avenue and Opelousas Avenue / Federal City
       lat: 29.9500
       lon: -90.0500
+      provenance: [iem_lsr_archive]
       confidence: approximate street-intersection placement
 
 anchor_events:
