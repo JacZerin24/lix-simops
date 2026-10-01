@@ -64,21 +64,25 @@ def test_storm_report_visibility_respects_team_and_role() -> None:
         "target_team_id": "Team 1",
     }
     team_one_radar = Participant(
+        id="radar-1",
         display_name="Radar 1",
         team_id="Team 1",
         role=Role.RADAR,
     )
     team_two_radar = Participant(
+        id="radar-2",
         display_name="Radar 2",
         team_id="Team 2",
         role=Role.RADAR,
     )
     team_one_meso = Participant(
+        id="meso-1",
         display_name="Meso 1",
         team_id="Team 1",
         role=Role.MESO,
     )
     facilitator = Participant(
+        id="fac",
         display_name="Fac",
         team_id="FACILITATOR",
         role=Role.FACILITATOR,
