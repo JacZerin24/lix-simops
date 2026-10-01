@@ -20,7 +20,15 @@ from .services.scenario_loader import (
     load_scenario_by_id,
     load_scheduled_events,
 )
-from .state import ClientConnection, Participant, ScheduledItem, SessionState, WarningState, manager
+from .state import (
+    ClientConnection,
+    Participant,
+    ScheduledItem,
+    SessionState,
+    WarningState,
+    manager,
+    resolve_schedule_time,
+)
 
 app = FastAPI(title="LIX SimOps API", version="0.8.0")
 FRONTEND_DIST = CACHE_ROOT.parents[1] / "frontend" / "dist"
@@ -158,7 +166,7 @@ def event_visible_to(event: dict, participant: Participant) -> bool:
         return True
 
     event_type = event.get("type")
-    if event_type == "inject":
+    if event_type in {"inject", "storm_report"}:
         target_team_id = event.get("target_team_id")
         audience = event.get("audience", "all")
         if target_team_id and target_team_id not in {"*", participant.team_id}:
@@ -350,6 +358,39 @@ async def release_scheduled_item(session: SessionState, item: ScheduledItem) -> 
                 "sim_time": session.sim_time.isoformat(),
             }
         )
+    elif definition.kind == "storm_report":
+        observed_at = (
+            resolve_schedule_time(
+                definition.observed_at_sim_time,
+                session.scenario_start,
+            )
+            if definition.observed_at_sim_time
+            else session.sim_time
+        )
+        payload = session.record(
+            {
+                "type": "storm_report",
+                "event_id": uuid4().hex,
+                "scheduled_id": definition.id,
+                "scheduled": True,
+                "scheduled_for": item.due_at.isoformat() if item.due_at else None,
+                "title": definition.title or "Storm Report",
+                "body": definition.body,
+                "audience": definition.audience,
+                "target_team_id": definition.target_team_id,
+                "report_kind": definition.report_kind,
+                "lat": definition.lat,
+                "lon": definition.lon,
+                "magnitude": definition.magnitude,
+                "source": definition.source or definition.sender or "Report",
+                "observed_at": observed_at.isoformat() if observed_at else session.sim_time.isoformat(),
+                "plot_on_radar": definition.plot_on_radar,
+                "expires_at": (
+                    session.sim_time + timedelta(minutes=definition.display_minutes)
+                ).isoformat(),
+                "sim_time": session.sim_time.isoformat(),
+            }
+        )
     else:
         payload = session.record(
             {
@@ -519,6 +560,61 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                         "body": body,
                         "audience": message.get("audience", "all"),
                         "target_team_id": message.get("target_team_id"),
+                        "sim_time": session.sim_time.isoformat(),
+                    }
+                )
+                await send_to(
+                    session,
+                    payload,
+                    lambda person: event_visible_to(payload, person),
+                )
+
+            elif kind == "storm_report":
+                if role != Role.FACILITATOR:
+                    await send_error(websocket, "Only facilitators can release storm reports")
+                    continue
+
+                try:
+                    lat = float(message.get("lat"))
+                    lon = float(message.get("lon"))
+                    display_minutes = int(message.get("display_minutes", 60))
+                except (TypeError, ValueError):
+                    await send_error(websocket, "Storm report requires valid lat/lon and display duration")
+                    continue
+
+                report_kind = str(message.get("report_kind", "report")).lower()
+                if report_kind not in {"tornado", "hail", "wind", "report"}:
+                    await send_error(websocket, "Storm report type must be tornado, hail, wind, or report")
+                    continue
+                if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                    await send_error(websocket, "Storm report lat/lon are out of range")
+                    continue
+                if not 1 <= display_minutes <= 240:
+                    await send_error(websocket, "Storm report display duration must be 1-240 minutes")
+                    continue
+
+                body = str(message.get("body", "")).strip()
+                title = str(message.get("title", "Storm Report")).strip() or "Storm Report"
+                source = str(message.get("source", "Exercise report")).strip() or "Exercise report"
+                payload = session.record(
+                    {
+                        "type": "storm_report",
+                        "event_id": uuid4().hex,
+                        "scheduled": False,
+                        "title": title,
+                        "body": body,
+                        "audience": message.get("audience", "radar"),
+                        "target_team_id": message.get("target_team_id"),
+                        "report_kind": report_kind,
+                        "lat": lat,
+                        "lon": lon,
+                        "magnitude": str(message.get("magnitude", "")).strip() or None,
+                        "source": source,
+                        "observed_at": session.sim_time.isoformat(),
+                        "plot_on_radar": bool(message.get("plot_on_radar", True)),
+                        "expires_at": (
+                            session.sim_time + timedelta(minutes=display_minutes)
+                        ).isoformat(),
                         "sim_time": session.sim_time.isoformat(),
                     }
                 )
