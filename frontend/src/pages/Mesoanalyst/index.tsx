@@ -93,6 +93,39 @@ export function Mesoanalyst({ sessionCode }: Props) {
     setPlaying(false);
   };
 
+  const stepFrame = (direction: -1 | 1) => {
+    if (frames.length === 0) return;
+    setPlaying(false);
+    setFollowLatest(false);
+    setSelectedIndex((current) =>
+      Math.max(0, Math.min(frames.length - 1, current + direction)),
+    );
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (frames.length === 0) return;
+
+      event.preventDefault();
+      stepFrame(event.key === "ArrowLeft" ? -1 : 1);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [frames.length]);
+
   return (
     <section className="panel primary meso-workspace">
       <div className="meso-heading">
@@ -147,11 +180,7 @@ export function Mesoanalyst({ sessionCode }: Props) {
 
         <div className="radar-button-group">
           <button
-            onClick={() => {
-              setPlaying(false);
-              setFollowLatest(false);
-              setSelectedIndex((current) => Math.max(0, current - 1));
-            }}
+            onClick={() => stepFrame(-1)}
             disabled={frames.length === 0 || selectedIndex === 0}
           >
             ◀ Frame
@@ -166,14 +195,7 @@ export function Mesoanalyst({ sessionCode }: Props) {
             {playing ? "Pause Loop" : "Loop"}
           </button>
           <button
-            onClick={() => {
-              setPlaying(false);
-              setSelectedIndex((current) => {
-                const next = Math.min(frames.length - 1, current + 1);
-                if (next === frames.length - 1) setFollowLatest(true);
-                return Math.max(0, next);
-              });
-            }}
+            onClick={() => stepFrame(1)}
             disabled={frames.length === 0 || selectedIndex >= frames.length - 1}
           >
             Frame ▶
@@ -230,8 +252,8 @@ export function Mesoanalyst({ sessionCode }: Props) {
               <strong>{selectedProduct?.label ?? product}</strong>
               {selectedProduct?.units ? ` · ${selectedProduct.units}` : ""}
             </span>
-            <span>{followLatest ? "Following latest available frame" : "Reviewing earlier frame"}</span>
-            <span>{category}</span>
+            <span>{followLatest ? "Following latest available frame" : "Reviewing selected frame"}</span>
+            <span>←/→ frame · {category}</span>
           </div>
         </>
       )}
