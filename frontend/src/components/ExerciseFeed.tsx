@@ -6,21 +6,36 @@ function simTime(value?: string) {
 }
 
 export function ExerciseFeed({ events }: { events: ExerciseEvent[] }) {
-  const injects = events.filter((event) => event.type === "inject");
+  const feedItems = events.filter(
+    (event) => event.type === "inject" || event.type === "meso_update",
+  );
 
   return (
     <aside className="panel">
       <h2>Exercise Feed</h2>
-      {injects.length === 0 ? (
-        <p className="muted">No exercise injects released yet.</p>
+      {feedItems.length === 0 ? (
+        <p className="muted">No exercise injects or team updates yet.</p>
       ) : (
-        [...injects].reverse().map((inject, index) => (
-          <article className="inject" key={inject.event_id ?? index}>
+        [...feedItems].reverse().map((item, index) => (
+          <article
+            className={item.type === "meso_update" ? "inject meso-team-update" : "inject"}
+            key={item.event_id ?? index}
+          >
             <div className="chat-meta">
-              <strong>{inject.title ?? "Exercise Inject"}</strong>
-              <span>{simTime(inject.sim_time)}</span>
+              <strong>
+                {item.type === "meso_update"
+                  ? `Meso Update · ${item.product_label || item.category || "Analysis"}`
+                  : item.title ?? "Exercise Inject"}
+              </strong>
+              <span>{simTime(item.sim_time)}</span>
             </div>
-            <p>{inject.body}</p>
+            <p>{item.body}</p>
+            {item.type === "meso_update" && (
+              <div className="feed-context">
+                <span>{item.sender ?? "Mesoanalyst"}</span>
+                {item.frame_time && <span>Frame {simTime(item.frame_time)}</span>}
+              </div>
+            )}
           </article>
         ))
       )}
