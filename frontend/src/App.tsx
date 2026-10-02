@@ -8,6 +8,7 @@ import { Mesoanalyst } from "./pages/Mesoanalyst";
 import { RadarOperator } from "./pages/RadarOperator";
 import { createSession, listScenarios } from "./services/api";
 import { createSimulationSocket } from "./services/socket";
+import { formatExerciseDateTime } from "./utils/time";
 import type {
   ClockState,
   ExerciseEvent,
@@ -135,7 +136,7 @@ function App() {
   }, [activeSessionCode]);
 
   const displayTime = useMemo(
-    () => new Date(clock.sim_time).toISOString().replace("T", " ").slice(0, 19) + "Z",
+    () => formatExerciseDateTime(clock.sim_time),
     [clock.sim_time],
   );
 

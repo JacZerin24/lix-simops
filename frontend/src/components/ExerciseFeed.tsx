@@ -1,8 +1,8 @@
 import type { ExerciseEvent } from "../types/simulation";
+import { formatExerciseTime } from "../utils/time";
 
 function simTime(value?: string) {
-  if (!value) return "";
-  return `${new Date(value).toISOString().slice(11, 16)}Z`;
+  return formatExerciseTime(value, "");
 }
 
 export function ExerciseFeed({ events }: { events: ExerciseEvent[] }) {

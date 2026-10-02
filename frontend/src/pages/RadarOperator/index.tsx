@@ -16,6 +16,7 @@ import type {
   RadarProductSummary,
   WarningRecord,
 } from "../../types/simulation";
+import { formatExerciseDateTime, formatExerciseTime } from "../../utils/time";
 import {
   CursorSample,
   RadarAnnotation,
@@ -71,8 +72,7 @@ const PRODUCT_KEYS = ["REF", "VEL", "CC", "ZDR"];
 const DEFAULT_RANGE_KM = 230;
 
 function frameTime(value?: string) {
-  if (!value) return "No scan";
-  return new Date(value).toISOString().replace("T", " ").slice(0, 19) + "Z";
+  return formatExerciseDateTime(value, "No scan");
 }
 
 function initialView(rangeKm = DEFAULT_RANGE_KM): RadarView {
@@ -2588,7 +2588,7 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
                 </span>
                 <strong>{warning.label}</strong>
                 <span>
-                  expires {new Date(warning.expires_at).toISOString().slice(11, 16)}Z
+                  expires {formatExerciseTime(warning.expires_at)}
                 </span>
                 {warning.inherited && <span>Inherited at exercise start</span>}
                 {(warning.followups?.length ?? 0) > 0 && (
@@ -2615,7 +2615,7 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
           <div className="warngen-section-title">
             <strong>Severe Weather Statement — {svsWarning.label}</strong>
             <span>
-              Original expiration {new Date(svsWarning.expires_at).toISOString().slice(11, 16)}Z
+              Original expiration {formatExerciseTime(svsWarning.expires_at)}
             </span>
           </div>
 

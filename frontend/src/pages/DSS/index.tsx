@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { getEventOperations } from "../../services/api";
 import type { EventOperationsConfig, ExerciseEvent } from "../../types/simulation";
+import { formatExerciseTime } from "../../utils/time";
 
 type Props = {
   sessionCode: string;
@@ -10,8 +11,7 @@ type Props = {
 };
 
 function simTime(value?: string) {
-  if (!value) return "";
-  return `${new Date(value).toISOString().slice(11, 16)}Z`;
+  return formatExerciseTime(value, "");
 }
 
 export function DSS({ sessionCode, events, onRespond }: Props) {

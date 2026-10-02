@@ -6,6 +6,7 @@ import type {
   ScheduledExerciseItem,
   WarningRecord,
 } from "../../types/simulation";
+import { formatExerciseTime } from "../../utils/time";
 
 type InjectDraft = {
   title: string;
@@ -52,8 +53,7 @@ const roleLabels = {
 } as const;
 
 function simTime(value?: string | null) {
-  if (!value) return "Manual";
-  return `${new Date(value).toISOString().slice(11, 16)}Z`;
+  return formatExerciseTime(value, "Manual");
 }
 
 function minutesBetween(first: string, second: string) {

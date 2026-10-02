@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 
 import { getMesoFrames } from "../../services/api";
 import type { MesoFrameResponse } from "../../types/simulation";
+import { formatExerciseDateTime } from "../../utils/time";
 
 type Props = {
   sessionCode: string;
 };
 
 function frameTime(value?: string) {
-  if (!value) return "No valid frame";
-  return new Date(value).toISOString().replace("T", " ").slice(0, 19) + "Z";
+  return formatExerciseDateTime(value, "No valid frame");
 }
 
 export function Mesoanalyst({ sessionCode }: Props) {
