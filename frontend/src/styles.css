@@ -1201,13 +1201,22 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   stroke: #ffffff;
   stroke-width: 2.2;
 }
-.radar-warning-tor polygon {
+.radar-warning-boundary-closure {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2.2;
+  vector-effect: non-scaling-stroke;
+}
+.radar-warning-tor polygon,
+.radar-warning-tor .radar-warning-boundary-closure {
   stroke: #ff3b30;
 }
-.radar-warning-svr polygon {
+.radar-warning-svr polygon,
+.radar-warning-svr .radar-warning-boundary-closure {
   stroke: #ffd60a;
 }
-.radar-warning-ffw polygon {
+.radar-warning-ffw polygon,
+.radar-warning-ffw .radar-warning-boundary-closure {
   stroke: #39ff88;
 }
 .radar-point-overlay circle {
@@ -1340,6 +1349,12 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 }
 .warngen-hatched-preview > polygon {
   fill: url(#warngen-hatch-pattern);
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.warngen-preview-boundary-closure {
+  fill: none;
   stroke: rgba(255, 255, 255, 0.95);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;

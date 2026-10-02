@@ -1,14 +1,13 @@
 import {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
-  WheelEvent as ReactWheelEvent,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { feature } from "topojson-client";
+import { feature, merge } from "topojson-client";
 import countiesTopology from "us-atlas/counties-10m.json";
 
 import type { RadarEventMarker, RadarFrame, RadarGridMetadata, RadarPointOverlay, RadarProductSummary, RadarWarningOverlay } from "../../types/simulation";
@@ -601,7 +600,13 @@ const REGIONAL_BOUNDARIES = (() => {
     })
     .filter((item: any) => Boolean(item.name));
 
-  return { counties, states, lixCounties };
+  const lixCountyGeometries = topology.objects.counties.geometries.filter((item: any) =>
+    LIX_CWA_COUNTY_NAMES.has(String(item.id).padStart(5, "0")),
+  );
+  const lixCwaGeometry = merge(topology, lixCountyGeometries) as any;
+  const lixCwaRings = getGeometryRings(lixCwaGeometry);
+
+  return { counties, states, lixCounties, lixCwaRings };
 })();
 
 function screenPoint(
@@ -1208,29 +1213,45 @@ export function RadarGeographicCanvas({
     setHandleContextMenu({ x, y, handleId: hit.id });
   };
 
-  const wheel = (event: ReactWheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
+  const wheelViewRef = useRef(view);
+  wheelViewRef.current = view;
+
+  useEffect(() => {
     const element = containerRef.current;
     if (!element) return;
 
-    const rect = element.getBoundingClientRect();
-    const xOffset = event.clientX - rect.left - rect.width / 2;
-    const yOffset = event.clientY - rect.top - rect.height / 2;
-    const anchorX = view.centerXKm + xOffset * view.kmPerPixel;
-    const anchorY = view.centerYKm - yOffset * view.kmPerPixel;
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
 
-    const factor = Math.exp(event.deltaY * 0.0012);
-    const nextKmPerPixel = Math.max(
-      0.025,
-      Math.min((rangeKm * 2.2) / 250, view.kmPerPixel * factor),
-    );
+      const currentView = wheelViewRef.current;
+      const rect = element.getBoundingClientRect();
+      const xOffset = event.clientX - rect.left - rect.width / 2;
+      const yOffset = event.clientY - rect.top - rect.height / 2;
+      const anchorX =
+        currentView.centerXKm + xOffset * currentView.kmPerPixel;
+      const anchorY =
+        currentView.centerYKm - yOffset * currentView.kmPerPixel;
 
-    onViewChange({
-      centerXKm: anchorX - xOffset * nextKmPerPixel,
-      centerYKm: anchorY + yOffset * nextKmPerPixel,
-      kmPerPixel: nextKmPerPixel,
-    });
-  };
+      const factor = Math.exp(event.deltaY * 0.0012);
+      const nextKmPerPixel = Math.max(
+        0.025,
+        Math.min((rangeKm * 2.2) / 250, currentView.kmPerPixel * factor),
+      );
+      const nextView = {
+        centerXKm: anchorX - xOffset * nextKmPerPixel,
+        centerYKm: anchorY + yOffset * nextKmPerPixel,
+        kmPerPixel: nextKmPerPixel,
+      };
+
+      // Keep burst wheel events cumulative even before React completes a render.
+      wheelViewRef.current = nextView;
+      onViewChange(nextView);
+    };
+
+    element.addEventListener("wheel", handleWheel, { passive: false });
+    return () => element.removeEventListener("wheel", handleWheel);
+  }, [onViewChange, rangeKm]);
 
   const radarScreen = screenPoint({ xKm: 0, yKm: 0 }, view, size);
   const showHighwayLabels = view.kmPerPixel <= 0.38;
@@ -1323,21 +1344,53 @@ export function RadarGeographicCanvas({
 
     return entries;
   })();
-  const lixCountyScreenRings = useMemo(
+  const lixCwaScreenRings = useMemo(
     () =>
-      REGIONAL_BOUNDARIES.lixCounties.flatMap((county: any) =>
-        (county.rings as Array<Array<[number, number]>>).map((ring) =>
-          ring.map(([lon, lat]) =>
-            screenPoint(
-              latLonToLocal(lat, lon, radarLatitude, radarLongitude),
-              view,
-              size,
-            ),
+      (REGIONAL_BOUNDARIES.lixCwaRings as Array<Array<[number, number]>>).map((ring) =>
+        ring.map(([lon, lat]) =>
+          screenPoint(
+            latLonToLocal(lat, lon, radarLatitude, radarLongitude),
+            view,
+            size,
           ),
         ),
       ),
     [radarLatitude, radarLongitude, view, size],
   );
+
+  const lixCwaOutlinePath = lixCwaScreenRings
+    .filter((ring) => ring.length >= 2)
+    .map(
+      (ring) =>
+        `M ${ring
+          .map((point) => `${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+          .join(" L ")} Z`,
+    )
+    .join(" ");
+
+  const warningScreenPolygons = warningPolygons
+    .filter((warning) => warning.points.length >= 3)
+    .map((warning, index) => ({
+      warning,
+      clipId: `radar-warning-shape-clip-${index}`,
+      points: warning.points.map((point) =>
+        screenPoint(
+          latLonToLocal(
+            point.lat,
+            point.lon,
+            radarLatitude,
+            radarLongitude,
+          ),
+          view,
+          size,
+        ),
+      ),
+    }));
+
+  const warnedAreaPreviewScreenPoints =
+    warnedAreaPreview && warnedAreaPreview.polygon.length >= 3
+      ? warnedAreaPreview.polygon.map((point) => screenPoint(point, view, size))
+      : [];
 
   return (
     <div
@@ -1350,7 +1403,6 @@ export function RadarGeographicCanvas({
       onPointerLeave={() => onCursorSample(null)}
       onAuxClick={auxClick}
       onContextMenu={contextMenu}
-      onWheel={wheel}
       onDoubleClick={onResetView}
       aria-label="Geographic radar display; mouse wheel zooms around cursor and drag pans"
     >
@@ -1368,7 +1420,7 @@ export function RadarGeographicCanvas({
             <line x1="0" y1="0" x2="0" y2="8" className="warngen-hatch-line" />
           </pattern>
           <clipPath id="warngen-lix-cwa-clip">
-            {lixCountyScreenRings.map(
+            {lixCwaScreenRings.map(
               (ring: Array<{ x: number; y: number }>, index: number) => (
                 <polygon
                   key={index}
@@ -1379,6 +1431,20 @@ export function RadarGeographicCanvas({
               ),
             )}
           </clipPath>
+          {warningScreenPolygons.map(({ warning, clipId, points }) => (
+            <clipPath key={`${warning.id}-shape-clip`} id={clipId}>
+              <polygon points={points.map((point) => `${point.x},${point.y}`).join(" ")} />
+            </clipPath>
+          ))}
+          {warnedAreaPreviewScreenPoints.length >= 3 && (
+            <clipPath id="warngen-preview-shape-clip">
+              <polygon
+                points={warnedAreaPreviewScreenPoints
+                  .map((point) => `${point.x},${point.y}`)
+                  .join(" ")}
+              />
+            </clipPath>
+          )}
         </defs>
         {layers.counties && countyPath && (
           <path d={countyPath} className="radar-county-boundary" />
@@ -1503,20 +1569,7 @@ export function RadarGeographicCanvas({
         })()}
 
         {layers.warnings &&
-          warningPolygons.map((warning) => {
-            if (warning.points.length < 3) return null;
-            const points = warning.points.map((point) =>
-              screenPoint(
-                latLonToLocal(
-                  point.lat,
-                  point.lon,
-                  radarLatitude,
-                  radarLongitude,
-                ),
-                view,
-                size,
-              ),
-            );
+          warningScreenPolygons.map(({ warning, clipId, points }) => {
             const labelPoint = points[0];
             return (
               <g
@@ -1527,6 +1580,13 @@ export function RadarGeographicCanvas({
                   points={points.map((point) => `${point.x},${point.y}`).join(" ")}
                   clipPath="url(#warngen-lix-cwa-clip)"
                 />
+                {lixCwaOutlinePath && (
+                  <path
+                    d={lixCwaOutlinePath}
+                    className="radar-warning-boundary-closure"
+                    clipPath={`url(#${clipId})`}
+                  />
+                )}
                 <text x={labelPoint.x + 6} y={labelPoint.y - 6}>
                   {warning.label}
                 </text>
@@ -1551,15 +1611,21 @@ export function RadarGeographicCanvas({
             </g>
           ))}
 
-        {warnedAreaPreview && warnedAreaPreview.polygon.length >= 3 && (
+        {warnedAreaPreview && warnedAreaPreviewScreenPoints.length >= 3 && (
           <g className="warngen-hatched-preview">
             <polygon
-              points={warnedAreaPreview.polygon
-                .map((point) => screenPoint(point, view, size))
+              points={warnedAreaPreviewScreenPoints
                 .map((point) => `${point.x},${point.y}`)
                 .join(" ")}
               clipPath="url(#warngen-lix-cwa-clip)"
             />
+            {lixCwaOutlinePath && (
+              <path
+                d={lixCwaOutlinePath}
+                className="warngen-preview-boundary-closure"
+                clipPath="url(#warngen-preview-shape-clip)"
+              />
+            )}
             {warnedAreaPreview.counties.map((county) => {
               const point = screenPoint(county.labelPoint, view, size);
               return (
