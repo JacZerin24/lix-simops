@@ -130,6 +130,7 @@ Relevant documentation includes:
 
 - `docs/architecture.md`
 - `docs/exercise-operations.md`
+- `docs/endymion-rehearsal-checklist.md` — **facilitator-only full rehearsal checklist**
 - `docs/google-classroom-integration.md`
 - `docs/mock-shift-log-integration.md`
 - `docs/exercise-instruction-deck-outline.md`
