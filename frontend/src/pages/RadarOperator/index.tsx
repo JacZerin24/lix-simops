@@ -420,15 +420,23 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
       const end = event.expires_at ? new Date(event.expires_at).getTime() : Infinity;
       return Number.isNaN(overlayTime) || (overlayTime >= start && overlayTime <= end);
     })
-    .map((event) => ({
-      id: event.event_id ?? event.scheduled_id ?? `report-${event.lat}-${event.lon}`,
-      label: [event.magnitude, event.title].filter(Boolean).join(" · ") || "Storm Report",
-      kind: event.report_kind ?? "report",
-      lat: event.lat!,
-      lon: event.lon!,
-      valid_at: event.sim_time,
-      expires_at: event.expires_at,
-    }));
+    .map((event) => {
+      const titleLead = event.title?.split("—")[0]?.trim();
+      const label =
+        [event.magnitude, titleLead]
+          .filter((value, index, items) => Boolean(value) && items.indexOf(value) === index)
+          .join(" · ") || "Storm Report";
+
+      return {
+        id: event.event_id ?? event.scheduled_id ?? `report-${event.lat}-${event.lon}`,
+        label,
+        kind: event.report_kind ?? "report",
+        lat: event.lat!,
+        lon: event.lon!,
+        valid_at: event.sim_time,
+        expires_at: event.expires_at,
+      };
+    });
 
   const pointOverlays = [...staticPointOverlays, ...releasedReportOverlays];
 

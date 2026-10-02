@@ -1234,6 +1234,95 @@ export function RadarGeographicCanvas({
 
   const radarScreen = screenPoint({ xKm: 0, yKm: 0 }, view, size);
   const showHighwayLabels = view.kmPerPixel <= 0.38;
+
+  const pointOverlayLayout = (() => {
+    const entries = pointOverlays.map((overlay) => ({
+      overlay,
+      point: screenPoint(
+        latLonToLocal(
+          overlay.lat,
+          overlay.lon,
+          radarLatitude,
+          radarLongitude,
+        ),
+        view,
+        size,
+      ),
+      label: null as
+        | { x: number; y: number; textAnchor: "start" | "end" }
+        | null,
+    }));
+
+    const occupied: Array<{ left: number; top: number; right: number; bottom: number }> = [];
+    const padding = view.kmPerPixel <= 0.15 ? 3 : 7;
+
+    if (eventMarker) {
+      const eventPoint = screenPoint(
+        latLonToLocal(
+          eventMarker.lat,
+          eventMarker.lon,
+          radarLatitude,
+          radarLongitude,
+        ),
+        view,
+        size,
+      );
+      occupied.push({
+        left: eventPoint.x + 8,
+        top: eventPoint.y - 22,
+        right: eventPoint.x + 190,
+        bottom: eventPoint.y + 4,
+      });
+    }
+
+    const overlaps = (
+      box: { left: number; top: number; right: number; bottom: number },
+      other: { left: number; top: number; right: number; bottom: number },
+    ) =>
+      !(
+        box.right + padding < other.left ||
+        box.left - padding > other.right ||
+        box.bottom + padding < other.top ||
+        box.top - padding > other.bottom
+      );
+
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const entry = entries[index];
+      const width = Math.min(210, Math.max(42, entry.overlay.label.length * 6.6));
+      const height = 15;
+      const candidates = [
+        { x: 9, y: -8, textAnchor: "start" as const },
+        { x: 9, y: 17, textAnchor: "start" as const },
+        { x: -9, y: -8, textAnchor: "end" as const },
+        { x: -9, y: 17, textAnchor: "end" as const },
+      ];
+
+      for (const candidate of candidates) {
+        const left =
+          entry.point.x + candidate.x - (candidate.textAnchor === "end" ? width : 0);
+        const top = entry.point.y + candidate.y - height + 3;
+        const box = {
+          left,
+          top,
+          right: left + width,
+          bottom: top + height,
+        };
+
+        const onScreen =
+          box.left >= 4 &&
+          box.right <= size.width - 4 &&
+          box.top >= 4 &&
+          box.bottom <= size.height - 4;
+        if (!onScreen || occupied.some((other) => overlaps(box, other))) continue;
+
+        entry.label = candidate;
+        occupied.push(box);
+        break;
+      }
+    }
+
+    return entries;
+  })();
   const lixCountyScreenRings = useMemo(
     () =>
       REGIONAL_BOUNDARIES.lixCounties.flatMap((county: any) =>
@@ -1446,29 +1535,21 @@ export function RadarGeographicCanvas({
           })}
 
         {layers.reports &&
-          pointOverlays.map((overlay) => {
-            const point = screenPoint(
-              latLonToLocal(
-                overlay.lat,
-                overlay.lon,
-                radarLatitude,
-                radarLongitude,
-              ),
-              view,
-              size,
-            );
-            return (
-              <g
-                key={overlay.id}
-                className={`radar-point-overlay radar-point-${(overlay.kind ?? "report").toLowerCase()}`}
-                transform={`translate(${point.x} ${point.y})`}
-              >
-                <circle r="5" />
-                <path d="M -7 0 L 7 0 M 0 -7 L 0 7" />
-                <text x="9" y="-8">{overlay.label}</text>
-              </g>
-            );
-          })}
+          pointOverlayLayout.map(({ overlay, point, label }) => (
+            <g
+              key={overlay.id}
+              className={`radar-point-overlay radar-point-${(overlay.kind ?? "report").toLowerCase()}`}
+              transform={`translate(${point.x} ${point.y})`}
+            >
+              <circle r="5" />
+              <path d="M -7 0 L 7 0 M 0 -7 L 0 7" />
+              {label && (
+                <text x={label.x} y={label.y} textAnchor={label.textAnchor}>
+                  {overlay.label}
+                </text>
+              )}
+            </g>
+          ))}
 
         {warnedAreaPreview && warnedAreaPreview.polygon.length >= 3 && (
           <g className="warngen-hatched-preview">
