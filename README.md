@@ -4,50 +4,136 @@ Role-based displaced-real-time weather operations and DSS training simulator for
 
 ## Purpose
 
-LIX SimOps is a reusable training platform for realistic, synchronized weather operations exercises. The first full scenario is a 2027 Krewe of Endymion DSS exercise using a case-blind replay of the December 14, 2022 LIX severe-weather event.
+LIX SimOps is a reusable platform for synchronized, case-blind weather operations exercises. The first full scenario is the **2027 Krewe of Endymion Severe Weather DSS Exercise** (`mardi-gras-dss-001`), built from archived KLIX-area weather on **May 12, 2021** and remapped to the exercise date.
+
+The simulator is designed to let Radar, Mesoanalysis, and DSS participants work the event as if it were occurring live. Historical source identity and future information stay facilitator-side; post-T=0 warning decisions are made by participants.
+
+## Endymion scenario
+
+- **Exercise date:** February 6, 2027
+- **Exercise window:** 2:45–4:30 PM CST
+- **Default speed:** 1.5×
+- **Historical source window:** May 12, 2021, 06:00–07:45 UTC / 1:00–2:45 AM CDT
+- **Source → exercise offset:** +13 hours 45 minutes
+- **Primary metro severe-weather anchor:** approximately 3:50–3:57 PM CST after displacement
+- **Scenario timezone:** `America/Chicago`
+
+The historical source mapping is defined in `scenarios/mardi-gras/source-case.yaml`, which is facilitator/developer metadata and is deliberately excluded from participant portable packages.
+
+### Case-blindness rules
+
+- Historical source timestamps are remapped to February 6, 2027 before participant delivery.
+- Historical event names and source-case identifiers are not exposed through participant radar/meso APIs.
+- Historical warnings after T=0 do **not** automatically appear. Warning decisions after T=0 are participant-generated.
+- The framework can support warnings inherited at T=0, but inherited warnings are forked independently by team.
+- Live historical reports use their documented event/observation times plus explicit exercise delivery delays.
+- Later damage-survey confirmation is hindsight information and is not injected into the live participant timeline.
+- Portable build checks reject known historical source-case identifiers and facilitator-only source metadata.
 
 ## Core roles
 
-- **Radar Operator** — interrogates archived radar data and communicates storm-scale trends.
-- **Mesoanalyst** — monitors the environment, satellite, lightning, MRMS, observations, and guidance.
-- **DSS Meteorologist** — owns the simulated partner relationship, event impacts, decisions, and communication.
-- **Facilitator** — controls simulation time, injects, partner messages, team status, and debrief logging.
+- **Radar Operator** — interrogates archived radar, tracks storms, issues warnings, and performs warning follow-up.
+- **Mesoanalyst** — monitors environment, satellite, lightning, MRMS, observations, and guidance.
+- **DSS Meteorologist** — owns the simulated partner relationship, impacts, decisions, and communication.
+- **Facilitator** — controls simulation time, injects, reports, partner traffic, team status, and AAR review/export.
 
-## Current V0.7 capabilities
+## Current capabilities
 
-1. Facilitator creates a live exercise session from a scenario pack.
-2. Participants join teams as Radar, Mesoanalyst, or DSS and share one synchronized simulation clock.
-3. Facilitators can start, pause, reset, change playback speed, see team staffing, and override automatic injects.
-4. Partner messages and DSS responses are timestamped against simulation time and retained for debrief.
-5. Archived KLIX Level II radar can be downloaded, rendered, time-remapped, and replayed without exposing future scans.
-6. The Meso workspace supports Environment, Satellite, Lightning, MRMS, Observations, and Guidance products.
-7. The Endymion scenario exposes route, partner priorities, and NWS-derived exercise thresholds directly in DSS.
-8. Google Classroom is the participant launch/resource/debrief layer while LIX SimOps remains authoritative for live timing.
-9. The DSS workspace reserves a link for the coworker-owned Google Form → Google Sheet shift log.
-10. The approved December 14, 2022 source case is defined in a facilitator-only source-case file.
-11. Public-source acquisition exists for NEXRAD, GOES-16 ABI/GLM, MRMS, RAP, and ASOS/METAR observations.
-12. A public-archive smoke workflow verifies that the required December 14 source families are still available before case development.
-13. GOES visible/IR, GLM flash density, MRMS, RAP environmental fields, and surface observations can be rendered into the meso workspace.
-14. RAP 90-mb MLCAPE, 0–6 km bulk shear, and 0–1 km SRH are used as the environment fallback for this case rather than depending on the likely December 2022 SPC mesoanalysis image gap.
-15. LightningCast inputs are staged from archived GOES-16 ABI C02/C05/C13/C15, validated scan-by-scan, and ready for external CSPP Geo processing.
-16. Historical source keys remain server-side and are no longer exposed through participant radar/meso APIs.
-17. A final validator checks exercise-date remapping, required product coverage, and participant asset paths before rehearsal.
+### Exercise control and teams
+
+- Multi-team sessions with Radar, Mesoanalyst, and DSS roles.
+- One synchronized simulation clock with start, pause, reset, and playback-speed controls.
+- Exercise times display in Central time while backend timestamps remain UTC.
+- Automatic scenario timeline with facilitator release-now, skip, and restore controls.
+- Team-isolated warnings and participant state.
+
+### Radar operations
+
+- WebGL KLIX radar playback with **REF, VEL, CC, and ZDR**.
+- Elevation/tilt selection, looping, frame stepping, keyboard shortcuts, and cursor sampling.
+- Mouse-wheel zoom anchored on the cursor without scrolling the surrounding webpage.
+- Distance/Bearing, Distance/Speed, and Storm Track tools.
+- LIX boundaries, highways, event location, warnings, and storm-report overlays.
+- Collision-aware storm-report labels to reduce clutter in dense report areas.
+- Warning outlines and WarnGen previews close along the LIX boundary when clipped.
+
+### WarnGen-style warning workflow
+
+- One Storm and Line of Storms modes.
+- Draggable **Drag Me to Storm** workflow.
+- Historical-frame storm tracking and calculated motion vectors.
+- Track-generated warning polygon.
+- Editable polygon vertices.
+- Middle-click add vertex / right-click remove vertex.
+- Warned/Hatched Area preview.
+- Warning attributes, Create Text, text review/edit, and Issue.
+- Operational TOR/SVR durations.
+- SVS follow-ups: **CON, COR, CAN, EXP**.
+- CON may trim but not expand the existing warning.
+- Initial NEW polygon is preserved separately from later CON trimming.
+
+### Storm reports
+
+- Manual and scheduled storm-report framework.
+- Team/role gating and optional radar plotting.
+- Historical Endymion report sequence uses contemporaneous May 12, 2021 observations with documented exercise delivery delays.
+- Dense report labels are automatically decluttered while all report symbols remain plotted.
+
+### Mesoanalysis workspace
+
+- Product categories for Environment, Satellite, Lightning, MRMS, Observations, and Guidance.
+- Frames are restricted to data available by the current simulation time.
+- Previous/next frame buttons and loop playback.
+- **Left Arrow / Right Arrow** navigate backward/forward through available frames.
+- Manual frame navigation stops looping and holds the selected historical frame.
+- RAP environment fallback includes mixed-layer CAPE, bulk shear, and storm-relative helicity fields.
+- GOES/GLM, MRMS, RAP, and surface-observation products are supported by the case build.
+- LightningCast reproduction remains an optional external CSPP Geo workflow and is not required by the active Endymion package.
+
+### DSS workspace
+
+- Partner messages and DSS responses timestamped against simulation time.
+- Endymion event/route context and exercise decision thresholds.
+- Link/reserved workflow for the coworker-owned Google Form → Google Sheet mock shift log.
+
+### Facilitator and AAR
+
+- Warning visibility and warning/SVS history across teams.
+- Radar AAR Timeline combining warning actions and released storm reports.
+- Warning AAR Metrics for participant-issued NEW warnings:
+  - NEW → first observed report timing
+  - NEW → first released report timing
+  - reports released while the warning was operationally active
+  - report coverage using the **initial issued polygon**
+  - reports outside the initial polygon
+  - SVS follow-up timing from NEW
+- Inherited T=0 warnings remain visible in the timeline but are excluded from participant-NEW performance metrics.
+- Per-team warning summary.
+- Downloadable warning CSV.
+- Full AAR JSON export preserving session state, participants, schedule, events, warning text/polygons, SVS history, timeline, and computed metrics.
 
 ## Exercise support tools
 
 The Endymion exercise deliberately uses three systems together:
 
-- **LIX SimOps** — authoritative live DRT, radar/meso products, partner messages, simulation clock, and facilitator control.
-- **Google Classroom** — opening briefing, PowerPoint, reference materials, participant links, and post-exercise reflection.
-- **Mock Shift Log** — coworker-owned Google Form feeding a Google Sheet; each DSS Meteorologist logs meaningful external communication.
+- **LIX SimOps** — authoritative live displaced-real-time simulation, radar/meso products, partner messages, warnings, reports, simulation clock, and facilitator control.
+- **Google Classroom** — opening briefing, presentation materials, participant resources, links, and post-exercise reflection.
+- **Mock Shift Log** — coworker-owned Google Form feeding a Google Sheet; DSS Meteorologists log meaningful external communication.
 
-Operational injects remain in LIX SimOps because the DRT can pause or change playback speed.
+Operational injects remain in LIX SimOps because the simulation may pause or change playback speed.
 
-See:
+Relevant documentation includes:
 
+- `docs/architecture.md`
+- `docs/exercise-operations.md`
 - `docs/google-classroom-integration.md`
 - `docs/mock-shift-log-integration.md`
 - `docs/exercise-instruction-deck-outline.md`
+- `docs/radar-playback.md`
+- `docs/meso-workspace.md`
+- `docs/scenario-authoring.md`
+- `docs/source-case-timeline.md` — **facilitator-only; reveals the historical case**
+- `docs/lightningcast-reproduction.md`
 
 ## Repository layout
 
@@ -57,11 +143,12 @@ backend/        FastAPI + WebSocket API
 simulator/      Simulation engine and scenario/data schemas
 scenarios/      Exercise configuration packs
 scripts/        Data download/render/build/validation utilities
-docs/           Architecture and operating documentation
+portable/       Windows portable-launch/update support
+docs/           Architecture, operations, and exercise documentation
 data/           Local/generated data only; raw weather archives stay out of git
 ```
 
-## Application quick start
+## Development quick start
 
 ```bash
 cp .env.example .env
@@ -71,17 +158,33 @@ docker compose up --build
 Frontend: http://localhost:5173  
 Backend health check: http://localhost:8000/health
 
+## Portable Windows workflow
+
+The repository includes a no-admin portable workflow for managed Windows computers:
+
+**GitHub Actions → Build Portable Windows SimOps**
+
+The workflow downloads a previously validated Endymion weather cache, builds the frontend, assembles the backend/simulator/scenario runtime, validates the package offline, tests the launcher, and publishes two artifacts:
+
+- **`LIX-SimOps-Portable-Windows`** — full first-install package with launcher, offline wheelhouse, and validated weather cache.
+- **`LIX-SimOps-App-Update`** — smaller source/frontend/scenario update for an already-working portable install. It intentionally contains no launcher, wheelhouse, weather cache, executable, DLL, PowerShell script, compiled Python extension, or wheel.
+
+The full portable runtime uses `%LOCALAPPDATA%\LIX-SimOps` for its private Python environment and does not require administrator access.
+
+`PACKAGE_INFO.txt` records the scenario, exercise date, validated case run ID, and application commit for traceability.
+
 ## Exercise workflow
 
 1. Open Google Classroom and the opening instruction deck.
-2. Open LIX SimOps and create the exercise session.
+2. Start LIX SimOps and create a fresh Endymion exercise session.
 3. Share the generated session code.
 4. Participants join the assigned team and role.
-5. DSS Meteorologists open the coworker-provided mock shift-log Form.
-6. Confirm Radar/Meso/DSS staffing for every team.
+5. DSS Meteorologists open the mock shift-log Form.
+6. Confirm Radar/Meso/DSS staffing for each participating team.
 7. Start the simulation clock.
-8. Let automatic partner messages/injects release by simulation time; override only when needed.
-9. Use SimOps logs plus the Google Sheet shift log during debrief.
+8. Let scheduled partner messages/reports/injects release by simulation time; override only when needed.
+9. Radar operators issue and follow up warnings based on participant decisions.
+10. Use the Facilitator AAR Timeline, warning metrics, exports, and mock shift log during debrief.
 
 ## Build the Endymion weather package
 
@@ -91,7 +194,7 @@ Install the data dependencies:
 pip install -r scripts/requirements-data.txt
 ```
 
-Confirm the public archives:
+Confirm the required public archives:
 
 ```bash
 python scripts/check_case_archives.py
@@ -109,52 +212,52 @@ Validate the raw inventory:
 python scripts/validate_case_inventory.py --strict
 ```
 
-Render all locally reproducible meso products and build the time-remapped cache:
+Render locally reproducible meso products and build the time-remapped cache:
 
 ```bash
 python scripts/build_endymion_meso_inputs.py
 ```
 
-Build radar, meso products, and run the final case validator:
+Build radar/meso products and run the final case validator:
 
 ```bash
 python scripts/build_endymion_case.py
 ```
 
-Once CSPP Geo LightningCast output has been staged, require it as part of the final validation:
+LightningCast is optional and requires externally generated CSPP Geo output. When it has been staged, it can be required by validation:
 
 ```bash
 python scripts/build_endymion_case.py --require-lightningcast
 ```
 
-See:
+## Data sources
 
-- `docs/v0.6-case-data.md`
-- `docs/v0.7-rendered-case.md`
-- `docs/lightningcast-reproduction.md`
-- `docs/source-case-timeline.md` — **facilitator-only; reveals the historical case**
+The Endymion case build currently supports:
 
-## Endymion scenario
+- **KLIX NEXRAD Level II** — NOAA/Unidata public archive
+- **GOES-16 ABI** — NOAA Open Data on AWS
+- **GOES-16 GLM** — NOAA Open Data on AWS
+- **MRMS** — NOAA Open Data on AWS
+- **RAP analyses** — NOAA Rapid Refresh Open Data on AWS
+- **ASOS/METAR observations** — Iowa Environmental Mesonet
+- **Historical Local Storm Reports** — Iowa Environmental Mesonet archive, used with explicit provenance/limitations in facilitator-only metadata
 
-The live scenario runs from **2:45–4:30 PM CST on February 6, 2027** at a default **1.5×** simulation speed. That provides 105 simulated minutes in about 70 wall-clock minutes.
+Raw source data retain original timestamps only in facilitator-controlled storage. Participant cache manifests and assets are remapped to the exercise timeline.
 
-Exercise lightning framework:
+## Development status
 
-- 15 miles: elevated monitoring/preparation and lead-time calculations
-- 12 miles: impending threat; protective action beginning/continuing as needed
-- 8 miles: hold/suspend threatened operations
-- organized convection: consider 30+ minutes of protective-action lead time
-- resumption with professional real-time lightning support: beyond 8 miles, storm moving away, and no renewed strike threat within 8 miles
+Completed/validated on the current radar-operations development line:
 
-These are exercise defaults based on NWS large-venue guidance, not claimed City of New Orleans Mardi Gras policy.
+- synchronized multi-role exercise sessions
+- case-blind May 12, 2021 → February 6, 2027 displacement
+- rendered radar/meso case playback
+- WarnGen-style TOR/SVR issuance and SVS follow-up
+- team-isolated warning state
+- historical report release framework and radar plotting
+- warning AAR metrics and exports
+- portable Windows first-install and app-update workflows
+- Central-time participant displays
+- radar report decluttering and CWA-clipped warning closure
+- Meso left/right keyboard frame navigation
 
-## Milestones
-
-- **V0.1:** synchronized clock and role workspaces
-- **V0.2:** multi-team sessions and partner/DSS communications
-- **V0.3:** archived radar playback
-- **V0.4:** mesoanalysis/environment workspace
-- **V0.5:** Endymion scenario, automatic timeline, external exercise-tool integration
-- **V0.6:** approved December 14, 2022 source-case acquisition and validation
-- **V0.7:** participant-product rendering, RAP environment fallback, case-blindness hardening, and end-to-end cache validation
-- **V0.8:** execute the full local source-case build, add CSPP LightningCast output, rehearse the complete exercise, and tune inject timing from the actual rendered data
+Next development focus is broader team AAR coverage across Radar, Meso, and DSS, followed by full Endymion rehearsal/tuning and documentation freeze before merge.
