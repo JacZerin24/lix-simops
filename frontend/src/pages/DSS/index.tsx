@@ -8,13 +8,14 @@ type Props = {
   sessionCode: string;
   events: ExerciseEvent[];
   onRespond: (body: string) => void;
+  onShiftLogUpdated: () => void;
 };
 
 function simTime(value?: string) {
   return formatExerciseTime(value, "");
 }
 
-export function DSS({ sessionCode, events, onRespond }: Props) {
+export function DSS({ sessionCode, events, onRespond, onShiftLogUpdated }: Props) {
   const [body, setBody] = useState("");
   const [operations, setOperations] = useState<EventOperationsConfig | null>(null);
   const [opsTab, setOpsTab] = useState<"overview" | "thresholds" | "route">("overview");
@@ -34,6 +35,7 @@ export function DSS({ sessionCode, events, onRespond }: Props) {
   const chat = events.filter(
     (event) => event.type === "partner_message" || event.type === "dss_response",
   );
+  const shiftLogUpdates = events.filter((event) => event.type === "shift_log_update");
 
   const thresholds = operations?.operations?.decision_thresholds ?? [];
   const shiftLog = operations?.communications?.mock_shift_log;
@@ -84,23 +86,32 @@ export function DSS({ sessionCode, events, onRespond }: Props) {
               <strong>Mock Shift Log</strong>
               <p>
                 Log each meaningful communication to or from Event Command in the coworker-owned
-                Google Form so it populates the shared exercise sheet.
+                Google Form. After submitting the form, mark the update here so its timing is
+                captured in the SimOps AAR.
               </p>
+              <span className="shift-log-count">
+                {shiftLogUpdates.length} shift log update{shiftLogUpdates.length === 1 ? "" : "s"} marked
+              </span>
             </div>
-            {shiftLog?.form_url ? (
-              <a
-                className="primary-action shift-log-link"
-                href={shiftLog.form_url}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open Shift Log
-              </a>
-            ) : (
-              <button type="button" disabled title="The facilitator will add the Google Form link">
-                Shift Log Link Pending
+            <div className="shift-log-actions">
+              {shiftLog?.form_url ? (
+                <a
+                  className="primary-action shift-log-link"
+                  href={shiftLog.form_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open Shift Log
+                </a>
+              ) : (
+                <button type="button" disabled title="The facilitator will add the Google Form link">
+                  Shift Log Link Pending
+                </button>
+              )}
+              <button type="button" onClick={onShiftLogUpdated}>
+                Mark Shift Log Updated
               </button>
-            )}
+            </div>
           </div>
 
           <form className="composer" onSubmit={submit}>

@@ -86,6 +86,7 @@ The historical source mapping is defined in `scenarios/mardi-gras/source-case.ya
 - Previous/next frame buttons and loop playback.
 - **Left Arrow / Right Arrow** navigate backward/forward through available frames.
 - Manual frame navigation stops looping and holds the selected historical frame.
+- **Send Meso Update to Team** records an analyst assessment together with the selected product/frame for the team AAR.
 - RAP environment fallback includes mixed-layer CAPE, bulk shear, and storm-relative helicity fields.
 - GOES/GLM, MRMS, RAP, and surface-observation products are supported by the case build.
 - LightningCast reproduction remains an optional external CSPP Geo workflow and is not required by the active Endymion package.
@@ -95,6 +96,7 @@ The historical source mapping is defined in `scenarios/mardi-gras/source-case.ya
 - Partner messages and DSS responses timestamped against simulation time.
 - Endymion event/route context and exercise decision thresholds.
 - Link/reserved workflow for the coworker-owned Google Form → Google Sheet mock shift log.
+- **Mark Shift Log Updated** records each DSS logging action in SimOps without duplicating the Google Form contents.
 
 ### Facilitator and AAR
 
@@ -109,6 +111,8 @@ The historical source mapping is defined in `scenarios/mardi-gras/source-case.ya
   - SVS follow-up timing from NEW
 - Inherited T=0 warnings remain visible in the timeline but are excluded from participant-NEW performance metrics.
 - Per-team warning summary.
+- Integrated **Team Operations AAR** across warning actions, partner traffic, DSS responses, Meso updates, storm reports, injects, and shift-log markers.
+- DSS metrics include answered/unanswered partner messages, FIFO response timing, response count, and shift-log update count/times.
 - Downloadable warning CSV.
 - Full AAR JSON export preserving session state, participants, schedule, events, warning text/polygons, SVS history, timeline, and computed metrics.
 
@@ -255,6 +259,7 @@ Completed/validated on the current radar-operations development line:
 - team-isolated warning state
 - historical report release framework and radar plotting
 - warning AAR metrics and exports
+- integrated team AAR, DSS response metrics, shift-log update tracking, and timestamped Meso team updates
 - portable Windows first-install and app-update workflows
 - Central-time participant displays
 - radar report decluttering and CWA-clipped warning closure

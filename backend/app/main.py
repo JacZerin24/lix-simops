@@ -177,7 +177,7 @@ def event_visible_to(event: dict, participant: Participant) -> bool:
         target_team = event.get("team_id")
         return participant.role == Role.DSS and target_team in {"*", participant.team_id}
 
-    if event_type in {"dss_response", "team_message"}:
+    if event_type in {"dss_response", "team_message", "meso_update", "shift_log_update"}:
         return event.get("team_id") == participant.team_id
 
     if event_type == "warning_action":
@@ -853,6 +853,59 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     payload,
                     lambda person: person.role == Role.FACILITATOR
                     or person.team_id == participant.team_id,
+                )
+
+            elif kind == "shift_log_update":
+                if role != Role.DSS:
+                    await send_error(websocket, "Only the DSS role can mark shift log updates")
+                    continue
+
+                payload = session.record(
+                    {
+                        "type": "shift_log_update",
+                        "event_id": uuid4().hex,
+                        "team_id": participant.team_id,
+                        "role": participant.role.value,
+                        "sender": participant.display_name,
+                        "body": "Shift log entry submitted.",
+                        "sim_time": session.sim_time.isoformat(),
+                    }
+                )
+                await send_to(
+                    session,
+                    payload,
+                    lambda person: event_visible_to(payload, person),
+                )
+
+            elif kind == "meso_update":
+                if role != Role.MESO:
+                    await send_error(websocket, "Only the Mesoanalyst role can send meso updates")
+                    continue
+
+                body = str(message.get("body", "")).strip()
+                if not body:
+                    await send_error(websocket, "Meso update body is required")
+                    continue
+
+                payload = session.record(
+                    {
+                        "type": "meso_update",
+                        "event_id": uuid4().hex,
+                        "team_id": participant.team_id,
+                        "role": participant.role.value,
+                        "sender": participant.display_name,
+                        "body": body,
+                        "category": str(message.get("category", "")).strip(),
+                        "product_id": str(message.get("product_id", "")).strip(),
+                        "product_label": str(message.get("product_label", "")).strip(),
+                        "frame_time": str(message.get("frame_time", "")).strip(),
+                        "sim_time": session.sim_time.isoformat(),
+                    }
+                )
+                await send_to(
+                    session,
+                    payload,
+                    lambda person: event_visible_to(payload, person),
                 )
 
             elif kind == "team_message":

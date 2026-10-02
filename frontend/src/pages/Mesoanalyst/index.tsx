@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { getMesoFrames } from "../../services/api";
 import type { MesoFrameResponse } from "../../types/simulation";
@@ -6,19 +6,27 @@ import { formatExerciseDateTime } from "../../utils/time";
 
 type Props = {
   sessionCode: string;
+  onUpdate: (draft: {
+    body: string;
+    category: string;
+    product_id: string;
+    product_label: string;
+    frame_time: string;
+  }) => void;
 };
 
 function frameTime(value?: string) {
   return formatExerciseDateTime(value, "No valid frame");
 }
 
-export function Mesoanalyst({ sessionCode }: Props) {
+export function Mesoanalyst({ sessionCode, onUpdate }: Props) {
   const [product, setProduct] = useState("");
   const [category, setCategory] = useState("");
   const [data, setData] = useState<MesoFrameResponse | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [followLatest, setFollowLatest] = useState(true);
   const [playing, setPlaying] = useState(false);
+  const [updateBody, setUpdateBody] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -100,6 +108,20 @@ export function Mesoanalyst({ sessionCode }: Props) {
     setSelectedIndex((current) =>
       Math.max(0, Math.min(frames.length - 1, current + direction)),
     );
+  };
+
+  const submitMesoUpdate = (event: FormEvent) => {
+    event.preventDefault();
+    const value = updateBody.trim();
+    if (!value || !frame || !selectedProduct) return;
+    onUpdate({
+      body: value,
+      category,
+      product_id: selectedProduct.id,
+      product_label: selectedProduct.label,
+      frame_time: frame.timestamp,
+    });
+    setUpdateBody("");
   };
 
   useEffect(() => {
@@ -220,7 +242,27 @@ export function Mesoanalyst({ sessionCode }: Props) {
         </div>
       )}
 
-      {error && <div className="error-banner">{error}</div>}
+      <form className="meso-update-composer" onSubmit={submitMesoUpdate}>
+        <div>
+          <strong>Send Meso Update to Team</strong>
+          <span>Captures your assessment with the selected product/frame for the team AAR.</span>
+        </div>
+        <textarea
+          value={updateBody}
+          onChange={(event) => setUpdateBody(event.target.value)}
+          placeholder="What environmental trend or concern should Radar and DSS know?"
+          rows={3}
+        />
+        <button
+          type="submit"
+          className="primary-action"
+          disabled={!frame || !selectedProduct || !updateBody.trim()}
+        >
+          Send Meso Update
+        </button>
+      </form>
+
+      {error && <div className="error-banner">{error}</div>
 
       {!data?.available ? (
         <div className="meso-empty">

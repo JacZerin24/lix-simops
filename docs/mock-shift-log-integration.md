@@ -17,7 +17,7 @@ Linked Google Sheet
 Facilitator / debrief review
 ```
 
-LIX SimOps should not duplicate that form or spreadsheet. The simulator only needs a configurable link so the DSS Meteorologist can open the form quickly.
+LIX SimOps should not duplicate that form or spreadsheet. The simulator keeps a configurable link so the DSS Meteorologist can open the form quickly, plus a **Mark Shift Log Updated** control. After submitting the real Google Form, the DSS Meteorologist clicks that control once so SimOps records the simulated time and team for AAR metrics. The marker confirms that an update was made; the Google Sheet remains authoritative for the entry contents.
 
 ## When to submit an entry
 
@@ -58,4 +58,4 @@ The form link should be:
 - Included in the opening instruction PowerPoint
 - Opened before the simulation clock starts
 
-The linked Google Sheet can then be used during the debrief to compare the timing, wording, and evolution of partner communication across teams.
+The linked Google Sheet can then be used during the debrief to compare the timing, wording, and evolution of partner communication across teams. SimOps AAR metrics separately show the number and simulated times of **Shift Log Updated** markers, allowing facilitators to compare communication activity with documented logging cadence without copying the form contents into SimOps.

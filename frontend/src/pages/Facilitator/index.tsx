@@ -392,11 +392,210 @@ export function Facilitator({
       .sort((first, second) => first.teamId.localeCompare(second.teamId));
   }, [radarAarMetrics]);
 
+  const dssTeamMetrics = useMemo(() => {
+    return teams.map((teamId) => {
+      const communicationEvents = events
+        .filter(
+          (event) =>
+            event.sim_time &&
+            ((event.type === "partner_message" &&
+              (event.team_id === "*" || event.team_id === teamId)) ||
+              (event.type === "dss_response" && event.team_id === teamId)),
+        )
+        .sort(
+          (first, second) =>
+            new Date(first.sim_time!).getTime() -
+            new Date(second.sim_time!).getTime(),
+        );
+
+      const pending: ExerciseEvent[] = [];
+      const responsePairs: Array<{
+        message: ExerciseEvent;
+        response: ExerciseEvent;
+        minutes: number;
+      }> = [];
+      let unpromptedResponses = 0;
+
+      for (const event of communicationEvents) {
+        if (event.type === "partner_message") {
+          pending.push(event);
+          continue;
+        }
+        const message = pending.shift();
+        if (!message?.sim_time || !event.sim_time) {
+          unpromptedResponses += 1;
+          continue;
+        }
+        responsePairs.push({
+          message,
+          response: event,
+          minutes: minutesBetween(message.sim_time, event.sim_time),
+        });
+      }
+
+      const partnerMessages = communicationEvents.filter(
+        (event) => event.type === "partner_message",
+      );
+      const responses = communicationEvents.filter(
+        (event) => event.type === "dss_response",
+      );
+      const shiftLogUpdates = events
+        .filter(
+          (event) =>
+            event.type === "shift_log_update" &&
+            event.team_id === teamId &&
+            event.sim_time,
+        )
+        .sort(
+          (first, second) =>
+            new Date(first.sim_time!).getTime() -
+            new Date(second.sim_time!).getTime(),
+        );
+      const mesoUpdates = events.filter(
+        (event) => event.type === "meso_update" && event.team_id === teamId,
+      );
+      const averageResponseMinutes = responsePairs.length
+        ? responsePairs.reduce((sum, pair) => sum + pair.minutes, 0) /
+          responsePairs.length
+        : null;
+
+      return {
+        teamId,
+        partnerMessageCount: partnerMessages.length,
+        responseCount: responses.length,
+        answeredCount: responsePairs.length,
+        unansweredCount: pending.length,
+        unpromptedResponses,
+        averageResponseMinutes,
+        responsePairs,
+        shiftLogUpdateCount: shiftLogUpdates.length,
+        shiftLogTimes: shiftLogUpdates.map((event) => event.sim_time!),
+        mesoUpdateCount: mesoUpdates.length,
+      };
+    });
+  }, [events, teams]);
+
+  const teamOperationsTimelines = useMemo(() => {
+    return teams.map((teamId) => {
+      const items: Array<{
+        id: string;
+        time: string;
+        kind: string;
+        title: string;
+        detail: string;
+      }> = [];
+
+      for (const warning of warnings.filter(
+        (warning) => warning.team_id === teamId || warning.team_id === "*",
+      )) {
+        items.push({
+          id: `${warning.id}-team-new`,
+          time: warning.issued_at,
+          kind: warning.inherited ? "INHERITED" : `${warning.hazard} NEW`,
+          title: warning.label,
+          detail: `${warning.issuer} · expires ${simTime(warning.expires_at)}`,
+        });
+        for (const followup of warning.followups ?? []) {
+          items.push({
+            id: `${warning.id}-team-${followup.id}`,
+            time: followup.issued_at,
+            kind: `${warning.hazard} ${followup.action}`,
+            title: `${warning.label} follow-up`,
+            detail: followup.issuer,
+          });
+        }
+      }
+
+      for (const event of events) {
+        if (!event.sim_time) continue;
+        const teamScoped =
+          event.team_id === teamId ||
+          event.team_id === "*" ||
+          event.target_team_id === teamId ||
+          event.target_team_id === "*" ||
+          (!event.team_id && !event.target_team_id);
+        if (!teamScoped) continue;
+
+        if (event.type === "partner_message") {
+          items.push({
+            id: event.event_id ?? `partner-${teamId}-${event.sim_time}`,
+            time: event.sim_time,
+            kind: "PARTNER",
+            title: event.sender ?? "Event Command",
+            detail: event.body,
+          });
+        } else if (event.type === "dss_response") {
+          items.push({
+            id: event.event_id ?? `dss-${teamId}-${event.sim_time}`,
+            time: event.sim_time,
+            kind: "DSS RESPONSE",
+            title: event.sender ?? "DSS",
+            detail: event.body,
+          });
+        } else if (event.type === "shift_log_update") {
+          items.push({
+            id: event.event_id ?? `shift-${teamId}-${event.sim_time}`,
+            time: event.sim_time,
+            kind: "SHIFT LOG",
+            title: "Shift log updated",
+            detail: event.sender ? `Marked by ${event.sender}` : "Update marked",
+          });
+        } else if (event.type === "meso_update") {
+          items.push({
+            id: event.event_id ?? `meso-${teamId}-${event.sim_time}`,
+            time: event.sim_time,
+            kind: "MESO",
+            title: event.product_label || event.category || "Meso update",
+            detail: [
+              event.body,
+              event.frame_time ? `frame ${simTime(event.frame_time)}` : null,
+              event.sender ? `by ${event.sender}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+          });
+        } else if (event.type === "storm_report") {
+          items.push({
+            id: event.event_id ?? `report-${teamId}-${event.sim_time}`,
+            time: event.sim_time,
+            kind: "REPORT",
+            title: [event.magnitude, event.title].filter(Boolean).join(" · ") || "Storm Report",
+            detail: event.body || event.source || "Storm report released",
+          });
+        } else if (event.type === "inject") {
+          items.push({
+            id: event.event_id ?? `inject-${teamId}-${event.sim_time}`,
+            time: event.sim_time,
+            kind: "INJECT",
+            title: event.title ?? "Exercise Inject",
+            detail: event.body,
+          });
+        } else if (event.type === "team_message") {
+          items.push({
+            id: event.event_id ?? `team-${teamId}-${event.sim_time}`,
+            time: event.sim_time,
+            kind: (event.role ?? "team").toUpperCase(),
+            title: event.sender ?? "Team message",
+            detail: event.body,
+          });
+        }
+      }
+
+      return {
+        teamId,
+        items: items.sort(
+          (first, second) =>
+            new Date(first.time).getTime() - new Date(second.time).getTime(),
+        ),
+      };
+    });
+  }, [events, teams, warnings]);
+
   const exportBaseName = `lix-simops-${sessionCode.toLowerCase()}-aar`;
 
   const downloadAarJson = () => {
     const payload = {
-      schema_version: 1,
+      schema_version: 2,
       exported_at: new Date().toISOString(),
       exercise_timezone: "America/Chicago",
       session: {
@@ -438,6 +637,26 @@ export function Facilitator({
         last_warning_action: summary.lastAction,
         warning_ids: summary.metrics.map((metric) => metric.warning.id),
       })),
+      dss_metrics: dssTeamMetrics.map((metric) => ({
+        team_id: metric.teamId,
+        partner_message_count: metric.partnerMessageCount,
+        dss_response_count: metric.responseCount,
+        answered_partner_messages: metric.answeredCount,
+        unanswered_partner_messages: metric.unansweredCount,
+        unprompted_dss_responses: metric.unpromptedResponses,
+        average_response_minutes: roundedMinutes(metric.averageResponseMinutes),
+        shift_log_update_count: metric.shiftLogUpdateCount,
+        shift_log_update_times: metric.shiftLogTimes,
+        meso_update_count: metric.mesoUpdateCount,
+        response_pairs: metric.responsePairs.map((pair) => ({
+          partner_message_id: pair.message.event_id,
+          partner_message_time: pair.message.sim_time,
+          dss_response_id: pair.response.event_id,
+          dss_response_time: pair.response.sim_time,
+          response_minutes: roundedMinutes(pair.minutes),
+        })),
+      })),
+      team_operations_timeline: teamOperationsTimelines,
     };
 
     downloadTextFile(
@@ -516,6 +735,7 @@ export function Facilitator({
     );
   };
 
+  const [aarTeam, setAarTeam] = useState("Team 1");
   const [partnerTeam, setPartnerTeam] = useState("Team 1");
   const [partnerSender, setPartnerSender] = useState("Event Command");
   const [partnerBody, setPartnerBody] = useState("");
@@ -578,6 +798,13 @@ export function Facilitator({
     setReportMagnitude("");
   };
 
+  const activeAarTeam = teams.includes(aarTeam) ? aarTeam : teams[0];
+  const activeDssMetric = dssTeamMetrics.find(
+    (metric) => metric.teamId === activeAarTeam,
+  );
+  const activeTeamTimeline =
+    teamOperationsTimelines.find((timeline) => timeline.teamId === activeAarTeam)?.items ?? [];
+
   return (
     <section className="facilitator-layout">
       <div className="panel">
@@ -626,6 +853,75 @@ export function Facilitator({
             </article>
           ))}
         </div>
+      </div>
+
+      <div className="panel">
+        <div className="team-ops-header">
+          <div>
+            <h2>Team Operations AAR</h2>
+            <p className="muted">
+              Integrated Radar, Meso, DSS, partner, report, and shift-log chronology for one team.
+              DSS response matching is FIFO: each response is paired to the oldest unanswered
+              partner message.
+            </p>
+          </div>
+          <label>
+            Team
+            <select value={activeAarTeam} onChange={(event) => setAarTeam(event.target.value)}>
+              {teams.map((team) => (
+                <option value={team} key={team}>{team}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {activeDssMetric && (
+          <div className="team-ops-metrics">
+            <article><span>Partner messages</span><strong>{activeDssMetric.partnerMessageCount}</strong></article>
+            <article><span>Answered / unanswered</span><strong>{activeDssMetric.answeredCount} / {activeDssMetric.unansweredCount}</strong></article>
+            <article>
+              <span>Avg DSS response</span>
+              <strong>
+                {activeDssMetric.averageResponseMinutes == null
+                  ? "—"
+                  : `${roundedMinutes(activeDssMetric.averageResponseMinutes)} min`}
+              </strong>
+            </article>
+            <article><span>DSS responses</span><strong>{activeDssMetric.responseCount}</strong></article>
+            <article><span>Shift log updates</span><strong>{activeDssMetric.shiftLogUpdateCount}</strong></article>
+            <article><span>Meso updates</span><strong>{activeDssMetric.mesoUpdateCount}</strong></article>
+          </div>
+        )}
+
+        {activeDssMetric && activeDssMetric.responsePairs.length > 0 && (
+          <div className="dss-response-pairs">
+            <strong>DSS response timing</strong>
+            {activeDssMetric.responsePairs.map((pair, index) => (
+              <div key={pair.response.event_id ?? `response-pair-${index}`}>
+                <span>{simTime(pair.message.sim_time)} partner → {simTime(pair.response.sim_time)} DSS</span>
+                <strong>{roundedMinutes(pair.minutes)} min</strong>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <h3>Integrated team timeline</h3>
+        {activeTeamTimeline.length === 0 ? (
+          <p className="muted">No team operational activity has been recorded yet.</p>
+        ) : (
+          <div className="team-ops-timeline">
+            {activeTeamTimeline.map((item) => (
+              <article className="team-ops-row" key={item.id}>
+                <div className="radar-aar-time">{simTime(item.time)}</div>
+                <span className="team-event-badge">{item.kind}</span>
+                <div className="team-ops-copy">
+                  <strong>{item.title}</strong>
+                  <p>{item.detail}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="panel">

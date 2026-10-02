@@ -46,6 +46,8 @@ const exerciseEventTypes = new Set([
   "dss_response",
   "team_message",
   "storm_report",
+  "meso_update",
+  "shift_log_update",
 ]);
 
 function App() {
@@ -232,6 +234,20 @@ function App() {
     send({ type: "dss_response", body });
   };
 
+  const sendShiftLogUpdate = () => {
+    send({ type: "shift_log_update" });
+  };
+
+  const sendMesoUpdate = (draft: {
+    body: string;
+    category: string;
+    product_id: string;
+    product_label: string;
+    frame_time: string;
+  }) => {
+    send({ type: "meso_update", ...draft });
+  };
+
   const sendStormReport = (draft: StormReportDraft) => {
     send({
       type: "storm_report",
@@ -327,8 +343,17 @@ function App() {
               onWarningAction={send}
             />
           )}
-          {role === "mesoanalyst" && <Mesoanalyst sessionCode={activeSessionCode} />}
-          {role === "dss" && <DSS sessionCode={activeSessionCode} events={events} onRespond={sendDssResponse} />}
+          {role === "mesoanalyst" && (
+            <Mesoanalyst sessionCode={activeSessionCode} onUpdate={sendMesoUpdate} />
+          )}
+          {role === "dss" && (
+            <DSS
+              sessionCode={activeSessionCode}
+              events={events}
+              onRespond={sendDssResponse}
+              onShiftLogUpdated={sendShiftLogUpdate}
+            />
+          )}
           <ExerciseFeed events={events} />
         </section>
       )}

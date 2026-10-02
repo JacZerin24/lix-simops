@@ -48,7 +48,14 @@ export type SessionState = ClockState & {
 };
 
 export type ExerciseEvent = {
-  type: "inject" | "partner_message" | "dss_response" | "team_message" | "storm_report";
+  type:
+    | "inject"
+    | "partner_message"
+    | "dss_response"
+    | "team_message"
+    | "storm_report"
+    | "meso_update"
+    | "shift_log_update";
   event_id?: string;
   title?: string;
   body: string;
@@ -69,6 +76,10 @@ export type ExerciseEvent = {
   observed_at?: string;
   plot_on_radar?: boolean;
   expires_at?: string;
+  category?: string;
+  product_id?: string;
+  product_label?: string;
+  frame_time?: string;
 };
 
 export type Inject = ExerciseEvent;
