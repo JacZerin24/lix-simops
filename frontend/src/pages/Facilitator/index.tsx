@@ -6,7 +6,7 @@ import type {
   ScheduledExerciseItem,
   WarningRecord,
 } from "../../types/simulation";
-import { formatExerciseTime } from "../../utils/time";
+import { formatExerciseDateTime, formatExerciseTime } from "../../utils/time";
 
 type InjectDraft = {
   title: string;
@@ -86,6 +86,27 @@ function deltaLabel(minutes: number, subject: string) {
   return minutes > 0
     ? `${subject}: +${rounded} min after NEW`
     : `${subject}: ${rounded} min before NEW`;
+}
+
+function roundedMinutes(value: number | null) {
+  return value == null ? null : Math.round(value * 10) / 10;
+}
+
+function csvCell(value: unknown) {
+  const text = value == null ? "" : String(value);
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+function downloadTextFile(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export function Facilitator({
@@ -309,6 +330,191 @@ export function Facilitator({
         };
       });
   }, [events, warnings]);
+
+  const teamAarSummaries = useMemo(() => {
+    const grouped = new Map<
+      string,
+      {
+        teamId: string;
+        metrics: typeof radarAarMetrics;
+        torCount: number;
+        svrCount: number;
+        followupCount: number;
+        firstNew: string;
+        lastAction: string;
+      }
+    >();
+
+    for (const metric of radarAarMetrics) {
+      const teamId = metric.warning.team_id;
+      let summary = grouped.get(teamId);
+      if (!summary) {
+        summary = {
+          teamId,
+          metrics: [],
+          torCount: 0,
+          svrCount: 0,
+          followupCount: 0,
+          firstNew: metric.warning.issued_at,
+          lastAction: metric.warning.issued_at,
+        };
+        grouped.set(teamId, summary);
+      }
+
+      summary.metrics.push(metric);
+      if (metric.warning.hazard === "TOR") summary.torCount += 1;
+      if (metric.warning.hazard === "SVR") summary.svrCount += 1;
+      summary.followupCount += metric.followupTiming.length;
+
+      if (new Date(metric.warning.issued_at).getTime() < new Date(summary.firstNew).getTime()) {
+        summary.firstNew = metric.warning.issued_at;
+      }
+
+      for (const followup of metric.warning.followups ?? []) {
+        if (new Date(followup.issued_at).getTime() > new Date(summary.lastAction).getTime()) {
+          summary.lastAction = followup.issued_at;
+        }
+      }
+      if (new Date(metric.warning.issued_at).getTime() > new Date(summary.lastAction).getTime()) {
+        summary.lastAction = metric.warning.issued_at;
+      }
+    }
+
+    return Array.from(grouped.values())
+      .map((summary) => ({
+        ...summary,
+        metrics: [...summary.metrics].sort(
+          (first, second) =>
+            new Date(first.warning.issued_at).getTime() -
+            new Date(second.warning.issued_at).getTime(),
+        ),
+      }))
+      .sort((first, second) => first.teamId.localeCompare(second.teamId));
+  }, [radarAarMetrics]);
+
+  const exportBaseName = `lix-simops-${sessionCode.toLowerCase()}-aar`;
+
+  const downloadAarJson = () => {
+    const payload = {
+      schema_version: 1,
+      exported_at: new Date().toISOString(),
+      exercise_timezone: "America/Chicago",
+      session: {
+        session_code: sessionCode,
+        scenario_name: scenarioName,
+      },
+      participants,
+      schedule,
+      events,
+      warnings,
+      radar_aar_timeline: radarAarTimeline,
+      warning_metrics: radarAarMetrics.map((metric) => ({
+        warning_id: metric.warning.id,
+        team_id: metric.warning.team_id,
+        hazard: metric.warning.hazard,
+        status: metric.warning.status,
+        new_time: metric.warning.issued_at,
+        new_time_local: formatExerciseDateTime(metric.warning.issued_at),
+        first_observed_report_delta_minutes: roundedMinutes(metric.firstObservedDelta),
+        first_released_report_delta_minutes: roundedMinutes(metric.firstReleaseDelta),
+        reports_released_while_active: metric.duringWarningCount,
+        reports_inside_initial_polygon: metric.coveredCount,
+        reports_outside_initial_polygon:
+          metric.duringWarningCount - metric.coveredCount,
+        svs: (metric.warning.followups ?? []).map((followup) => ({
+          ...followup,
+          minutes_after_new: roundedMinutes(
+            minutesBetween(metric.warning.issued_at, followup.issued_at),
+          ),
+        })),
+      })),
+      team_warning_summaries: teamAarSummaries.map((summary) => ({
+        team_id: summary.teamId,
+        warning_count: summary.metrics.length,
+        tor_count: summary.torCount,
+        svr_count: summary.svrCount,
+        svs_count: summary.followupCount,
+        first_new: summary.firstNew,
+        last_warning_action: summary.lastAction,
+        warning_ids: summary.metrics.map((metric) => metric.warning.id),
+      })),
+    };
+
+    downloadTextFile(
+      `${exportBaseName}.json`,
+      `${JSON.stringify(payload, null, 2)}\n`,
+      "application/json;charset=utf-8",
+    );
+  };
+
+  const downloadWarningCsv = () => {
+    const headers = [
+      "session_code",
+      "scenario_name",
+      "team_id",
+      "warning_id",
+      "hazard",
+      "label",
+      "issuer",
+      "status",
+      "new_time_local",
+      "new_time_iso",
+      "expires_local",
+      "expires_iso",
+      "first_observed_report_delta_min",
+      "first_released_report_delta_min",
+      "reports_released_while_active",
+      "reports_inside_initial_polygon",
+      "reports_outside_initial_polygon",
+      "svs_count",
+      "svs_actions",
+      "warning_text",
+      "initial_polygon",
+    ];
+
+    const rows = radarAarMetrics.map((metric) => {
+      const warning = metric.warning;
+      return [
+        sessionCode,
+        scenarioName,
+        warning.team_id,
+        warning.id,
+        warning.hazard,
+        warning.label,
+        warning.issuer,
+        warning.status,
+        formatExerciseDateTime(warning.issued_at),
+        warning.issued_at,
+        formatExerciseDateTime(warning.expires_at),
+        warning.expires_at,
+        roundedMinutes(metric.firstObservedDelta),
+        roundedMinutes(metric.firstReleaseDelta),
+        metric.duringWarningCount,
+        metric.coveredCount,
+        metric.duringWarningCount - metric.coveredCount,
+        metric.followupTiming.length,
+        metric.followupTiming
+          .map(
+            (followup) =>
+              `${followup.action} +${roundedMinutes(followup.minutes)?.toFixed(1)} min`,
+          )
+          .join(" | "),
+        warning.text ?? "",
+        JSON.stringify(warning.initial_points ?? warning.points),
+      ];
+    });
+
+    const csv = [
+      headers.map(csvCell).join(","),
+      ...rows.map((row) => row.map(csvCell).join(",")),
+    ].join("\r\n");
+
+    downloadTextFile(
+      `${exportBaseName}-warnings.csv`,
+      `${csv}\r\n`,
+      "text/csv;charset=utf-8",
+    );
+  };
 
   const [partnerTeam, setPartnerTeam] = useState("Team 1");
   const [partnerSender, setPartnerSender] = useState("Event Command");
@@ -548,6 +754,106 @@ export function Facilitator({
                           .join(" · ")
                       : "no follow-ups"}
                   </span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="panel">
+        <div className="aar-summary-header">
+          <div>
+            <h2>Team Warning Summary & Export</h2>
+            <p className="muted">
+              Groups participant warning performance by team. Exports capture the current session
+              state, including warning polygons/text, SVS history, reports, schedule status, and
+              the complete event log.
+            </p>
+          </div>
+          <div className="aar-export-actions">
+            <button
+              type="button"
+              onClick={downloadWarningCsv}
+              disabled={radarAarMetrics.length === 0}
+            >
+              Download Warning CSV
+            </button>
+            <button
+              type="button"
+              className="primary-action"
+              onClick={downloadAarJson}
+            >
+              Download Full AAR JSON
+            </button>
+          </div>
+        </div>
+
+        {teamAarSummaries.length === 0 ? (
+          <p className="muted">
+            Participant-issued warnings will populate the team summary. The full JSON export is
+            available at any time and also preserves non-warning exercise activity.
+          </p>
+        ) : (
+          <div className="team-aar-grid">
+            {teamAarSummaries.map((summary) => (
+              <article className="team-aar-card" key={summary.teamId}>
+                <div className="team-aar-heading">
+                  <strong>{summary.teamId}</strong>
+                  <span>
+                    {summary.metrics.length} warning{summary.metrics.length === 1 ? "" : "s"} ·{" "}
+                    {summary.followupCount} SVS
+                  </span>
+                </div>
+                <div className="team-aar-overview">
+                  <span>TOR {summary.torCount}</span>
+                  <span>SVR {summary.svrCount}</span>
+                  <span>First NEW {simTime(summary.firstNew)}</span>
+                  <span>Last action {simTime(summary.lastAction)}</span>
+                </div>
+
+                <div className="team-aar-warning-list">
+                  {summary.metrics.map((metric) => (
+                    <div className="team-aar-warning" key={metric.warning.id}>
+                      <div>
+                        <span className={`warning-badge ${metric.warning.hazard.toLowerCase()}`}>
+                          {metric.warning.hazard}
+                        </span>
+                        <strong>{simTime(metric.warning.issued_at)} NEW</strong>
+                        <span>{metric.warning.status}</span>
+                      </div>
+                      <div>
+                        <span>
+                          Observed lead:{" "}
+                          {metric.firstObservedDelta == null
+                            ? "none"
+                            : `${roundedMinutes(metric.firstObservedDelta)} min`}
+                        </span>
+                        <span>
+                          Released lead:{" "}
+                          {metric.firstReleaseDelta == null
+                            ? "none"
+                            : `${roundedMinutes(metric.firstReleaseDelta)} min`}
+                        </span>
+                        <span>
+                          Initial polygon: {metric.coveredCount}/{metric.duringWarningCount}
+                        </span>
+                        <span>
+                          SVS:{" "}
+                          {metric.followupTiming.length
+                            ? metric.followupTiming
+                                .map(
+                                  (followup) =>
+                                    `${followup.action} +${roundedMinutes(
+                                      followup.minutes,
+                                    )?.toFixed(1)}`,
+                                )
+                                .join(" · ")
+                            : "none"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </article>
             ))}
