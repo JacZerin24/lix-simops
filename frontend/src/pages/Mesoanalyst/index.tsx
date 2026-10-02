@@ -262,7 +262,7 @@ export function Mesoanalyst({ sessionCode, onUpdate }: Props) {
         </button>
       </form>
 
-      {error && <div className="error-banner">{error}</div>
+      {error && <div className="error-banner">{error}</div>}
 
       {!data?.available ? (
         <div className="meso-empty">
