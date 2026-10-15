@@ -152,7 +152,8 @@ def test_stalled_socket_cannot_block_healthy_team(monkeypatch) -> None:
             participant=Participant("fast", "fast", "Team 2", Role.DSS),
         )
         await main.send_to(session, {"type": "clock", "sim_time": "test"})
-        assert len(fast.received) == 1
+        assert fast.received[0]["type"] == "clock"
+        assert any(message["type"] == "presence" for message in fast.received)
         assert "fast" in session.clients
         assert "slow" not in session.clients
 
