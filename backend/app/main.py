@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import logging
+import re
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -29,6 +31,9 @@ from .state import (
     manager,
     resolve_schedule_time,
 )
+
+logger = logging.getLogger("simops.connections")
+WS_SEND_TIMEOUT_SECONDS = 5.0
 
 app = FastAPI(title="LIX SimOps API", version="0.8.0")
 FRONTEND_DIST = CACHE_ROOT.parents[1] / "frontend" / "dist"
@@ -189,23 +194,52 @@ def event_visible_to(event: dict, participant: Participant) -> bool:
     return True
 
 
-async def send_to(
+async def _send_connection(
     session: SessionState,
+    participant_id: str,
+    connection: ClientConnection,
     payload: dict,
-    predicate=None,
-) -> None:
-    dead: list[str] = []
-    async with session.send_lock:
-        for participant_id, connection in list(session.clients.items()):
-            if predicate and not predicate(connection.participant):
-                continue
-            try:
-                await connection.websocket.send_json(payload)
-            except Exception:
-                dead.append(participant_id)
+) -> bool:
+    """Never let a stalled/closed client block unrelated roles or teams."""
+    try:
+        async with connection.send_lock:
+            await asyncio.wait_for(
+                connection.websocket.send_json(payload),
+                timeout=WS_SEND_TIMEOUT_SECONDS,
+            )
+        return True
+    except (Exception, asyncio.CancelledError) as exc:
+        # A connection with this identity may already have reconnected.
+        if session.clients.get(participant_id) is connection:
+            session.clients.pop(participant_id, None)
+        logger.warning(
+            "WebSocket send failure session=%s team=%s role=%s event=%s error=%r",
+            session.code,
+            connection.participant.team_id,
+            connection.participant.role.value,
+            payload.get("type"),
+            exc,
+        )
+        return False
 
-    for participant_id in dead:
-        session.clients.pop(participant_id, None)
+
+async def send_to(session: SessionState, payload: dict, predicate=None) -> None:
+    # Snapshot clients to tolerate joins/leaves while sending concurrently.
+    recipients = [
+        (participant_id, connection)
+        for participant_id, connection in list(session.clients.items())
+        if predicate is None or predicate(connection.participant)
+    ]
+    if not recipients:
+        return
+    delivered = await asyncio.gather(
+        *[
+            _send_connection(session, participant_id, connection, payload)
+            for participant_id, connection in recipients
+        ]
+    )
+    if not all(delivered) and payload.get("type") != "presence":
+        await broadcast_presence(session)
 
 
 async def broadcast_clock(session: SessionState) -> None:
@@ -225,18 +259,26 @@ async def broadcast_schedule(session: SessionState) -> None:
 
 
 async def broadcast_warnings(session: SessionState) -> None:
-    dead: list[str] = []
-    async with session.send_lock:
-        for participant_id, connection in list(session.clients.items()):
-            participant = connection.participant
-            team_scope = None if participant.role == Role.FACILITATOR else participant.team_id
-            try:
-                await connection.websocket.send_json(session.warning_snapshot(team_scope))
-            except Exception:
-                dead.append(participant_id)
-
-    for participant_id in dead:
-        session.clients.pop(participant_id, None)
+    # Prepare team-specific snapshots; never broadcast one team's warnings to another.
+    recipients = list(session.clients.items())
+    if not recipients:
+        return
+    delivered = await asyncio.gather(
+        *[
+            _send_connection(
+                session,
+                participant_id,
+                connection,
+                session.warning_snapshot(
+                    None if connection.participant.role == Role.FACILITATOR
+                    else connection.participant.team_id
+                ),
+            )
+            for participant_id, connection in recipients
+        ]
+    )
+    if not all(delivered):
+        await broadcast_presence(session)
 
 
 def normalize_warning_points(raw_points) -> list[dict[str, float]]:
@@ -448,45 +490,70 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
         await websocket.close(code=4400)
         return
 
+    # Client-generated ID is stable across automatic reconnects from one tab.
+    # Restrict its syntax so malformed client input cannot enter the roster.
+    requested_id = (websocket.query_params.get("client_id") or "").strip()
+    participant_id = (
+        requested_id if re.fullmatch(r"[A-Za-z0-9-]{16,80}", requested_id)
+        else uuid4().hex
+    )
     participant = Participant(
-        id=uuid4().hex,
+        id=participant_id,
         display_name=display_name,
         team_id=team_id,
         role=role,
     )
-    session.clients[participant.id] = ClientConnection(
-        websocket=websocket,
-        participant=participant,
-    )
-    if role != Role.FACILITATOR:
-        session.ensure_team_warnings(participant.team_id)
-
-    await websocket.send_json(
-        session.session_snapshot(include_schedule=role == Role.FACILITATOR)
-    )
-    history = [
-        event
-        for event in session.log
-        if event.get("type") != "warning_action"
-        and event_visible_to(event, participant)
-    ]
-    await websocket.send_json(
-        {
-            "type": "event_history",
-            "events": history if role == Role.FACILITATOR else history[-100:],
-        }
-    )
-    team_scope = None if role == Role.FACILITATOR else participant.team_id
-    await websocket.send_json(session.warning_snapshot(team_scope))
-    if role != Role.FACILITATOR:
-        await send_to(
-            session,
-            session.warning_snapshot(None),
-            lambda person: person.role == Role.FACILITATOR,
-        )
-    await broadcast_presence(session)
-
+    connection = ClientConnection(websocket=websocket, participant=participant)
     try:
+        # Complete the initial handshake before registering this socket for
+        # clock/presence broadcasts. No concurrent sends during initialization.
+        if role != Role.FACILITATOR:
+            session.ensure_team_warnings(participant.team_id)
+        async with connection.send_lock:
+            await websocket.send_json(
+                session.session_snapshot(include_schedule=role == Role.FACILITATOR)
+            )
+            history = [
+                event
+                for event in session.log
+                if event.get("type") != "warning_action"
+                and event_visible_to(event, participant)
+            ]
+            await websocket.send_json(
+                {
+                    "type": "event_history",
+                    "events": history if role == Role.FACILITATOR else history[-100:],
+                }
+            )
+            team_scope = None if role == Role.FACILITATOR else participant.team_id
+            await websocket.send_json(session.warning_snapshot(team_scope))
+
+        previous = session.clients.get(participant.id)
+        session.clients[participant.id] = connection
+        if previous is not None and previous is not connection:
+            logger.info(
+                "WebSocket superseded session=%s team=%s role=%s",
+                session.code, participant.team_id, participant.role.value,
+            )
+            try:
+                await asyncio.wait_for(
+                    previous.websocket.close(code=4001, reason="Connection superseded"),
+                    timeout=2.0,
+                )
+            except Exception as exc:
+                logger.debug("Previous connection already closed: %r", exc)
+        logger.info(
+            "WebSocket joined session=%s team=%s role=%s clients=%d",
+            session.code, participant.team_id, participant.role.value, len(session.clients),
+        )
+        if role != Role.FACILITATOR:
+            await send_to(
+                session,
+                session.warning_snapshot(None),
+                lambda person: person.role == Role.FACILITATOR,
+            )
+        await broadcast_presence(session)
+
         while True:
             message = await websocket.receive_json()
             kind = message.get("type")
@@ -943,11 +1010,25 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
             else:
                 await send_error(websocket, "Unknown message type")
 
-    except WebSocketDisconnect:
-        pass
+    except WebSocketDisconnect as exc:
+        logger.info(
+            "WebSocket disconnected session=%s team=%s role=%s code=%s",
+            session.code, participant.team_id, participant.role.value, exc.code,
+        )
+    except Exception:
+        logger.exception(
+            "WebSocket handler failed session=%s team=%s role=%s",
+            session.code, participant.team_id, participant.role.value,
+        )
     finally:
-        session.clients.pop(participant.id, None)
-        await broadcast_presence(session)
+        # A newer reconnect may already own this ID; never delete it.
+        if session.clients.get(participant.id) is connection:
+            session.clients.pop(participant.id, None)
+            await broadcast_presence(session)
+        logger.info(
+            "WebSocket handler exited session=%s team=%s role=%s clients=%d",
+            session.code, participant.team_id, participant.role.value, len(session.clients),
+        )
 
 
 @app.on_event("startup")
