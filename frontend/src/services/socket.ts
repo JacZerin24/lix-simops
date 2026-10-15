@@ -5,6 +5,7 @@ type SocketOptions = {
   displayName: string;
   teamId: string;
   role: Role;
+  clientId: string;
 };
 
 export function createSimulationSocket(options: SocketOptions): WebSocket {
@@ -14,6 +15,7 @@ export function createSimulationSocket(options: SocketOptions): WebSocket {
     display_name: options.displayName,
     team_id: options.teamId,
     role: options.role,
+    client_id: options.clientId,
   });
   return new WebSocket(
     `${base}/ws/${encodeURIComponent(options.sessionCode)}?${params.toString()}`,
