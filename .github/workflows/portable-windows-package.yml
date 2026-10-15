@@ -3,9 +3,14 @@ name: Build Portable Windows SimOps
 on:
   workflow_dispatch:
     inputs:
-      case_run_id:
-        description: Full Endymion Case Build run ID containing the validated cache
+      app_only:
+        description: Build app-only update for an existing SimOps installation (no weather cache rebuild)
         required: true
+        type: boolean
+        default: true
+      case_run_id:
+        description: Full Endymion Case Build run ID (only used when app_only is unchecked)
+        required: false
         default: "36658715392"
 permissions:
   contents: read
@@ -16,6 +21,7 @@ env:
 
 jobs:
   package:
+    if: ${{ !inputs.app_only }}
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -216,6 +222,113 @@ jobs:
           compression-level: 0
 
       - name: Upload source-only app update
+        uses: actions/upload-artifact@v4
+        with:
+          name: LIX-SimOps-App-Update
+          path: portable-update/LIX-SimOps
+          if-no-files-found: error
+          retention-days: 45
+
+  app-update:
+    if: ${{ inputs.app_only }}
+    name: Build app-only update
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build React frontend
+        working-directory: frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Assemble source-only app update
+        shell: pwsh
+        run: |
+          $update = Join-Path $PWD "portable-update\LIX-SimOps"
+          New-Item -ItemType Directory -Force -Path $update | Out-Null
+          New-Item -ItemType Directory -Force -Path "$update\frontend" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$update\scripts" | Out-Null
+
+          Copy-Item backend "$update\backend" -Recurse
+          Remove-Item "$update\backend\tests" -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item simulator "$update\simulator" -Recurse
+          Copy-Item scenarios "$update\scenarios" -Recurse
+          Remove-Item "$update\scenarios\mardi-gras\source-case.yaml" -Force -ErrorAction SilentlyContinue
+          Copy-Item frontend\dist "$update\frontend\dist" -Recurse
+          Copy-Item scripts\validate_exercise_cache.py "$update\scripts\validate_exercise_cache.py"
+          Copy-Item portable\windows\README-APP-UPDATE.txt "$update\README-APP-UPDATE.txt"
+
+          @(
+            "scenario=mardi-gras-dss-001"
+            "exercise_date=2027-02-06"
+            "case_run_id=preserved-existing-install"
+            "app_commit=$env:GITHUB_SHA"
+          ) | Set-Content "$update\PACKAGE_INFO.txt"
+
+          @(
+            "update_type=app_only"
+            "requires_existing_portable_install=true"
+            "requires_existing_case_run_id=preserved-existing-install"
+            "app_commit=$env:GITHUB_SHA"
+            "contains_weather_cache=false"
+            "contains_python_wheelhouse=false"
+            "contains_launcher=false"
+          ) | Set-Content "$update\APP_UPDATE_INFO.txt"
+
+      - name: Verify app-only update contents and protect source-case secrecy
+        shell: pwsh
+        run: |
+          $update = Join-Path $PWD "portable-update\LIX-SimOps"
+          foreach ($required in @(
+            "backend\app\main.py",
+            "simulator",
+            "scenarios",
+            "frontend\dist\index.html",
+            "scripts\validate_exercise_cache.py",
+            "PACKAGE_INFO.txt",
+            "APP_UPDATE_INFO.txt",
+            "README-APP-UPDATE.txt"
+          )) {
+            if (-not (Test-Path "$update\$required")) {
+              throw "App-only update missing required path: $required"
+            }
+          }
+          $blockedExtensions = @(".bat", ".cmd", ".ps1", ".exe", ".msi", ".dll", ".pyd", ".whl")
+          $blocked = Get-ChildItem $update -Recurse -File |
+            Where-Object { $blockedExtensions -contains $_.Extension.ToLowerInvariant() }
+          if ($blocked) {
+            $blocked | Select-Object -ExpandProperty FullName -Unique | ForEach-Object { Write-Host $_ }
+            throw "App-only update contains disallowed executable or binary content."
+          }
+          foreach ($excluded in @(
+            "wheelhouse",
+            "data\cache",
+            "scenarios\mardi-gras\source-case.yaml",
+            "BUILD_INFO.txt"
+          )) {
+            if (Test-Path "$update\$excluded") {
+              throw "App-only update contains disallowed path: $excluded"
+            }
+          }
+          $textExtensions = @(".py", ".yaml", ".yml", ".json", ".txt", ".js", ".html", ".css", ".md")
+          $files = Get-ChildItem $update -Recurse -File |
+            Where-Object { $textExtensions -contains $_.Extension.ToLowerInvariant() }
+          $leaks = @()
+          foreach ($needle in @("2021-05-12", "20210512", "2021132")) {
+            $leaks += $files | Select-String -SimpleMatch $needle -List
+          }
+          if ($leaks) {
+            $leaks | Select-Object -ExpandProperty Path -Unique | ForEach-Object { Write-Host $_ }
+            throw "App-only update contains historical source-case identifiers."
+          }
+
+      - name: Upload app-only update
         uses: actions/upload-artifact@v4
         with:
           name: LIX-SimOps-App-Update
