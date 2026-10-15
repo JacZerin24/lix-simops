@@ -13,8 +13,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .models import Role, SessionCreateRequest
-from .services.meso_data import load_meso_manifest, meso_payload
-from .services.radar_data import CACHE_ROOT, load_radar_manifest, radar_payload
+from .services.meso_data import meso_asset_first_time, meso_payload
+from .services.radar_data import CACHE_ROOT, radar_asset_first_time, radar_payload
 from .services.scenario_loader import (
     list_scenarios,
     load_event_config,
@@ -106,25 +106,12 @@ def get_participant_asset(session_code: str, asset_path: str):
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    allowed = False
-    radar_manifest = load_radar_manifest(session.scenario_id)
-    if radar_manifest is not None:
-        allowed = any(
-            (
-                frame.asset == asset_path
-                or (frame.data is not None and frame.data.asset == asset_path)
-            )
-            and frame.timestamp <= session.sim_time
-            for frame in radar_manifest.frames
-        )
-
-    if not allowed:
-        meso_manifest = load_meso_manifest(session.scenario_id)
-        if meso_manifest is not None:
-            allowed = any(
-                frame.asset == asset_path and frame.timestamp <= session.sim_time
-                for frame in meso_manifest.frames
-            )
+    radar_time = radar_asset_first_time(session.scenario_id, asset_path)
+    meso_time = meso_asset_first_time(session.scenario_id, asset_path)
+    allowed = (
+        (radar_time is not None and radar_time <= session.sim_time)
+        or (meso_time is not None and meso_time <= session.sim_time)
+    )
 
     if not allowed:
         raise HTTPException(
