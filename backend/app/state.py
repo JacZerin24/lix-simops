@@ -33,6 +33,8 @@ class Participant:
 class ClientConnection:
     websocket: Any
     participant: Participant
+    # Serialize writes on this socket without blocking other participants.
+    send_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
 @dataclass
