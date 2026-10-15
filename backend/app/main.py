@@ -195,7 +195,7 @@ async def _send_connection(
                 timeout=WS_SEND_TIMEOUT_SECONDS,
             )
         return True
-    except (Exception, asyncio.CancelledError) as exc:
+    except Exception as exc:
         # A connection with this identity may already have reconnected.
         if session.clients.get(participant_id) is connection:
             session.clients.pop(participant_id, None)
