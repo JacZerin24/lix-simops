@@ -80,6 +80,7 @@ export type ExerciseEvent = {
   action?: string;
   warning_id?: string;
   warning_text?: string;
+  route_intersects?: boolean;
   hazard?: string;
   category?: string;
   product_id?: string;
