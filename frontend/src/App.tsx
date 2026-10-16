@@ -464,6 +464,7 @@ function App() {
             <DSS
               sessionCode={activeSessionCode}
               events={events}
+              warnings={warnings}
               onRespond={sendDssResponse}
               onShiftLogUpdated={sendShiftLogUpdate}
             />
