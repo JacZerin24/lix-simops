@@ -10,7 +10,9 @@ from backend.app.services.scenario_loader import (
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
-from render_glm_flash_density import ring_config_from_event, floor_time
+from render_glm_flash_density import (
+    DEFAULT_RING_DOMAIN, ring_config_from_event, validate_ring_domain, floor_time,
+)
 from datetime import datetime, timezone
 
 
@@ -54,3 +56,26 @@ def test_glm_rings_match_actual_endymion_event_thresholds() -> None:
 def test_glm_bin_time_unchanged_by_event_rings() -> None:
     t = datetime(2021, 5, 12, 6, 3, tzinfo=timezone.utc)
     assert floor_time(t, 5) == datetime(2021, 5, 12, 6, 0, tzinfo=timezone.utc)
+
+
+def test_metro_zoom_contains_entire_lightning_threshold_circle() -> None:
+    lat, lon, miles = ring_config_from_event(
+        Path(__file__).resolve().parents[2] / "scenarios/mardi-gras/event.yaml"
+    )
+    west, east, south, north = validate_ring_domain(
+        DEFAULT_RING_DOMAIN, lat, lon, max(miles)
+    )
+    assert west < -90.8 and east > -89.8
+    assert south < 29.6 and north > 30.2
+    assert east - west < 2.0  # clearly tighter than 6-degree Gulf Coast view
+
+
+def test_metro_zoom_rejects_clipped_outer_ring() -> None:
+    import pytest
+
+    lat, lon, miles = ring_config_from_event(
+        Path(__file__).resolve().parents[2] / "scenarios/mardi-gras/event.yaml"
+    )
+    with pytest.raises(ValueError, match="clip"):
+        validate_ring_domain((lon - .1, lon + .1, lat - .1, lat + .1),
+                             lat, lon, max(miles))
