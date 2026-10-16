@@ -40,6 +40,10 @@ def package(ring_dir: Path, installer: Path, output: Path) -> dict:
         shifted = shifted_timestamp(source)
         if shifted.date() != SIM_DATE:
             raise ValueError(f"Outside exercise day: {shifted}")
+        # The final historical GLM bin can extend five minutes past the
+        # 4:30 PM exercise end; omit it instead of exposing future data.
+        if shifted > datetime(2027, 2, 6, 22, 30, tzinfo=timezone.utc):
+            continue
         name = f"{PRODUCT}_{shifted:%Y%m%dT%H%M%SZ}.png"
         asset = f"meso/frames/{PRODUCT}/{name}"
         raw = path.read_bytes()
