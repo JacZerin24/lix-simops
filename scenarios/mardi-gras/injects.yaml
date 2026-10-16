@@ -6,9 +6,10 @@ injects:
     sender: Mardi Gras Unified Command
     target_team_id: "*"
     body: >-
-      Samedi Gras is active and crowds are building along the route. Riders and support crews
-      are moving into position. Give us your current weather picture and the main thing we should
-      be watching before the 4 PM parade start.
+      Samedi Gras is active and crowds are building along the route. Riders and support crews are
+      moving into position. Please provide the current weather picture, expected timing and
+      locations of any hazards, confidence, and the key conditions our operations staff should
+      monitor ahead of the 4 PM start.
 
   - id: prestart-confidence
     at_sim_time: "T+00:20:00"
@@ -17,8 +18,9 @@ injects:
     sender: Mardi Gras Unified Command
     target_team_id: "*"
     body: >-
-      We are about an hour from the scheduled start and need to make staffing and staging decisions.
-      Are you still comfortable with a 4 PM roll, and when do you want our next decision point?
+      We are about an hour from the scheduled start. Unified Command is assessing staffing and
+      staging options. What is your latest forecast for weather affecting the route near 4 PM, your
+      confidence and uncertainty, and when should we request the next weather update?
 
   - id: route-lead-time
     at_sim_time: "T+00:35:00"
@@ -27,39 +29,47 @@ injects:
     sender: Mardi Gras Unified Command
     target_team_id: "*"
     body: >-
-      If we need to hold the parade or push route-wide safety messaging, we need meaningful lead time.
-      Based on what you are seeing, when would you want us to act rather than wait for a warning?
+      Our event plan requires substantial lead time if weather threatens outdoor route operations.
+      Based on current observations and storm motion, what is the earliest plausible onset of
+      lightning, damaging wind, or heavy rainfall along active route segments, and how much lead
+      time does the forecast provide? Unified Command will decide when to activate its procedures.
 
   - id: lightning-framework
     at_sim_time: "T+00:42:00"
     kind: inject
-    title: Exercise Reminder — Lightning Decision Framework
+    title: Exercise Reminder — Lightning Threshold Communication
     audience: dss
     body: >-
-      Use the exercise lightning framework as appropriate: 15 miles = elevated monitoring/preparation,
-      12 miles = impending threat/protective action underway as needed, 8 miles = suspend/hold.
-      For organized convection moving toward the route, account for 30 minutes or more of lead time.
+      This exercise uses partner planning thresholds of 15 miles (enhanced monitoring/preparation),
+      12 miles (impending threat), and 8 miles (partner hold/suspension decision), evaluated
+      relative to active route/staging areas. Meso and DSS should report observed lightning
+      proximity, direction and trend, confidence, and available lead time (potentially 30 minutes
+      or more for organized convection). Unified Command retains all protective-action, hold, and
+      resumption decisions.
 
   - id: commit-to-route
     at_sim_time: "T+00:50:00"
     kind: partner_message
-    title: Commit-to-Route Decision
+    title: Commit-to-Route Weather Brief
     sender: Mardi Gras Unified Command
     target_team_id: "*"
     body: >-
-      The first floats are nearly ready to roll and once we commit the parade to the route our options
-      narrow quickly. Do you recommend we start on time, delay, or take another action? Give us the
-      expected timing and your confidence.
+      The first floats are nearly ready to roll. Unified Command is deciding whether and when to
+      commit to the route. Please provide your latest route-specific forecast: expected hazard
+      onset, magnitude and affected segments, lightning threshold proximity, confidence, and when
+      conditions may change. We will make the start/delay decision.
 
   - id: immediate-decision
     at_sim_time: "T+01:05:00"
     kind: partner_message
-    title: Immediate Command Decision
+    title: Immediate Weather Status for Unified Command
     sender: Mardi Gras Unified Command
     target_team_id: "*"
     body: >-
-      We need a clear recommendation now. What is the most significant threat to the route over the
-      next 30 minutes, what areas are most exposed, and what action should Unified Command take?
+      Unified Command is making an operational decision now. What is the most significant weather
+      threat over the next 30 minutes, which active route areas are most exposed, which
+      lightning/warning thresholds have been met or may soon be met, and what confidence and lead
+      time do you have? Command will determine the operational response.
 
   # Historical May 12, 2021 LIX-area storm reports displaced into the
   # exercise clock. observed_at_sim_time preserves the historical event-time
@@ -175,29 +185,35 @@ injects:
   - id: active-hold
     at_sim_time: "T+01:20:00"
     kind: partner_message
-    title: Operations During Hold
+    title: Weather Update During Partner Hold
     sender: Mardi Gras Unified Command
     target_team_id: "*"
     body: >-
-      Assume the parade is currently being held. What should we tell route personnel and first-aid/public
-      safety partners right now, and what weather information will determine whether the hold continues?
+      Unified Command has placed parade operations on hold. What are the current lightning, wind,
+      and heavy-rain threats to the route and adjacent staging areas? Describe observed trends,
+      expected changes over the next 15–30 minutes, uncertainty, and the next useful update time.
+      We will determine how to manage the hold and what operational messages to send.
 
   - id: recovery-question
     at_sim_time: "T+01:35:00"
     kind: partner_message
-    title: Resume Operations?
+    title: Weather Update for Resumption Review
     sender: Mardi Gras Unified Command
     target_team_id: "*"
     body: >-
-      Conditions at the route appear to be improving. Can we resume operations? Tell us what criteria
-      you are using, whether another threat is approaching, and how confident you are in the all-clear.
+      Unified Command is reviewing the weather before deciding whether operations can resume.
+      Please report recent lightning proximity and timing, storm motion, any additional upstream
+      threats, remaining forecast uncertainty, and whether the weather factors in our event plan
+      appear to be improving or deteriorating. Command will make the resumption decision.
 
   - id: facilitator-contingency
     at_sim_time: "manual"
     kind: partner_message
-    title: Facilitator Contingency
+    title: Contingency Weather Brief
     sender: Mardi Gras Unified Command
     target_team_id: "*"
     body: >-
-      The crowd is getting restless and parade leadership is asking whether the weather concern is
-      significant enough to justify a continued delay. Give us a concise recommendation and why.
+      Parade leadership is asking Unified Command whether weather concerns remain elevated while
+      the crowd grows restless. Please provide the supporting observations, forecast hazard timing
+      and severity, proximity to our established thresholds, and confidence. We will assess the
+      delay using our event procedures.
