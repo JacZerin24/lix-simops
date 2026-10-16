@@ -61,6 +61,14 @@ products:
     source_dir: data/raw/meso/lightningcast
     pattern: "*.png"
 
+  - id: lightningcast_mrms_lowest_refl
+    label: LightningCast + MRMS Lowest-Altitude Reflectivity
+    category: Satellite / Lightning
+    units: "%"
+    description: Genuine historical LightningCast 60-minute lightning probability contours over georegistered MRMS lowest-altitude reflectivity, produced only after source-product QA.
+    source_dir: data/raw/meso/lightningcast_mrms_lowest_refl
+    pattern: "*.png"
+
   - id: mrms_lowest_refl
     label: MRMS Lowest-Altitude Reflectivity
     category: MRMS
