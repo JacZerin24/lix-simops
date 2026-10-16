@@ -354,6 +354,29 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 }
 .meso-toolbar label { min-width: 260px; }
 
+.meso-toolbar label.meso-range-ring-toggle {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid #3a6381;
+  border-radius: 8px;
+  background: #102638;
+  color: #e6f2fb;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.meso-range-ring-toggle input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: #5fc0dd;
+  cursor: pointer;
+}
+.meso-range-ring-toggle span { display: grid; gap: 1px; }
+.meso-range-ring-toggle small { color: #a7c7d9; font-size: 0.72rem; }
+
 .product-context {
   display: grid;
   gap: 4px;
@@ -415,6 +438,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .meso-heading { flex-direction: column; }
   .meso-frame-status { text-align: left; }
   .meso-toolbar label { min-width: 100%; }
+  .meso-toolbar label.meso-range-ring-toggle { min-width: 0; }
   .meso-canvas { min-height: 400px; }
 }
 
