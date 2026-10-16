@@ -88,7 +88,12 @@ export function DSS({ sessionCode, events, onRespond, onShiftLogUpdated }: Props
                   </div>
                   {item.type === "warning_route_notice" && (
                     <div className="dss-warning-tag">
-                      <strong>{item.title ?? "Warning intersects route"}</strong>
+                      <strong>{item.title ?? "Radar warning issued"}</strong>
+                      <span className={item.route_intersects ? "dss-route-impact" : "dss-route-review"}>
+                        {item.route_intersects
+                          ? "Approximate route overlap detected"
+                          : "Review warning footprint for route impact"}
+                      </span>
                       <span>Team {item.team_id?.replace(/^Team\s+/i, "") ?? ""} · Exercise alert</span>
                     </div>
                   )}
