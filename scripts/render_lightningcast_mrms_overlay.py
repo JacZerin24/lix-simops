@@ -18,6 +18,7 @@ from render_common import add_base_map, local_time_label, timestamp_token
 from render_mrms import file_time as mrms_file_time, open_grib
 
 SOURCE_TIME_RE = re.compile(r"(20\d{6})[T_-](\d{4})(\d{2})?Z?")
+NATIVE_TIME_RE = re.compile(r"_s(20\d{6})(\d{6})\d(?:_|$)")
 COLORS = {10: "#1976d2", 25: "#00acc1", 50: "#4caf50", 75: "#bf40bf"}
 MRMS_PRODUCT = "MergedReflectivityAtLowestAltitude_00.50"
 DOMAIN = (-93.0, -87.0, 27.5, 32.5)
