@@ -163,10 +163,28 @@ def main() -> None:
                 cb.set_label("MRMS lowest-altitude reflectivity (dBZ)")
             for level, geometry in probability_features:
                 geom = shape(geometry)
+                # Authentic CSPP GeoJSON can contain self-crossing contour
+                # polygons. Since this map draws lines rather than fills,
+                # use their original boundaries directly (no buffer(0),
+                # smoothing or invented probability geometry).
+                contour = (
+                    geom.boundary if geom.geom_type in {"Polygon", "MultiPolygon"}
+                    else geom
+                )
+                if contour.is_empty or contour.geom_type not in {
+                    "LineString", "MultiLineString", "LinearRing"
+                }:
+                    raise ValueError(
+                        f"Unsupported native LightningCast contour in {source.name}: "
+                        f"{geom.geom_type}"
+                    )
                 if not geom.is_valid:
-                    raise ValueError(f"Invalid geographic contour shape in {source.name}")
+                    print(
+                        f"WARNING: native CSPP contour has invalid polygon topology "
+                        f"({source.name}, {level}%); drawing original boundary."
+                    )
                 ax.add_geometries(
-                    [geom], crs=ccrs.PlateCarree(), facecolor="none",
+                    [contour], crs=ccrs.PlateCarree(), facecolor="none",
                     edgecolor=COLORS[level], linewidth=2.5, zorder=6
                 )
             if not probability_features:
