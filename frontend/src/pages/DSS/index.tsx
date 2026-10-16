@@ -33,7 +33,10 @@ export function DSS({ sessionCode, events, onRespond, onShiftLogUpdated }: Props
   }, [sessionCode]);
 
   const chat = events.filter(
-    (event) => event.type === "partner_message" || event.type === "dss_response",
+    (event) =>
+      event.type === "partner_message" ||
+      event.type === "dss_response" ||
+      event.type === "warning_route_notice",
   );
   const shiftLogUpdates = events.filter((event) => event.type === "shift_log_update");
 
@@ -71,12 +74,24 @@ export function DSS({ sessionCode, events, onRespond, onShiftLogUpdated }: Props
               chat.map((item, index) => (
                 <article
                   key={item.event_id ?? index}
-                  className={item.type === "dss_response" ? "chat-message outgoing" : "chat-message incoming"}
+                  className={
+                    item.type === "dss_response"
+                      ? "chat-message outgoing"
+                      : item.type === "warning_route_notice"
+                        ? "chat-message warning-notice"
+                        : "chat-message incoming"
+                  }
                 >
                   <div className="chat-meta">
                     <strong>{item.sender ?? (item.type === "partner_message" ? "Event Command" : "DSS")}</strong>
                     <span>{simTime(item.sim_time)}</span>
                   </div>
+                  {item.type === "warning_route_notice" && (
+                    <div className="dss-warning-tag">
+                      <strong>{item.title ?? "Warning intersects route"}</strong>
+                      <span>Team {item.team_id?.replace(/^Team\\s+/i, "") ?? ""} · Exercise alert</span>
+                    </div>
+                  )}
                   <p>{item.body}</p>
                 </article>
               ))
@@ -206,6 +221,32 @@ export function DSS({ sessionCode, events, onRespond, onShiftLogUpdated }: Props
           {opsTab === "route" && (
             <div className="ops-content">
               <h4>Endymion route</h4>
+              {operations?.event?.route_map?.image_url && (
+                <figure className="dss-route-map">
+                  <a
+                    href={operations.event.route_map.source_url || operations.event.route_map.image_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open the original Endymion route map in a new tab"
+                  >
+                    <img
+                      src={operations.event.route_map.image_url}
+                      alt={operations.event.route_map.image_alt ?? "Endymion parade route map"}
+                      loading="lazy"
+                    />
+                  </a>
+                  <figcaption>
+                    {operations.event.route_map.caption}
+                    <a
+                      href={operations.event.route_map.source_url || operations.event.route_map.image_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open source map ↗
+                    </a>
+                  </figcaption>
+                </figure>
+              )}
               <ol className="route-list">
                 {(operations?.event?.route ?? []).map((step) => (
                   <li key={step}>{step}</li>
