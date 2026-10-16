@@ -89,7 +89,7 @@ export function DSS({ sessionCode, events, onRespond, onShiftLogUpdated }: Props
                   {item.type === "warning_route_notice" && (
                     <div className="dss-warning-tag">
                       <strong>{item.title ?? "Warning intersects route"}</strong>
-                      <span>Team {item.team_id?.replace(/^Team\\s+/i, "") ?? ""} · Exercise alert</span>
+                      <span>Team {item.team_id?.replace(/^Team\s+/i, "") ?? ""} · Exercise alert</span>
                     </div>
                   )}
                   <p>{item.body}</p>
