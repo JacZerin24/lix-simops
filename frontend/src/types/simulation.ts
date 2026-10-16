@@ -79,6 +79,7 @@ export type ExerciseEvent = {
   expires_at?: string;
   action?: string;
   warning_id?: string;
+  warning_text?: string;
   hazard?: string;
   category?: string;
   product_id?: string;
