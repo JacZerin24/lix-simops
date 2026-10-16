@@ -93,6 +93,12 @@ export function DSS({ sessionCode, events, onRespond, onShiftLogUpdated }: Props
                     </div>
                   )}
                   <p>{item.body}</p>
+                  {item.type === "warning_route_notice" && item.warning_text && (
+                    <details className="dss-warning-product">
+                      <summary>Read {item.action === "issue" ? "issued warning" : "warning statement"}</summary>
+                      <pre>{item.warning_text}</pre>
+                    </details>
+                  )}
                 </article>
               ))
             )}
