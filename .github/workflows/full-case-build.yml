@@ -198,7 +198,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install supporting meso dependencies
-        run: pip install boto3 matplotlib cartopy numpy xarray netCDF4 pygrib
+        run: pip install boto3 matplotlib cartopy numpy xarray netCDF4 pygrib pyyaml
 
       - name: Download GLM, RAP, and surface observations
         run: |
@@ -235,6 +235,8 @@ jobs:
           python scripts/render_glm_flash_density.py \
             --input data/raw/goes/glm-lcfa \
             --output data/raw/meso/glm_flash_density \
+            --ring-output data/raw/meso/glm_flash_density_rings \
+            --event-config scenarios/mardi-gras/event.yaml \
             --domain -93 -87 27.5 32.5 \
             --simulation-date 2027-02-06 \
             --local-time-offset-minutes 825
@@ -262,6 +264,7 @@ jobs:
       - name: Verify supporting rendered frames
         run: |
           test "$(find data/raw/meso/glm_flash_density -type f -name '*.png' | wc -l)" -ge 20
+          test "$(find data/raw/meso/glm_flash_density_rings -type f -name '*.png' | wc -l)" -ge 20
           test "$(find data/raw/meso/mlcape -type f -name '*.png' | wc -l)" -ge 3
           test "$(find data/raw/meso/bulk_shear_0_3km -type f -name '*.png' | wc -l)" -ge 3
           test "$(find data/raw/meso/bulk_shear_0_6km -type f -name '*.png' | wc -l)" -ge 3
@@ -273,6 +276,7 @@ jobs:
         run: |
           tar -czf supporting-meso.tar.gz -C data/raw/meso \
             glm_flash_density \
+            glm_flash_density_rings \
             mlcape \
             bulk_shear_0_3km \
             bulk_shear_0_6km \
