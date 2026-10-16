@@ -6,7 +6,7 @@ software required.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from hashlib import sha256
 import json
 import os
@@ -16,6 +16,14 @@ import sys
 
 
 PRODUCT = "glm_flash_density_rings"
+
+
+def parse_utc_time(raw: str) -> datetime:
+    """Normalize valid ISO-8601 variants (Z, +00:00, and local offsets)."""
+    parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError(f"Meso cache contains a timestamp without a UTC offset: {raw}")
+    return parsed.astimezone(timezone.utc)
 
 
 def install(root: Path) -> int:
@@ -40,7 +48,7 @@ def install(root: Path) -> int:
     frames = current.get("frames")
     if not isinstance(products, list) or not isinstance(frames, list):
         raise ValueError("Existing Meso manifest malformed")
-    base_times = {f["timestamp"] for f in frames if f["product"] == "glm_flash_density"}
+    base_times = {parse_utc_time(f["timestamp"]) for f in frames if f["product"] == "glm_flash_density"}
     if len(base_times) < 20:
         raise ValueError("Existing GLM flash-density time series is incomplete")
     if len(patch.get("frames", [])) < 20:
@@ -66,20 +74,23 @@ def install(root: Path) -> int:
     for frame in patch["frames"]:
         if frame["product"] != PRODUCT or frame["asset"] not in verified_assets:
             raise ValueError("GLM ring manifest has unverified frame")
-        timestamp = datetime.fromisoformat(frame["timestamp"].replace("Z", "+00:00"))
-        if timestamp.tzinfo is None or timestamp.date().isoformat() != "2027-02-06":
+        timestamp = parse_utc_time(frame["timestamp"])
+        if timestamp.date().isoformat() != "2027-02-06":
             raise ValueError("GLM ring frame has wrong exercise date")
-        if frame["timestamp"] not in base_times:
+        if timestamp not in base_times:
+            closest = min(base_times, key=lambda value: abs(value - timestamp))
             raise ValueError(
-                "GLM ring frame does not match a source GLM frame in this cache: "
-                + frame["timestamp"]
+                "GLM ring frame does not match an observed GLM scene at the same "
+                "UTC instant in this cache. Ring time: " + frame["timestamp"] +
+                "; nearest existing GLM time: " + closest.isoformat() +
+                ". No manifest changes made."
             )
 
     merged = dict(current)
     merged["products"] = [p for p in products if p["id"] != PRODUCT] + [patch["product"]]
     merged["frames"] = sorted(
         [f for f in frames if f["product"] != PRODUCT] + patch["frames"],
-        key=lambda f: (f["timestamp"], f["product"]),
+        key=lambda f: (parse_utc_time(f["timestamp"]), f["product"]),
     )
     backup = meso_manifest.with_name("manifest.pre-glm-rings.json")
     shutil.copy2(meso_manifest, backup)
