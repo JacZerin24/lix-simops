@@ -12,7 +12,7 @@ export type MapPosition = { x: number; y: number };
 export const MAP_WIDTH = 1040;
 export const MAP_HEIGHT = 540;
 export const DEFAULT_BOUNDS: MapBounds = {
-  west: -90.22, east: -89.94, south: 29.86, north: 30.065,
+  west: -90.31, east: -89.85, south: 29.84, north: 30.055,
 };
 const LATITUDE_KM = 111.195;
 const LONGITUDE_KM = LATITUDE_KM * Math.cos(29.97 * Math.PI / 180);
@@ -55,9 +55,12 @@ export function mapBounds(
   const heightKm = Math.max((top - bottom) * LATITUDE_KM, 22);
   const centerLon = (right + left) / 2;
   const centerLat = (top + bottom) / 2;
-  const spanKm = Math.max(widthKm / 0.82, heightKm / 0.82, 30);
-  const lonSpan = spanKm * (MAP_WIDTH / MAP_HEIGHT) / LONGITUDE_KM;
-  const latSpan = spanKm / LATITUDE_KM;
+  // Keep the horizontal and vertical geographic scales equal (in km),
+  // while ensuring the entire route and selected warning remain onscreen.
+  const aspect = MAP_WIDTH / MAP_HEIGHT;
+  const viewWidthKm = Math.max(widthKm / 0.82, heightKm * aspect / 0.82, 32);
+  const lonSpan = viewWidthKm / LONGITUDE_KM;
+  const latSpan = viewWidthKm / aspect / LATITUDE_KM;
   return {
     west: centerLon - lonSpan / 2,
     east: centerLon + lonSpan / 2,
