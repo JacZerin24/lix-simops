@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from .models import Role, SessionCreateRequest
 from .services.meso_data import meso_asset_first_time, meso_payload
 from .services.radar_data import CACHE_ROOT, radar_asset_first_time, radar_payload
+from .services.route_warnings import route_centerline_from_config, warning_intersects_route
 from .services.scenario_loader import (
     list_scenarios,
     load_event_config,
@@ -169,6 +170,12 @@ def event_visible_to(event: dict, participant: Participant) -> bool:
         target_team = event.get("team_id")
         return participant.role == Role.DSS and target_team in {"*", participant.team_id}
 
+    if event_type == "warning_route_notice":
+        return (
+            participant.role == Role.DSS
+            and event.get("team_id") == participant.team_id
+        )
+
     if event_type in {"dss_response", "team_message", "meso_update", "shift_log_update"}:
         return event.get("team_id") == participant.team_id
 
@@ -266,6 +273,65 @@ async def broadcast_warnings(session: SessionState) -> None:
     )
     if not all(delivered):
         await broadcast_presence(session)
+
+
+async def notify_dss_if_route_warned(
+    session: SessionState,
+    warning: WarningState,
+    *,
+    action: str = "issue",
+) -> None:
+    """Push a team-scoped notice to DSS; Command retains all decisions."""
+    if action == "issue":
+        scenario = load_scenario_by_id(session.scenario_id)
+        route = route_centerline_from_config(load_event_config(scenario))
+        if not route or not warning_intersects_route(warning.points, route):
+            return
+        body = (
+            f"EXERCISE: {warning.label} issued by {warning.issuer}. "
+            "The warning polygon intersects the exercise's approximate Endymion route "
+            f"centerline. Warning valid until {warning.expires_at:%H:%M} UTC. "
+            "Review the official warning text and polygon, then provide Event Command "
+            "with affected-route weather hazards, timing and confidence. "
+            "Unified Command makes all operational decisions."
+        )
+        title = f"Route affected — {warning.label}"
+    else:
+        prior = any(
+            row.get("type") == "warning_route_notice"
+            and row.get("warning_id") == warning.id
+            and row.get("action") == "issue"
+            for row in session.log
+        )
+        if not prior:
+            return
+        action_labels = {
+            "COR": "corrected",
+            "CON": "continued/updated",
+            "CAN": "cancelled",
+            "EXP": "expired",
+        }
+        body = (
+            f"EXERCISE: {warning.label} {action_labels.get(action, action)} "
+            f"by {warning.issuer}'s team. The original warning intersected the "
+            "exercise route; review the latest statement and polygon for current "
+            "route implications. DSS provides weather information; Unified Command "
+            "retains operational decisions."
+        )
+        title = f"Route warning update — {action}"
+    payload = session.record({
+        "type": "warning_route_notice",
+        "event_id": uuid4().hex,
+        "team_id": warning.team_id,
+        "warning_id": warning.id,
+        "hazard": warning.hazard,
+        "action": action,
+        "title": title,
+        "sender": "Radar Warning Desk",
+        "body": body,
+        "sim_time": session.sim_time.isoformat(),
+    })
+    await send_to(session, payload, lambda person: event_visible_to(payload, person))
 
 
 def normalize_warning_points(raw_points) -> list[dict[str, float]]:
@@ -761,6 +827,7 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     }
                 )
                 await broadcast_warnings(session)
+                await notify_dss_if_route_warned(session, warning)
 
             elif kind == "warning_followup":
                 if role != Role.RADAR:
@@ -846,6 +913,7 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str) -> None:
                     }
                 )
                 await broadcast_warnings(session)
+                await notify_dss_if_route_warned(session, warning, action=action)
 
             elif kind == "warning_update":
                 await send_error(
