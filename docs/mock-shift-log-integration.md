@@ -25,10 +25,10 @@ The DSS position should log each meaningful communication to or from the simulat
 
 - Initial status briefings
 - Timing updates
-- Recommendations to start, delay, hold, shelter, or resume
+- Weather conditions and expected impacts relevant to partner start/delay/hold decisions
 - Changes in threat/confidence
 - Responses to specific partner questions
-- All-clear/resumption guidance
+- Updated hazard timing, lightning distance/trends, uncertainty, and weather factors for partner resumption review
 - Any important inbound report from Event Command
 
 Routine internal conversation between the Radar Operator, Mesoanalyst, and DSS Meteorologist does not need to be entered unless the exercise team decides otherwise.
@@ -43,7 +43,7 @@ The coworker can change these, but the form will be most useful for debrief if i
 4. Partner/contact
 5. Communication method
 6. Message/request summary
-7. DSS recommendation/response
+7. DSS weather information / forecast response
 8. Key timing information
 9. Confidence/uncertainty
 10. Follow-up needed / next update time
