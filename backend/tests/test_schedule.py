@@ -61,3 +61,32 @@ def test_reset_restores_scenario_speed_and_pending_schedule() -> None:
     assert session.speed == 1.5
     assert session.log == []
     assert all(item.status == "pending" for item in session.schedule)
+
+
+
+def test_endymion_historical_reports_are_curated_and_displaced() -> None:
+    session = build_session()
+    reports = [
+        item
+        for item in session.schedule
+        if item.definition.kind == "storm_report"
+    ]
+
+    assert len(reports) == 6
+    assert [item.definition.id for item in reports] == [
+        "report-downtown-62mph",
+        "report-pine-spruce-roof",
+        "report-claiborne-calhoun-tree",
+        "report-cohn-lowerline-damage",
+        "report-bouny-power-pole",
+        "report-behrman-opelousas-debris",
+    ]
+
+    first = reports[0]
+    assert first.due_at == session.scenario_start + timedelta(minutes=70)
+    assert first.definition.observed_at_sim_time == "T+01:09:00"
+    assert first.definition.magnitude == "62 mph"
+
+    # The live participant timeline must not leak the later NWS survey result.
+    assert all(item.definition.report_kind != "tornado" for item in reports)
+    assert all("EF0" not in item.definition.body.upper() for item in reports)

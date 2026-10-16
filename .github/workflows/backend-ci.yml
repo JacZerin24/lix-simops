@@ -2,8 +2,21 @@ name: Backend CI
 
 on:
   pull_request:
+    paths:
+      - "backend/**"
+      - "simulator/**"
+      - "scripts/**"
+      - "scenarios/**"
+      - ".github/workflows/backend-ci.yml"
   push:
     branches: [main]
+    paths:
+      - "backend/**"
+      - "simulator/**"
+      - "scripts/**"
+      - "scenarios/**"
+      - ".github/workflows/backend-ci.yml"
+  workflow_dispatch:
 
 jobs:
   test:

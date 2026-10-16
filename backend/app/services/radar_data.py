@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 
 from simulator.radar.manifest import RadarManifest, visible_frames
@@ -16,12 +17,45 @@ def manifest_path(scenario_id: str) -> Path:
     return CACHE_ROOT / scenario_id / "radar" / "manifest.json"
 
 
-def load_radar_manifest(scenario_id: str) -> RadarManifest | None:
-    path = manifest_path(scenario_id)
-    if not path.exists():
-        return None
-    with path.open("r", encoding="utf-8") as handle:
+@lru_cache(maxsize=8)
+def _read_manifest(path_string: str, mtime_ns: int, size: int) -> RadarManifest:
+    # The stat fingerprint invalidates the cache when a new weather package
+    # replaces the manifest. Parsing large manifests on each poll is expensive.
+    with Path(path_string).open("r", encoding="utf-8") as handle:
         return RadarManifest.model_validate(json.load(handle))
+
+
+def _fingerprint(scenario_id: str) -> tuple[str, int, int] | None:
+    path = manifest_path(scenario_id)
+    try:
+        stat = path.stat()
+    except FileNotFoundError:
+        return None
+    return str(path.resolve()), stat.st_mtime_ns, stat.st_size
+
+
+def load_radar_manifest(scenario_id: str) -> RadarManifest | None:
+    fingerprint = _fingerprint(scenario_id)
+    return _read_manifest(*fingerprint) if fingerprint is not None else None
+
+
+@lru_cache(maxsize=8)
+def _asset_first_times(path_string: str, mtime_ns: int, size: int) -> dict[str, object]:
+    manifest = _read_manifest(path_string, mtime_ns, size)
+    earliest: dict[str, object] = {}
+    for frame in manifest.frames:
+        assets = [frame.asset] + ([frame.data.asset] if frame.data else [])
+        for asset in assets:
+            if asset not in earliest or frame.timestamp < earliest[asset]:
+                earliest[asset] = frame.timestamp
+    return earliest
+
+
+def radar_asset_first_time(scenario_id: str, asset_path: str):
+    fingerprint = _fingerprint(scenario_id)
+    if fingerprint is None:
+        return None
+    return _asset_first_times(*fingerprint).get(asset_path)
 
 
 def radar_payload(
@@ -36,6 +70,9 @@ def radar_payload(
             "scenario_id": session.scenario_id,
             "sim_time": session.sim_time.isoformat(),
             "radar_site": None,
+            "radar_latitude": None,
+            "radar_longitude": None,
+            "radar_altitude_m": None,
             "products": [],
             "elevations": [],
             "selected_product": requested_product or "REF",
@@ -70,18 +107,25 @@ def radar_payload(
         selected_elevation,
     )
 
-    scenario_root = f"/scenario-data/{session.scenario_id}"
+    session_root = f"/api/sessions/{session.code}/assets"
     return {
         "available": True,
         "scenario_id": session.scenario_id,
         "sim_time": session.sim_time.isoformat(),
         "radar_site": manifest.radar_site,
+        "radar_latitude": manifest.radar_latitude,
+        "radar_longitude": manifest.radar_longitude,
+        "radar_altitude_m": manifest.radar_altitude_m,
         "range_km": manifest.range_km,
         "products": [
             {
                 "id": product.id,
                 "label": product.label,
                 "units": product.units,
+                "vmin": product.vmin,
+                "vmax": product.vmax,
+                "cmap": product.cmap,
+                "palette": product.palette,
             }
             for product in manifest.products
         ],
@@ -93,7 +137,26 @@ def radar_payload(
                 "timestamp": frame.timestamp.isoformat(),
                 "product": frame.product,
                 "elevation": frame.elevation,
-                "asset_url": f"{scenario_root}/{frame.asset.lstrip('/')}",
+                "asset_url": f"{session_root}/{frame.asset.lstrip('/')}",
+                "data_url": (
+                    f"{session_root}/{frame.data.asset.lstrip('/')}"
+                    if frame.data is not None
+                    else None
+                ),
+                "grid": (
+                    {
+                        "azimuth_bins": frame.data.azimuth_bins,
+                        "range_bins": frame.data.range_bins,
+                        "range_start_m": frame.data.range_start_m,
+                        "range_step_m": frame.data.range_step_m,
+                        "value_min": frame.data.value_min,
+                        "value_max": frame.data.value_max,
+                        "nodata": frame.data.nodata,
+                        "actual_elevation": frame.data.actual_elevation,
+                    }
+                    if frame.data is not None
+                    else None
+                ),
             }
             for frame in frames
         ],

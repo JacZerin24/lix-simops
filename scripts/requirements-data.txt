@@ -7,3 +7,4 @@ numpy>=1.26
 xarray>=2024.7
 netCDF4>=1.7
 pygrib>=2.1.6
+pydantic>=2.8

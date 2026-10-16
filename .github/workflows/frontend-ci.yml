@@ -2,8 +2,15 @@ name: Frontend CI
 
 on:
   pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
   push:
     branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,3 +25,4 @@ jobs:
           node-version: "22"
       - run: npm install
       - run: npm run build
+      - run: node --experimental-strip-types --test tests/*.test.mjs

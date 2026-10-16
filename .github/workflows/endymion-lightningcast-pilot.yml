@@ -1,0 +1,87 @@
+name: Endymion LightningCast ABI Pilot
+
+on:
+  push:
+    branches: [feature/radar-operations-v1]
+    paths:
+      - ".github/workflows/endymion-lightningcast-pilot.yml"
+  workflow_dispatch:
+    inputs:
+      abi_start:
+        description: "May 12 2021 source UTC start (HH:MM; initial pilot 06:30)"
+        type: string
+        default: "06:30"
+        required: true
+      abi_end:
+        description: "May 12 2021 source UTC end (HH:MM; initial pilot 06:45)"
+        type: string
+        default: "06:45"
+        required: true
+      download_inputs:
+        description: "Download ABI Level 1b inputs and produce a downloadable artifact"
+        type: boolean
+        default: true
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-abi:
+    name: Inventory and prepare four-channel ABI L1b data
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install boto3
+      - name: Confirm archived 2021 GOES-16 ABI channel availability
+        run: |
+          python scripts/fetch_goes.py \
+            --satellite 16 \
+            --date 2021-05-12 \
+            --start "${{ inputs.abi_start || '06:30' }}" \
+            --end "${{ inputs.abi_end || '06:45' }}" \
+            --product ABI-L1b-RadC \
+            --channels 2 5 13 15 \
+            --output data/raw/goes/lightningcast-inputs \
+            --list-only
+      - name: Download original GOES-16 ABI Level 1b channels
+        if: ${{ github.event_name == 'push' || inputs.download_inputs }}
+        run: |
+          python scripts/fetch_goes.py \
+            --satellite 16 \
+            --date 2021-05-12 \
+            --start "${{ inputs.abi_start || '06:30' }}" \
+            --end "${{ inputs.abi_end || '06:45' }}" \
+            --product ABI-L1b-RadC \
+            --channels 2 5 13 15 \
+            --output data/raw/goes/lightningcast-inputs
+      - name: Audit complete four-channel ABI sets
+        if: ${{ github.event_name == 'push' || inputs.download_inputs }}
+        run: |
+          python scripts/verify_lightningcast_inputs.py \
+            --input data/raw/goes/lightningcast-inputs \
+            --date 2021-05-12 \
+            --start "${{ inputs.abi_start || '06:30' }}" \
+            --end "${{ inputs.abi_end || '06:45' }}" \
+            --min-complete 2 \
+            --report data/lightningcast-abi-inventory.json
+      - name: Package inputs for externally approved CSPP Geo processing
+        if: ${{ github.event_name == 'push' || inputs.download_inputs }}
+        run: |
+          tar -cf lightningcast-abi-pilot.tar -C data/raw/goes/lightningcast-inputs .
+          cp data/lightningcast-abi-inventory.json lightningcast-abi-inventory.json
+      - name: Save pilot input artifact
+        if: ${{ github.event_name == 'push' || inputs.download_inputs }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: endymion-lightningcast-abi-pilot
+          path: |
+            lightningcast-abi-pilot.tar
+            lightningcast-abi-inventory.json
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 0

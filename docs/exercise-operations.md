@@ -17,7 +17,7 @@ Facilitators remain unassigned to teams and float between groups while operating
 3. All workstations verify the same simulation time.
 4. Exercise control starts the displaced-real-time clock.
 5. Radar and meso roles proactively feed information to DSS.
-6. DSS owns partner communication and requests targeted analysis from teammates.
+6. DSS owns weather communication and requests targeted analysis from teammates; Unified Command alone decides parade start, holds, protective actions and resumption.
 7. Facilitators release injects and troubleshoot without coaching toward a preferred answer.
 8. Event logs are used for the debrief.
 

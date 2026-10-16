@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import secrets
 import string
 from dataclasses import dataclass, field
@@ -32,6 +33,8 @@ class Participant:
 class ClientConnection:
     websocket: Any
     participant: Participant
+    # Serialize writes on this socket without blocking other participants.
+    send_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
 @dataclass
@@ -46,6 +49,92 @@ class ScheduledItem:
             "due_at": self.due_at.isoformat() if self.due_at else None,
             "status": self.status,
         }
+
+
+@dataclass
+class WarningState:
+    id: str
+    hazard: str
+    label: str
+    team_id: str
+    points: list[dict[str, float]]
+    initial_points: list[dict[str, float]]
+    issued_at: datetime
+    expires_at: datetime
+    issuer: str
+    status: str = "active"
+    inherited: bool = False
+    text: str = ""
+    attributes: dict[str, Any] = field(default_factory=dict)
+    followups: list[dict[str, Any]] = field(default_factory=list)
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "hazard": self.hazard,
+            "label": self.label,
+            "team_id": self.team_id,
+            "points": copy.deepcopy(self.points),
+            "initial_points": copy.deepcopy(self.initial_points),
+            "issued_at": self.issued_at.isoformat(),
+            "expires_at": self.expires_at.isoformat(),
+            "issuer": self.issuer,
+            "status": self.status,
+            "inherited": self.inherited,
+            "text": self.text,
+            "attributes": copy.deepcopy(self.attributes),
+            "followups": copy.deepcopy(self.followups),
+        }
+
+
+def warning_from_definition(
+    definition: dict[str, Any],
+    *,
+    scenario_start: datetime,
+) -> WarningState:
+    hazard = str(definition.get("hazard", "SVR")).upper()
+    label = str(definition.get("label") or ("Tornado Warning" if hazard == "TOR" else "Severe Thunderstorm Warning"))
+    issued_at_raw = definition.get("issued_at")
+    expires_at_raw = definition.get("expires_at")
+    issued_at = (
+        datetime.fromisoformat(str(issued_at_raw).replace("Z", "+00:00"))
+        if issued_at_raw
+        else scenario_start
+    )
+    expires_at = (
+        datetime.fromisoformat(str(expires_at_raw).replace("Z", "+00:00"))
+        if expires_at_raw
+        else scenario_start + timedelta(minutes=30)
+    )
+    points = [
+        {"lat": float(point["lat"]), "lon": float(point["lon"])}
+        for point in definition.get("points", [])
+        if "lat" in point and "lon" in point
+    ]
+    if hazard not in {"TOR", "SVR"}:
+        raise ValueError("Inherited warning type must be TOR or SVR")
+    if len(points) < 3:
+        raise ValueError("Inherited warning polygon requires at least three vertices")
+    if issued_at > scenario_start or expires_at <= scenario_start:
+        raise ValueError(
+            "Inherited warnings must be issued before or at T=0 and remain valid after T=0"
+        )
+    return WarningState(
+        id=str(definition.get("id") or f"inherited-{hazard.lower()}"),
+        hazard=hazard,
+        label=label,
+        team_id=str(definition.get("team_id") or "*"),
+        points=points,
+        initial_points=copy.deepcopy(points),
+        issued_at=issued_at,
+        expires_at=expires_at,
+        issuer=str(definition.get("issuer") or "Inherited warning"),
+        status="active",
+        inherited=True,
+        text=str(definition.get("text") or ""),
+        attributes=copy.deepcopy(definition.get("attributes") or {}),
+        followups=copy.deepcopy(definition.get("followups") or []),
+    )
 
 
 def resolve_schedule_time(spec: str, scenario_start: datetime) -> datetime | None:
@@ -71,6 +160,8 @@ class SessionState:
     clients: dict[str, ClientConnection] = field(default_factory=dict)
     log: list[dict[str, Any]] = field(default_factory=list)
     schedule: list[ScheduledItem] = field(default_factory=list)
+    initial_warnings: list[WarningState] = field(default_factory=list)
+    warnings: list[WarningState] = field(default_factory=list)
     send_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     def clock_snapshot(self) -> dict[str, Any]:
@@ -97,6 +188,41 @@ class SessionState:
             "items": [item.snapshot() for item in self.schedule],
         }
 
+
+    def warning_snapshot(self, team_id: str | None = None) -> dict[str, Any]:
+        visible = [
+            warning.snapshot()
+            for warning in self.warnings
+            if team_id is None
+            or warning.team_id == "*"
+            or warning.team_id == team_id
+        ]
+        return {"type": "warning_state", "warnings": visible}
+
+    def warning_by_id(self, warning_id: str) -> WarningState | None:
+        return next((warning for warning in self.warnings if warning.id == warning_id), None)
+
+    def ensure_team_warnings(self, team_id: str) -> None:
+        if not team_id or team_id == "FACILITATOR":
+            return
+
+        for initial in self.initial_warnings:
+            if initial.team_id not in {"*", team_id}:
+                continue
+
+            clone_id = f"{initial.id}:{team_id}"
+            if any(warning.id == clone_id for warning in self.warnings):
+                continue
+
+            clone = copy.deepcopy(initial)
+            clone.id = clone_id
+            clone.team_id = team_id
+            clone.attributes = {
+                **clone.attributes,
+                "_inherited_source_id": initial.id,
+            }
+            self.warnings.append(clone)
+
     def session_snapshot(self, *, include_schedule: bool = False) -> dict[str, Any]:
         payload = {
             "type": "session_state",
@@ -120,6 +246,14 @@ class SessionState:
         self.running = False
         self.speed = self.default_speed
         self.log.clear()
+        self.warnings = []
+        connected_teams = {
+            connection.participant.team_id
+            for connection in self.clients.values()
+            if connection.participant.role != Role.FACILITATOR
+        }
+        for team_id in connected_teams:
+            self.ensure_team_warnings(team_id)
         for item in self.schedule:
             item.status = "pending"
 
@@ -155,6 +289,7 @@ class SessionManager:
         scenario_start: datetime,
         default_speed: float,
         scheduled_events: list[ScheduledExerciseEvent] | None = None,
+        initial_warnings: list[dict[str, Any]] | None = None,
     ) -> SessionState:
         code = self._new_code()
         schedule = [
@@ -163,6 +298,10 @@ class SessionManager:
                 due_at=resolve_schedule_time(definition.at_sim_time, scenario_start),
             )
             for definition in (scheduled_events or [])
+        ]
+        warning_seed = [
+            warning_from_definition(definition, scenario_start=scenario_start)
+            for definition in (initial_warnings or [])
         ]
         state = SessionState(
             code=code,
@@ -173,6 +312,8 @@ class SessionManager:
             speed=default_speed,
             default_speed=default_speed,
             schedule=schedule,
+            initial_warnings=copy.deepcopy(warning_seed),
+            warnings=[],
         )
         self.sessions[code] = state
         return state
