@@ -1,12 +1,14 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { getEventOperations } from "../../services/api";
-import type { EventOperationsConfig, ExerciseEvent } from "../../types/simulation";
+import type { EventOperationsConfig, ExerciseEvent, WarningRecord } from "../../types/simulation";
+import { buildDssChat } from "./communications";
 import { formatExerciseTime } from "../../utils/time";
 
 type Props = {
   sessionCode: string;
   events: ExerciseEvent[];
+  warnings: WarningRecord[];
   onRespond: (body: string) => void;
   onShiftLogUpdated: () => void;
 };
@@ -15,7 +17,7 @@ function simTime(value?: string) {
   return formatExerciseTime(value, "");
 }
 
-export function DSS({ sessionCode, events, onRespond, onShiftLogUpdated }: Props) {
+export function DSS({ sessionCode, events, warnings, onRespond, onShiftLogUpdated }: Props) {
   const [body, setBody] = useState("");
   const [operations, setOperations] = useState<EventOperationsConfig | null>(null);
   const [opsTab, setOpsTab] = useState<"overview" | "thresholds" | "route">("overview");
@@ -32,12 +34,8 @@ export function DSS({ sessionCode, events, onRespond, onShiftLogUpdated }: Props
       );
   }, [sessionCode]);
 
-  const chat = events.filter(
-    (event) =>
-      event.type === "partner_message" ||
-      event.type === "dss_response" ||
-      event.type === "warning_route_notice",
-  );
+  const chat = useMemo(() => buildDssChat(events, warnings), [events, warnings]);
+  const issuedWarnings = warnings.filter((warning) => !warning.inherited);
   const shiftLogUpdates = events.filter((event) => event.type === "shift_log_update");
 
   const thresholds = operations?.operations?.decision_thresholds ?? [];
@@ -67,6 +65,12 @@ export function DSS({ sessionCode, events, onRespond, onShiftLogUpdated }: Props
       <div className="dss-layout">
         <div className="subpanel">
           <h3>Partner Communications</h3>
+          <p className="muted dss-warning-sync">
+            Radar warnings synchronized for this team: {issuedWarnings.length}
+            {issuedWarnings.length === 0
+              ? " · Verify the Radar and DSS top bars show the same session code and team."
+              : " · Warning notices remain visible after reconnecting."}
+          </p>
           <div className="chat-log">
             {chat.length === 0 ? (
               <p className="muted">No partner messages yet.</p>
