@@ -202,6 +202,27 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   color: #ffcf89;
 }
 .dss-warning-tag span { color: #dcc4a4; font-size: 0.78rem; }
+.dss-warning-product { margin-top: 11px; }
+.dss-warning-product summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffcf89;
+}
+.dss-warning-product pre {
+  margin: 10px 0 0;
+  padding: 10px;
+  border-radius: 6px;
+  background: #111a24;
+  border: 1px solid #664e30;
+  color: #e9f1f8;
+  overflow-x: auto;
+  max-height: 350px;
+  font-size: 0.77rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 
 .chat-meta {
   display: flex;
