@@ -5,9 +5,13 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import re
+from math import cos, radians
 
 
 THRESHOLD_RING_IDS = ("lightning-suspend", "lightning-impending", "lightning-monitor")
+# Metro New Orleans, including Houma/western storm approaches and Slidell.
+# The 15-mile threshold circle fills approximately one-third of this map.
+DEFAULT_RING_DOMAIN = (-90.95, -89.45, 29.35, 30.55)
 
 from render_common import add_base_map, local_time_label, parse_domain, timestamp_token
 
@@ -59,6 +63,24 @@ def ring_config_from_event(path: Path) -> tuple[float, float, list[int]]:
     return lat, lon, miles
 
 
+def validate_ring_domain(
+    domain: tuple[float, float, float, float],
+    event_lat: float,
+    event_lon: float,
+    outer_miles: float,
+) -> tuple[float, float, float, float]:
+    """Ensure the zoom does not clip any of the event's lightning rings."""
+    west, east, south, north = domain
+    outer_km = outer_miles * 1.609344
+    lat_pad = outer_km / 110.6 + 0.03
+    lon_pad = outer_km / (111.0 * cos(radians(event_lat))) + 0.03
+    if not (south + lat_pad < event_lat < north - lat_pad):
+        raise ValueError("GLM ring map would clip the outer threshold in latitude")
+    if not (west + lon_pad < event_lon < east - lon_pad):
+        raise ValueError("GLM ring map would clip the outer threshold in longitude")
+    return domain
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Render multi-minute GLM flash-centroid density from LCFA files."
@@ -78,6 +100,11 @@ def parse_args() -> argparse.Namespace:
                         help="Scenario event.yaml: authoritative lightning ring thresholds and start marker")
     parser.add_argument("--ring-output", type=Path,
                         help="Also render a separately selectable GLM product with range rings")
+    parser.add_argument(
+        "--ring-domain", nargs=4, type=float, default=list(DEFAULT_RING_DOMAIN),
+        metavar=("WEST", "EAST", "SOUTH", "NORTH"),
+        help="Zoom ONLY the GLM range-ring view; retain the broader plain GLM.",
+    )
     return parser.parse_args()
 
 
@@ -97,6 +124,10 @@ def main() -> None:
     if args.ring_output is not None:
         if args.event_lat is None or args.event_lon is None or not args.range_rings_mi:
             raise ValueError("--ring-output requires an event center and mile thresholds")
+        ring_domain = validate_ring_domain(
+            parse_domain(args.ring_domain),
+            args.event_lat, args.event_lon, max(args.range_rings_mi),
+        )
         args.ring_output.mkdir(parents=True, exist_ok=True)
     files = sorted(args.input.glob("*.nc"))
     if not files:
