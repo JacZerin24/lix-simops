@@ -55,7 +55,8 @@ export type ExerciseEvent = {
     | "team_message"
     | "storm_report"
     | "meso_update"
-    | "shift_log_update";
+    | "shift_log_update"
+    | "warning_route_notice";
   event_id?: string;
   title?: string;
   body: string;
@@ -76,6 +77,9 @@ export type ExerciseEvent = {
   observed_at?: string;
   plot_on_radar?: boolean;
   expires_at?: string;
+  action?: string;
+  warning_id?: string;
+  hazard?: string;
   category?: string;
   product_id?: string;
   product_label?: string;
@@ -244,6 +248,13 @@ export type EventOperationsConfig = {
       planning_note?: string;
     };
     route?: string[];
+    route_map?: {
+      image_url?: string;
+      source_url?: string;
+      image_alt?: string;
+      caption?: string;
+    };
+    route_geometry_note?: string;
     route_end?: string;
   };
   partner?: {
