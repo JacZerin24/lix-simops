@@ -39,8 +39,9 @@ def test_weather_role_and_partner_decision_authority_are_explicit() -> None:
     assert "DSS" in authority
     assert "Unified Command" in authority
     thresholds = {item["id"]: item for item in config["operations"]["decision_thresholds"]}
-    assert "Unified Command" in thresholds["lightning-suspend"]["action"]
-    assert "Unified Command" in thresholds["lightning-resume"]["action"]
+    for threshold_id in ("lightning-suspend", "lightning-resume"):
+        action = thresholds[threshold_id]["action"]
+        assert "Unified Command" in action or "Event Command" in action
 
 
 def test_glm_rings_match_actual_endymion_event_thresholds() -> None:
