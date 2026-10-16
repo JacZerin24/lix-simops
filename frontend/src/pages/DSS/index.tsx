@@ -56,7 +56,9 @@ export function DSS({ sessionCode, events, onRespond, onShiftLogUpdated }: Props
     <section className="panel primary">
       <h2>DSS Meteorologist</h2>
       <p className="muted">
-        Own the partner relationship. Coordinate with radar and meso, then communicate one clear operational answer.
+        Provide the partner with observed conditions, expected weather impacts, timing,
+        threshold status, and confidence. Coordinate with Radar and Meso. Unified Command
+        makes all parade start, hold, protective-action, and resumption decisions.
       </p>
 
       <div className="dss-layout">
@@ -116,15 +118,18 @@ export function DSS({ sessionCode, events, onRespond, onShiftLogUpdated }: Props
 
           <form className="composer" onSubmit={submit}>
             <label>
-              Response to partner
+              Weather information to partner
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                placeholder="What are you telling the partner right now?"
+                placeholder="Current weather, affected areas, hazard timing, thresholds, expected impacts, and confidence. Unified Command decides operational actions."
                 rows={4}
               />
             </label>
-            <button className="primary-action" type="submit">Send DSS Response</button>
+            <p className="muted">
+              DSS informs and supports; Unified Command decides whether to start, hold, shelter, or resume.
+            </p>
+            <button className="primary-action" type="submit">Send Weather Update</button>
           </form>
         </div>
 
