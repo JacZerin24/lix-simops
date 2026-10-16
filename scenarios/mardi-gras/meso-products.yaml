@@ -53,6 +53,13 @@ products:
     source_dir: data/raw/meso/glm_flash_density
     pattern: "*.png"
 
+  - id: glm_flash_density_rings
+    label: GLM Flash Density + Event Range Rings
+    category: Satellite / Lightning
+    description: Observed five-minute GLM flash-centroid density with labeled 8/12/15-mile reference rings centered on the Endymion start. The thresholds must be evaluated against the entire active route/staging area, not only this point. Not Flash Extent Density.
+    source_dir: data/raw/meso/glm_flash_density_rings
+    pattern: "*.png"
+
   - id: lightningcast
     label: LightningCast
     category: Satellite / Lightning
