@@ -212,7 +212,7 @@ def main() -> None:
                 loc="right"
             )
             if combined:
-                ax.text(0.99, 0.015, f"MRMS valid {mrms_time:%H:%M} UTC",
+                ax.text(0.99, 0.015, "MRMS valid " + local_time_label( mrms_time, args.timezone, args.simulation_date, args.local_time_offset_minutes ),
                         transform=ax.transAxes, ha="right", va="bottom", fontsize=8)
             kind = "lightningcast_mrms_lowest_refl" if combined else "lightningcast"
             folder = args.output_root / kind
