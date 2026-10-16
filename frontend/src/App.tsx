@@ -48,6 +48,7 @@ const exerciseEventTypes = new Set([
   "storm_report",
   "meso_update",
   "shift_log_update",
+  "warning_route_notice",
 ]);
 
 function App() {
