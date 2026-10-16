@@ -24,6 +24,27 @@ event:
     - Right on Loyola Avenue to Girod Street
     - Left on Girod Street to Caesars Superdome
   route_end: Caesars Superdome
+  route_map:
+    image_url: https://endymion.org/wp-content/uploads/2025-map-1.png
+    source_url: https://endymion.org/
+    image_alt: Krewe of Endymion Mid-City parade route schematic showing the start on Orleans Avenue, Canal Street, St. Charles, and the route to the Superdome.
+    caption: Endymion's published 2025 route schematic, provided as a reference for the 2027 exercise. Use the route directions below if route details change.
+  # Approximate centerline reference for exercise-only warning/route overlap alerts.
+  # These waypoints trace the documented streets. They are not an official
+  # surveyed/GIS route and must be checked before real-world operational use.
+  route_geometry_note: Approximate exercise centerline; warning overlap notifications are training cues, not operational GIS determinations.
+  route_centerline:
+    - { lat: 29.9864, lon: -90.1006 } # City Park / Orleans start
+    - { lat: 29.9841, lon: -90.0932 } # Orleans / N Carrollton vicinity
+    - { lat: 29.97437, lon: -90.1003 } # N Carrollton / Canal
+    - { lat: 29.9634, lon: -90.0819 } # Canal / Galvez corridor
+    - { lat: 29.9537, lon: -90.0695 } # Canal / St Charles vicinity
+    - { lat: 29.94333, lon: -90.07247 } # St Charles / Harmony Circle
+    - { lat: 29.9471, lon: -90.0738 } # Howard Avenue corridor
+    - { lat: 29.9493, lon: -90.0775 } # Howard / Loyola vicinity
+    - { lat: 29.9501, lon: -90.0791 } # Loyola / Girod vicinity
+    - { lat: 29.9511, lon: -90.0812 } # Caesars Superdome
+
   crowd_note: >-
     Endymion is a large moving event with dense crowds distributed along a multi-mile route,
     so protective-action lead time and the ability to communicate route-wide are central to the exercise.
