@@ -6,6 +6,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -290,7 +291,7 @@ async def notify_dss_if_route_warned(
         body = (
             f"EXERCISE: {warning.label} issued by {warning.issuer}. "
             "The warning polygon intersects the exercise's approximate Endymion route "
-            f"centerline. Warning valid until {warning.expires_at:%H:%M} UTC. "
+            f"centerline. Warning valid until {warning.expires_at.astimezone(ZoneInfo('America/Chicago')):%I:%M %p %Z}. "
             "Review the official warning text and polygon, then provide Event Command "
             "with affected-route weather hazards, timing and confidence. "
             "Unified Command makes all operational decisions."
@@ -324,6 +325,10 @@ async def notify_dss_if_route_warned(
         "event_id": uuid4().hex,
         "team_id": warning.team_id,
         "warning_id": warning.id,
+        "warning_text": (
+            warning.text if action == "issue"
+            else warning.followups[-1].get("text", "") if warning.followups else ""
+        ),
         "hazard": warning.hazard,
         "action": action,
         "title": title,
