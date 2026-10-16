@@ -1214,7 +1214,7 @@ export function Facilitator({
         <form className="panel" onSubmit={submitPartner}>
           <h2>Partner Control</h2>
           <p className="muted">
-            Use this for unscripted follow-ups. Scheduled partner messages are handled by the timeline above.
+            Ask DSS for forecast timing, affected areas, thresholds, impacts, and confidence. Unified Command makes all operational decisions. Scheduled messages release through the timeline.
           </p>
           <div className="form-grid">
             <label>
@@ -1234,7 +1234,7 @@ export function Facilitator({
               value={partnerBody}
               onChange={(e) => setPartnerBody(e.target.value)}
               rows={4}
-              placeholder="What is the partner asking or reporting?"
+              placeholder="Partner request: What weather threats, onset time, affected route areas, and confidence should we consider? Unified Command will decide the action."
             />
           </label>
           <button className="primary-action" type="submit">Send Partner Message</button>
