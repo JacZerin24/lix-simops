@@ -63,3 +63,9 @@ def test_out_of_range_probabilities_rejected(tmp_path: Path) -> None:
     }))
     with pytest.raises(ValueError, match="0..100"):
         parse_contours(file, "PROBABILITY")
+
+
+def test_empty_real_probability_contours_are_allowed(tmp_path: Path) -> None:
+    file = tmp_path / "lightningcast_20210512T060100Z.geojson"
+    file.write_text(json.dumps({"type": "FeatureCollection", "features": []}))
+    assert parse_contours(file, "PROBABILITY") == []
