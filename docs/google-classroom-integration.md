@@ -30,7 +30,7 @@ Publish at the beginning of the exercise.
 ### 02 — Operational Reference Resources
 Publish before the exercise or at the briefing.
 
-- Lightning decision framework
+- Lightning 15/12/8-mile weather thresholds; partner retains start/hold/resumption decisions
 - NWS event-ready/lightning references
 - Any local IDSS procedures that participants are expected to use
 - Danielle's resource links, if appropriate
@@ -48,7 +48,7 @@ Publish before start.
 Keep unpublished until the exercise is complete or release manually.
 
 - Short-answer reflection/question
-- What information changed your decision?
+- What weather information changed your assessment or informed the partner's decision?
 - Which product/tool added the most value?
 - Where did team communication break down?
 - What should LIX standardize for future on-site/remote DSS?
