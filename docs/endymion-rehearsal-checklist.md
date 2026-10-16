@@ -14,7 +14,7 @@ The rehearsal should answer five questions:
 - Do partner questions and storm reports arrive at useful decision points?
 - Does information flow naturally from Radar/Meso → DSS → Unified Command?
 - Does the severe-weather escalation occur with enough lead time for meaningful decisions?
-- Does the Team Operations AAR accurately reconstruct what the team knew, decided, communicated, and logged?
+- Does the Team Operations AAR accurately reconstruct what the team knew, communicated, and logged, and which actions the partner reported?
 
 At the default **1.5×** playback speed, 105 minutes of simulation time requires about **70 minutes of uninterrupted wall-clock playback**, plus pauses, setup, and debrief.
 
@@ -50,6 +50,7 @@ At the default **1.5×** playback speed, 105 minutes of simulation time requires
 - [ ] All four screens show the same simulation time.
 - [ ] Radar can display REF, VEL, CC, and ZDR.
 - [ ] Meso products load and only show frames available by current simulation time.
+- [ ] GLM range-ring layer toggles 8/12/15 mi with no future-frame leakage; reference rings are centered on Endymion start only, not the full moving route.
 - [ ] DSS Event Operations information loads.
 - [ ] DSS has the real/mock Shift Log open in a separate tab if available.
 - [ ] Meso can send a test update to the team if desired, then reset/recreate the session before the official rehearsal.
@@ -62,7 +63,7 @@ At the default **1.5×** playback speed, 105 minutes of simulation time requires
 - [ ] Do not look ahead in radar, meso, reports, or facilitator-only source material.
 - [ ] Radar owns warning decisions.
 - [ ] Meso proactively communicates environmental/storm-support information.
-- [ ] DSS owns partner-facing recommendations and shift-log documentation.
+- [ ] DSS provides weather information, impacts, uncertainty, and threshold status; Unified Command owns operational decisions. DSS documents communications in the shift log.
 - [ ] Internal team discussion should occur naturally; do not require every internal statement to be entered into SimOps.
 - [ ] Meso should use **Send Meso Update to Team** for meaningful environmental assessments worth preserving in the AAR.
 - [ ] DSS should click **Mark Shift Log Updated** once after each meaningful Google Form/shift-log submission.
@@ -73,15 +74,15 @@ At the default **1.5×** playback speed, 105 minutes of simulation time requires
 
 | Sim time | Scheduled event / expected phase | What the team should be doing | Facilitator observations |
 |---|---|---|---|
-| **2:45 PM** | T=0 / pre-parade operations | Radar establishes storm picture; Meso establishes environment/lightning context; DSS reviews route, thresholds, and partner priorities. | Is there enough useful data immediately? Does each role know what to do without prompting? |
+| **2:45 PM** | T=0 / pre-parade operations | Radar establishes storm picture; Meso establishes environment/lightning context; DSS reviews route, thresholds, and partner priorities. | Is there enough useful data immediately? Does each role know its scope without prompting? |
 | **2:50 PM** | **Operations Check-In** partner message | DSS should synthesize Radar/Meso input into current weather picture and primary concern. | Time partner message → DSS response. Did Radar/Meso proactively provide input? Did DSS update the shift log? |
 | **3:05 PM** | **Parade Start Confidence** | Team should be refining timing/confidence relative to 4 PM start. | Is there enough evolution by now to support a non-generic answer? Is Meso contributing? |
 | **3:20 PM** | **Protective-Action Lead Time** | Team should discuss action timing before formal warning criteria are reached. | Does the team think beyond warning polygons? Is DSS giving actionable lead time? |
-| **3:27 PM** | DSS-only **Lightning Decision Framework** reminder | DSS should apply the 15/12/8-mile framework as appropriate and coordinate with Meso. | Is this reminder useful or disruptive? Does it arrive too early/late? |
-| **3:35 PM** | **Commit-to-Route Decision** | DSS must give a start/delay/other-action recommendation with timing and confidence. | Is this a meaningful decision point? Does the team have enough evidence? Note whether answer feels forced or natural. |
-| **3:35–3:49 PM** | Escalation period | Radar/Meso should recognize increasing threat; DSS should keep Unified Command decision-ready. | Watch workload balance and internal communication. Is anyone idle or overloaded? |
-| **~3:50 PM** | Primary metro severe-weather escalation begins | Radar warning decisions should emerge from the data; Meso should communicate environmental/storm trends; DSS should translate threat into route impacts/action. | Do **not** coach warning issuance. Record when the team first recognizes the threat, first warns, and first recommends protective action. |
-| **3:50 PM** | **Immediate Command Decision** partner message | DSS must give clear most-significant threat, exposed areas, and immediate action. | This is a key stress point. Is the timing productive or does it collide with too much Radar/Meso work? |
+| **3:27 PM** | DSS-only **Lightning Decision Framework** reminder | DSS should communicate the partner's 15/12/8-mile weather thresholds and coordinate with Meso; partners choose any protective action. | Is this reminder useful or disruptive? Does it arrive too early/late? |
+| **3:35 PM** | **Commit-to-Route Decision** | DSS gives a route-specific forecast including threat timing, impacts, threshold proximity, and confidence; Unified Command decides start/delay. | Is this a meaningful decision point? Does the team have enough evidence? Note whether answer feels forced or natural. |
+| **3:35–3:49 PM** | Escalation period | Radar/Meso should recognize increasing threat; DSS should provide sufficient weather information for Unified Command's decisions. | Watch workload balance and internal communication. Is anyone idle or overloaded? |
+| **~3:50 PM** | Primary metro severe-weather escalation begins | Radar warning decisions should emerge from the data; Meso should communicate environmental/storm trends; DSS should translate hazards into route-specific weather impacts, timing, and confidence. | Do **not** coach warning issuance. Record when the team first recognizes the threat, first warns, and first communicates actionable hazard thresholds. |
+| **3:50 PM** | **Immediate Command Decision** partner message | DSS gives the most significant weather threat, exposed areas, threshold status, onset timing, and confidence; Unified Command decides the immediate action. | This is a key stress point. Is the timing productive or does it collide with too much Radar/Meso work? |
 | **3:54 PM** | First historical observation occurs internally | No participant report has released yet. | A warning issued before this point should produce positive observation lead time in AAR. |
 | **3:55 PM** | **62 mph Downtown Heliport gust** releases | Team incorporates first objective impact report. | Confirm report appears to intended roles/radar and AAR. Note whether it materially changes communication. |
 | **3:57 PM** | **Uptown structural damage** releases | Escalating impact picture. | Check report label decluttering and team awareness. |
@@ -90,9 +91,9 @@ At the default **1.5×** playback speed, 105 minutes of simulation time requires
 | **4:01 PM** | **Power pole/tree damage — Uptown** releases | Team should recognize broadening significant impacts. | Check active warning coverage and any CON/COR decisions. |
 | **4:03 PM** | **Power pole down — Algiers Point** releases | Impacts shift east/across river. | Does Radar warning geometry/follow-up still make operational sense? |
 | **4:04 PM** | **Power lines/debris — Federal City** releases | Final scheduled historical impact report. | Confirm all six reports appear and Team AAR remains readable. |
-| **4:05 PM** | **Operations During Hold** partner message | Assume parade is being held; DSS gives route/public-safety messaging and criteria for continuing hold. | Does the exercise transition naturally from warning response into ongoing IDSS? Did DSS log the communication? |
+| **4:05 PM** | **Operations During Hold** partner message | Assume parade is being held; DSS gives weather changes and threshold context; the partner controls operational and public-safety messaging and the hold. | Does the exercise transition naturally from warning response into ongoing IDSS? Did DSS log the communication? |
 | **4:05–4:19 PM** | Post-impact / recovery assessment | Radar/Meso monitor whether threat is ending or another threat is approaching; DSS frames recovery criteria. | Is this period useful or does it feel dead? Does Meso still have meaningful work? |
-| **4:20 PM** | **Resume Operations?** partner message | DSS gives resume/continue-hold recommendation, criteria, next threat, and confidence. | Is enough information available to make recovery judgment? Does team avoid premature all-clear? |
+| **4:20 PM** | **Resume Operations?** partner message | DSS reports remaining weather hazards, latest lightning, upstream trends, and confidence; Unified Command determines whether to resume. | Is enough information available to make recovery judgment? Does team avoid premature all-clear? |
 | **4:20–4:30 PM** | Final monitoring / closeout | Finish necessary warning follow-up, final Meso update, partner communication, and shift-log entry. | Watch whether 10 minutes is too long/short. |
 | **4:30 PM** | End of simulation window | Pause/stop. Do not continue into unseen future data. | Confirm all roles end on same time and AAR/export remain available. |
 
@@ -118,6 +119,7 @@ At the default **1.5×** playback speed, 105 minutes of simulation time requires
 
 - [ ] Has enough useful products at T=0 to establish environmental context.
 - [ ] Product update frequency feels appropriate.
+- [ ] GLM range-ring toggle shows the correct 8/12/15-mile references while preserving actual observed GLM flash density.
 - [ ] Left/right arrow navigation is useful during active analysis.
 - [ ] Latest-frame behavior is intuitive.
 - [ ] Environment, satellite, lightning, MRMS, observations, and guidance complement rather than duplicate one another.
@@ -132,7 +134,7 @@ At the default **1.5×** playback speed, 105 minutes of simulation time requires
 - [ ] Reads and understands partner messages without facilitator explanation.
 - [ ] Requests targeted information from Radar/Meso when needed.
 - [ ] Gives partner-facing answers rather than meteorological data dumps.
-- [ ] Includes timing, location/area, action, and confidence when appropriate.
+- [ ] Includes timing, locations/areas, impacts, established threshold status, and confidence without directing a partner action.
 - [ ] Applies protective-action lead time rather than waiting only for warnings.
 - [ ] Uses the lightning framework appropriately if relevant to the evolving data.
 - [ ] Response workload is manageable around the 3:35–4:05 escalation.
@@ -141,7 +143,7 @@ At the default **1.5×** playback speed, 105 minutes of simulation time requires
 - [ ] Opens/submits the external shift log for meaningful communications.
 - [ ] Clicks **Mark Shift Log Updated** exactly once after each relevant submission.
 - [ ] Shift-log count/times in SimOps match the external log entries.
-- [ ] Recovery/all-clear communication at 4:20 PM is operationally useful.
+- [ ] Recovery weather briefing at 4:20 PM is useful without DSS issuing an operational all-clear.
 
 ### Facilitator
 
@@ -167,15 +169,15 @@ Record **yes / no / adjust** plus notes for each:
 |---|---|---|
 | Does 2:45–2:50 provide enough startup time before the first partner request? |  |  |
 | Is 2:50 partner check-in useful rather than too early? |  |  |
-| Does the 3:05 request add a new decision rather than repeat 2:50? |  |  |
+| Does the 3:05 forecast-timing request add useful new information rather than repeat 2:50? |  |  |
 | Is the 3:20 lead-time question well placed? |  |  |
 | Is the 3:27 lightning reminder useful and non-leading? |  |  |
-| Is 3:35 the right time for the commit-to-route decision? |  |  |
-| Does the 3:50 Immediate Command Decision create productive stress rather than overload? |  |  |
+| Is 3:35 the right time for a partner-requested route weather briefing? |  |  |
+| Does the 3:50 weather status request create productive stress rather than overload? |  |  |
 | Do 3:55–4:04 reports arrive at a useful cadence? |  |  |
 | Is the 4:05 hold question appropriately timed after the impact burst? |  |  |
 | Is 4:05–4:20 too quiet, too busy, or about right? |  |  |
-| Is 4:20 a credible recovery decision point? |  |  |
+| Is 4:20 a credible partner-requested recovery weather briefing? |  |  |
 | Does the scenario need the manual contingency partner message? |  |  |
 | Does 1.5× playback feel appropriate for all three roles? |  |  |
 | Are pauses needed for training value, or only for technical issues? |  |  |
