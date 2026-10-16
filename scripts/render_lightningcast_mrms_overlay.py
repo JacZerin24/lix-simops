@@ -75,10 +75,8 @@ def parse_contours(source: Path, probability_field: str) -> list[tuple[int, dict
             raise ValueError("Missing GeoJSON contour geometry")
         if level in COLORS:
             result.append((int(level), feature["geometry"]))
-    if not result:
-        raise ValueError(
-            f"{source}: no 10/25/50/75% contour features; inspect native model output"
-        )
+    # A legitimate low-risk scene can contain zero contours above 10%.
+    # Preserve it in the time series instead of inventing a probability field.
     return result
 
 
@@ -170,6 +168,13 @@ def main() -> None:
                 ax.add_geometries(
                     [geom], crs=ccrs.PlateCarree(), facecolor="none",
                     edgecolor=COLORS[level], linewidth=2.5, zorder=6
+                )
+            if not probability_features:
+                ax.text(
+                    0.03, 0.96, "No LightningCast contours >= 10%",
+                    transform=ax.transAxes, va="top", ha="left", fontsize=10,
+                    bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.9},
+                    zorder=9,
                 )
             legend = [
                 Line2D([0], [0], color=color, lw=2.5, label=f"{prob}%")
