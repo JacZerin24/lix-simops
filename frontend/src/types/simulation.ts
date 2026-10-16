@@ -257,6 +257,7 @@ export type EventOperationsConfig = {
       caption?: string;
     };
     route_geometry_note?: string;
+    route_centerline?: RadarOverlayPoint[];
     route_end?: string;
   };
   partner?: {
