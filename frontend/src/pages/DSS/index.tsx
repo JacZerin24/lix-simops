@@ -1,8 +1,9 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getEventOperations } from "../../services/api";
 import type { EventOperationsConfig, ExerciseEvent, WarningRecord } from "../../types/simulation";
 import { buildDssChat } from "./communications";
+import { DSSWarningMap } from "./DSSWarningMap";
 import { formatExerciseTime } from "../../utils/time";
 
 type Props = {
@@ -22,6 +23,20 @@ export function DSS({ sessionCode, events, warnings, onRespond, onShiftLogUpdate
   const [operations, setOperations] = useState<EventOperationsConfig | null>(null);
   const [opsTab, setOpsTab] = useState<"overview" | "thresholds" | "route">("overview");
   const [error, setError] = useState("");
+  const [warningMapOpen, setWarningMapOpen] = useState(false);
+  const [selectedWarningId, setSelectedWarningId] = useState<string | null>(null);
+  const mapPanelRef = useRef<HTMLDivElement | null>(null);
+  const openWarningMap = useCallback((warningId: string | null = null) => {
+    setSelectedWarningId(warningId);
+    setWarningMapOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (warningMapOpen) {
+      mapPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [warningMapOpen, selectedWarningId]);
+
 
   useEffect(() => {
     getEventOperations(sessionCode)
@@ -61,6 +76,29 @@ export function DSS({ sessionCode, events, warnings, onRespond, onShiftLogUpdate
         threshold status, and confidence. Coordinate with Radar and Meso. Unified Command
         makes all parade start, hold, protective-action, and resumption decisions.
       </p>
+
+      <div className="dss-map-main-actions">
+        <button type="button" className="dss-map-open-button"
+          onClick={() => warningMapOpen ? setWarningMapOpen(false) : openWarningMap(null)}
+          aria-expanded={warningMapOpen} aria-controls="dss-warning-footprints">
+          {warningMapOpen ? "Hide warning footprint map" : "View team warning footprints & route"}
+          {warnings.filter((warning) => warning.status === "active").length > 0 &&
+            ` · ${warnings.filter((warning) => warning.status === "active").length} active`}
+        </button>
+        <span className="muted">Read-only · Warning polygons update from team Radar</span>
+      </div>
+      {warningMapOpen && (
+        <div id="dss-warning-footprints" ref={mapPanelRef}>
+          <DSSWarningMap
+            warnings={warnings}
+            route={operations?.event?.route_centerline}
+            routeNote={operations?.event?.route_geometry_note}
+            selectedWarningId={selectedWarningId}
+            onSelectWarning={setSelectedWarningId}
+            onClose={() => setWarningMapOpen(false)}
+          />
+        </div>
+      )}
 
       <div className="dss-layout">
         <div className="subpanel">
@@ -102,6 +140,12 @@ export function DSS({ sessionCode, events, warnings, onRespond, onShiftLogUpdate
                     </div>
                   )}
                   <p>{item.body}</p>
+                  {item.type === "warning_route_notice" && item.warning_id && (
+                    <button type="button" className="dss-review-warning-button"
+                      onClick={() => openWarningMap(item.warning_id ?? null)}>
+                      Review warning footprint on map ↗
+                    </button>
+                  )}
                   {item.type === "warning_route_notice" && item.warning_text && (
                     <details className="dss-warning-product">
                       <summary>Read {item.action === "issue" ? "issued warning" : "warning statement"}</summary>
@@ -236,6 +280,10 @@ export function DSS({ sessionCode, events, warnings, onRespond, onShiftLogUpdate
           {opsTab === "route" && (
             <div className="ops-content">
               <h4>Endymion route</h4>
+              <button type="button" className="dss-review-warning-button"
+                onClick={() => openWarningMap(null)}>
+                View mapped route and warning polygons ↗
+              </button>
               {operations?.event?.route_map?.image_url && (
                 <figure className="dss-route-map">
                   <a
