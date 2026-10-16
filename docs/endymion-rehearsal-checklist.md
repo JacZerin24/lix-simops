@@ -52,6 +52,12 @@ At the default **1.5×** playback speed, 105 minutes of simulation time requires
 - [ ] Meso products load and only show frames available by current simulation time.
 - [ ] GLM range-ring layer toggles 8/12/15 mi with no future-frame leakage; reference rings are centered on Endymion start only, not the full moving route.
 - [ ] DSS Event Operations information loads.
+- [ ] DSS **View team warning footprints & route** opens a full-width read-only map showing the authored Endymion route; no warning issuance tools are available.
+- [ ] Team 1 Radar issues a warning away from the route: Team 1 DSS receives the warning and **Review warning footprint on map** focuses the polygon without implying a confirmed route intersection.
+- [ ] Team 1 Radar issues a warning intersecting the route: Team 1 DSS map shows the polygon over the route and Team 2 DSS does not receive Team 1 warnings.
+- [ ] Radar sends a CON/COR that updates warning geometry: the DSS map updates to the latest polygon; CAN/EXP warnings no longer appear active.
+- [ ] DSS reconnects during an active warning: the warning map and chat notice are reconstructed from the team-scoped warning snapshot.
+- [ ] The map remains clearly marked as an **approximate exercise route**, not an operational surveyed GIS determination; DSS communicates weather and Unified Command owns actions.
 - [ ] DSS has the real/mock Shift Log open in a separate tab if available.
 - [ ] Meso can send a test update to the team if desired, then reset/recreate the session before the official rehearsal.
 - [ ] Facilitator can see Team Status for all three participant roles.
