@@ -76,7 +76,13 @@ function App() {
   const [error, setError] = useState("");
   const socketRef = useRef<WebSocket | null>(null);
   // One identity per browser tab, reused through transient reconnects.
-  const clientIdRef = useRef(window.crypto.randomUUID());
+  // crypto.randomUUID() is secure-context-only and unavailable on most LAN
+  // HTTP origins (http://192.168.x.x). getRandomValues works on those origins.
+  const clientIdRef = useRef(
+    Array.from(window.crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join(""),
+  );
 
   useEffect(() => {
     listScenarios()
