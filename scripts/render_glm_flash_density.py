@@ -47,7 +47,7 @@ def ring_config_from_event(path: Path) -> tuple[float, float, list[int]]:
     miles = []
     for threshold_id in THRESHOLD_RING_IDS:
         value = by_id[threshold_id]
-        match = re.search(r"\\b(\\d+)\\s+miles?\\b", value)
+        match = re.search(r"\b(\d+)\s+miles?\b", value)
         if match is None:
             raise ValueError(f"No numerical mile threshold for {threshold_id}: {value}")
         miles.append(int(match.group(1)))
