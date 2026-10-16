@@ -185,6 +185,24 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   justify-self: end;
 }
 .chat-message p { margin-bottom: 0; }
+.chat-message.warning-notice {
+  justify-self: stretch;
+  max-width: 100%;
+  border-color: #c88638;
+  border-left: 4px solid #e4a657;
+  background: #332818;
+}
+.dss-warning-tag {
+  display: flex;
+  gap: 6px 12px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0 0 8px;
+  color: #ffcf89;
+}
+.dss-warning-tag span { color: #dcc4a4; font-size: 0.78rem; }
+
 .chat-meta {
   display: flex;
   justify-content: space-between;
@@ -575,6 +593,31 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .threshold-cards.compact .threshold-card p {
   font-size: 0.88rem;
 }
+.dss-route-map {
+  margin: 8px 0 20px;
+  padding: 10px;
+  border: 1px solid #33445c;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.dss-route-map img {
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.dss-route-map figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 9px;
+  font-size: 0.77rem;
+  line-height: 1.4;
+  color: #344559;
+}
+.dss-route-map figcaption a { color: #064d80; font-weight: 600; }
+
 .route-list {
   padding-left: 20px;
 }
