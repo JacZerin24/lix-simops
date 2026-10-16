@@ -15,6 +15,9 @@ type Props = {
   }) => void;
 };
 
+const GLM_PLAIN = "glm_flash_density";
+const GLM_RINGS = "glm_flash_density_rings";
+
 function frameTime(value?: string) {
   return formatExerciseDateTime(value, "No valid frame");
 }
@@ -78,8 +81,15 @@ export function Mesoanalyst({ sessionCode, onUpdate }: Props) {
 
   const productsInCategory = useMemo(() => {
     if (!data) return [];
-    return data.products.filter((item) => !category || item.category === category);
+    return data.products.filter(
+      (item) => item.id !== GLM_RINGS && (!category || item.category === category),
+    );
   }, [data, category]);
+
+  const ringsAvailable = Boolean(data?.products.some((item) => item.id === GLM_RINGS));
+  const glmSelected = product === GLM_PLAIN || product === GLM_RINGS;
+  const ringLayerEnabled = product === GLM_RINGS;
+  const productPickerValue = ringLayerEnabled ? GLM_PLAIN : product;
 
   const frames = data?.frames ?? [];
   const frame = frames[selectedIndex];
@@ -188,7 +198,7 @@ export function Mesoanalyst({ sessionCode, onUpdate }: Props) {
         <label>
           Product
           <select
-            value={product}
+            value={productPickerValue}
             onChange={(event) => chooseProduct(event.target.value)}
             disabled={!data?.available}
           >
@@ -199,6 +209,21 @@ export function Mesoanalyst({ sessionCode, onUpdate }: Props) {
             ))}
           </select>
         </label>
+
+        {glmSelected && ringsAvailable && (
+          <label className="meso-range-ring-toggle" title="Show georeferenced reference rings for the Endymion start. Check lightning distance against any active route segment.">
+            <input
+              type="checkbox"
+              checked={ringLayerEnabled}
+              onChange={(event) => {
+                setProduct(event.target.checked ? GLM_RINGS : GLM_PLAIN);
+                setPlaying(false);
+                setFollowLatest(true);
+              }}
+            />
+            <span>Range rings <small>8 · 12 · 15 mi</small></span>
+          </label>
+        )}
 
         <div className="radar-button-group">
           <button
