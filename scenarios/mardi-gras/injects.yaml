@@ -6,10 +6,10 @@ injects:
     sender: Mardi Gras Unified Command
     target_team_id: "*"
     body: >-
-      Samedi Gras is active and crowds are building along the route. Riders and support crews are
-      moving into position. Please provide the current weather picture, expected timing and
-      locations of any hazards, confidence, and the key conditions our operations staff should
-      monitor ahead of the 4 PM start.
+      Crowds are beginning to form along the parade route, and riders are boarding the floats
+      as support crews prepare for the 4 PM start. Please provide the current weather
+      conditions, forecast hazards affecting the route and staging areas, expected timing,
+      and confidence so Unified Command can evaluate its operational plans.
 
   - id: prestart-confidence
     at_sim_time: "T+00:20:00"
