@@ -24,11 +24,15 @@ DOMAIN = (-93.0, -87.0, 27.5, 32.5)
 
 
 def lightningcast_file_time(path: Path) -> datetime:
+    native = NATIVE_TIME_RE.search(path.stem)
+    if native is not None:
+        date, clock = native.groups()
+        return datetime.strptime(date + clock, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
     match = SOURCE_TIME_RE.search(path.stem)
     if match is None:
         raise ValueError(
-            "Cannot identify UTC time in " + path.name +
-            "; rename to lightningcast_YYYYMMDDTHHMMSSZ.geojson after validating CSPP metadata"
+            "Cannot identify historical scene time in " + path.name +
+            "; expected native CSPP _sYYYYMMDDHHMMSSd or YYYYMMDDTHHMMSSZ filename"
         )
     date, clock, seconds = match.groups()
     return datetime.strptime(date + clock + (seconds or "00"), "%Y%m%d%H%M%S").replace(
@@ -84,7 +88,7 @@ def main() -> None:
     parser.add_argument("--mrms", type=Path, required=True,
                         help="Original MRMS lowest-altitude reflectivity GRIB2 files")
     parser.add_argument("--output-root", type=Path, default=Path("data/raw/meso"))
-    parser.add_argument("--probability-field", default="probability_pct",
+    parser.add_argument("--probability-field", default="PROBABILITY",
                         help="Exact property containing 0..100 probability; verify CSPP output")
     parser.add_argument("--max-mrms-age-minutes", type=float, default=4)
     parser.add_argument("--timezone", default="America/Chicago")
@@ -99,9 +103,9 @@ def main() -> None:
     import numpy as np
     from shapely.geometry import shape
 
-    lc_files = sorted(args.lightningcast.rglob("*.geojson"))
+    lc_files = sorted([*args.lightningcast.rglob("*.geojson"), *args.lightningcast.rglob("*.json")])
     if not lc_files:
-        parser.error("No native LightningCast GeoJSON files found; run CSPP Geo first.")
+        parser.error("No native LightningCast GeoJSON/.json files found; run CSPP Geo first.")
     mrms_files = sorted(
         p for p in args.mrms.iterdir()
         if p.is_file() and ".grib2" in p.name
