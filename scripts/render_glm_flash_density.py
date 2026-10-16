@@ -189,11 +189,22 @@ def main() -> None:
             loc="right",
         )
         destination = args.output / f"glm_flash_density_{timestamp_token(valid)}.png"
-        # First save unadorned observed GLM. The new Meso layer toggle
-        # selects a separate rendered frame with identical geographic extent.
+        # Preserve the original Gulf Coast GLM view. Only the ring-enabled
+        # product zooms into metro New Orleans and nearby upstream storms.
         if args.ring_output is not None:
             fig.savefig(destination, dpi=130, bbox_inches="tight")
             print(destination)
+            ax.set_extent(ring_domain, crs=ccrs.PlateCarree())
+            # At the zoomed scale, the New Orleans city label obscures the
+            # nearby Endymion start marker. Keep the marker instead.
+            for city_label in ax.texts:
+                if city_label.get_text() == "New Orleans":
+                    city_label.set_visible(False)
+                else:
+                    lon, lat = city_label.get_position()
+                    if not (ring_domain[0] <= lon <= ring_domain[1]
+                            and ring_domain[2] <= lat <= ring_domain[3]):
+                        city_label.set_visible(False)
 
         if args.event_lat is not None and args.event_lon is not None and args.range_rings_mi:
             from cartopy.geodesic import Geodesic
@@ -246,10 +257,12 @@ def main() -> None:
                     color=color, linewidth=2.0,
                     transform=ccrs.PlateCarree(), zorder=9,
                 )
-                # Geodesic circle coordinates provide a true-mile label
-                # location. Vary label bearing to avoid stacking all labels.
-                label_index = {min(args.range_rings_mi): 30,
-                               max(args.range_rings_mi): 60}.get(miles, 45)
+                # Label at different bearings so 8/12/15 miles don't stack.
+                label_index = {
+                    min(args.range_rings_mi): 35,  # NE
+                    sorted(args.range_rings_mi)[1]: 125,  # SSE
+                    max(args.range_rings_mi): 185,  # WSW
+                }[miles]
                 label_lon, label_lat = ring[label_index]
                 ax.text(
                     label_lon, label_lat,
@@ -271,7 +284,7 @@ def main() -> None:
                 bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.90},
                 zorder=11,
             )
-            ax.set_title("GLM Flash Density · 8 / 12 / 15 mi reference rings",
+            ax.set_title("Metro New Orleans GLM · 8 / 12 / 15 mi",
                          loc="left", fontweight="bold")
         if args.ring_output is not None:
             destination = args.ring_output / f"glm_flash_density_rings_{timestamp_token(valid)}.png"
