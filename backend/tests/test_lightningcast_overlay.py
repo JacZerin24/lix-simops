@@ -23,6 +23,9 @@ def test_lightningcast_source_timestamp_patterns() -> None:
     assert lightningcast_file_time(
         Path("LC_GOES-16_CONUS_20210512-0631.geojson")
     ) == when(31)
+    assert lightningcast_file_time(
+        Path("LtgCast-RadC_v1r0_g16_s202105120631157_e202105120633541_c202610161620223.json")
+    ) == datetime(2021, 5, 12, 6, 31, 15, tzinfo=timezone.utc)
 
 
 def test_mrms_pairing_never_uses_future_frames() -> None:
@@ -37,14 +40,14 @@ def test_probability_contour_schema_is_explicit(tmp_path: Path) -> None:
     file = tmp_path / "lightningcast_20210512T063100Z.geojson"
     features = [{
         "type": "Feature",
-        "properties": {"probability_pct": 50},
+        "properties": {"PROBABILITY": "50"},
         "geometry": {
             "type": "LineString",
             "coordinates": [[-90.2, 29.9], [-90.1, 30.0]],
         }
     }]
     file.write_text(json.dumps({"type": "FeatureCollection", "features": features}))
-    result = parse_contours(file, "probability_pct")
+    result = parse_contours(file, "PROBABILITY")
     assert len(result) == 1 and result[0][0] == 50
     with pytest.raises(ValueError, match="probability property"):
         parse_contours(file, "native_field_not_yet_known")
@@ -54,9 +57,9 @@ def test_out_of_range_probabilities_rejected(tmp_path: Path) -> None:
     file = tmp_path / "bad.geojson"
     file.write_text(json.dumps({
         "type": "FeatureCollection", "features": [{
-            "properties": {"probability_pct": 105},
+            "properties": {"PROBABILITY": "105"},
             "geometry": {"type": "Point", "coordinates": [-90, 30]},
         }]
     }))
     with pytest.raises(ValueError, match="0..100"):
-        parse_contours(file, "probability_pct")
+        parse_contours(file, "PROBABILITY")
