@@ -98,6 +98,8 @@ def test_warned_route_sends_live_dss_alert_and_restores_chat_history() -> None:
                 })
                 notice = receive_type(dss, "warning_route_notice")
                 assert notice["hazard"] == "SVR"
+                assert notice["warning_text"] == "THIS IS AN EXERCISE"
+                assert "CST" in notice["body"]
                 assert notice["team_id"] == "Team 1"
                 assert "route" in notice["body"].lower()
                 assert "Unified Command" in notice["body"]
@@ -111,6 +113,7 @@ def test_warned_route_sends_live_dss_alert_and_restores_chat_history() -> None:
                 })
                 followup = receive_type(dss, "warning_route_notice")
                 assert followup["action"] == "CAN"
+                assert followup["warning_text"] == "THIS IS AN EXERCISE: warning cancelled"
                 assert "cancelled" in followup["body"]
         # Late join/reconnect must retrieve the alert for the correct DSS
         with client.websocket_connect(
