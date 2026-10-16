@@ -282,44 +282,60 @@ async def notify_dss_if_route_warned(
     *,
     action: str = "issue",
 ) -> None:
-    """Push a team-scoped notice to DSS; Command retains all decisions."""
+    """Always inform the warning operator's own DSS of issued products.
+
+    The approximate exercise centerline determines the route-impact label,
+    never whether a DSS notification is delivered. A false negative from
+    imperfect route geometry must not silently hide an issued warning.
+    """
+    scenario = load_scenario_by_id(session.scenario_id)
+    route = route_centerline_from_config(load_event_config(scenario))
+    intersects = bool(route and warning_intersects_route(warning.points, route))
     if action == "issue":
-        scenario = load_scenario_by_id(session.scenario_id)
-        route = route_centerline_from_config(load_event_config(scenario))
-        if not route or not warning_intersects_route(warning.points, route):
-            return
+        title = (
+            f"Possible route impact — {warning.label}"
+            if intersects else f"New warning — {warning.label}"
+        )
+        geographic_context = (
+            "The warning polygon intersects the exercise's approximate Endymion route "
+            "centerline. "
+            if intersects
+            else "The exercise's approximate route centerline did not intersect "
+            "this warning polygon. Verify the actual route, staging areas and "
+            "warning polygon before assessing impacts. "
+        )
         body = (
             f"EXERCISE: {warning.label} issued by {warning.issuer}. "
-            "The warning polygon intersects the exercise's approximate Endymion route "
-            f"centerline. Warning valid until {warning.expires_at.astimezone(ZoneInfo('America/Chicago')):%I:%M %p %Z}. "
-            "Review the official warning text and polygon, then provide Event Command "
-            "with affected-route weather hazards, timing and confidence. "
-            "Unified Command makes all operational decisions."
+            + geographic_context
+            + f"Warning valid until {warning.expires_at.astimezone(ZoneInfo('America/Chicago')):%I:%M %p %Z}. "
+            "Review the issued product and provide Event Command with relevant "
+            "weather hazards, affected areas, timing and confidence. "
+            "Unified Command retains all operational decisions."
         )
-        title = f"Route affected — {warning.label}"
     else:
-        prior = any(
-            row.get("type") == "warning_route_notice"
-            and row.get("warning_id") == warning.id
-            and row.get("action") == "issue"
-            for row in session.log
-        )
-        if not prior:
-            return
-        action_labels = {
+        # SVS changes to the warning must reach DSS even if the updated or
+        # original polygon lies outside the exercise centerline.
+        labels = {
             "COR": "corrected",
             "CON": "continued/updated",
             "CAN": "cancelled",
             "EXP": "expired",
         }
+        title = f"Warning follow-up — {action}"
         body = (
-            f"EXERCISE: {warning.label} {action_labels.get(action, action)} "
-            f"by {warning.issuer}'s team. The original warning intersected the "
-            "exercise route; review the latest statement and polygon for current "
-            "route implications. DSS provides weather information; Unified Command "
-            "retains operational decisions."
+            f"EXERCISE: {warning.label} {labels.get(action, action)} "
+            f"by {warning.issuer}'s team. "
+            + (
+                "The current warning polygon intersects the exercise's approximate "
+                "route centerline. "
+                if intersects
+                else "The approximate centerline check does not currently show "
+                "route overlap; verify route/staging impacts independently. "
+            )
+            + "Review the latest SVS text and polygon. DSS communicates the "
+            "weather implications; Unified Command retains operational decisions."
         )
-        title = f"Route warning update — {action}"
+
     payload = session.record({
         "type": "warning_route_notice",
         "event_id": uuid4().hex,
@@ -330,6 +346,7 @@ async def notify_dss_if_route_warned(
             else warning.followups[-1].get("text", "") if warning.followups else ""
         ),
         "hazard": warning.hazard,
+        "route_intersects": intersects,
         "action": action,
         "title": title,
         "sender": "Radar Warning Desk",
