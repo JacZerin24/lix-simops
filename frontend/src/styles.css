@@ -1647,3 +1647,166 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
     height: 60vh;
   }
 }
+
+
+/* DSS read-only warning/route situational-awareness map. */
+.dss-map-main-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 13px 0 18px;
+}
+.dss-map-open-button,
+.dss-review-warning-button {
+  padding: 9px 13px;
+  border: 1px solid #4d92a9;
+  border-radius: 7px;
+  background: #123f56;
+  color: #e0f9ff;
+  font-weight: 650;
+  cursor: pointer;
+}
+.dss-review-warning-button {
+  display: inline-block;
+  text-align: left;
+  font-size: 0.82rem;
+  padding: 7px 9px;
+  margin: 8px 0 4px;
+  background: #1b3a4f;
+}
+.dss-map-open-button:hover, .dss-review-warning-button:hover {
+  background: #1c536a;
+}
+.dss-warning-map-panel {
+  margin: 10px 0 22px;
+  padding: 18px;
+  border: 1px solid #385a72;
+  background: #0b1828;
+  border-radius: 12px;
+}
+.dss-map-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 14px;
+}
+.dss-map-heading h3 { margin: 4px 0 7px; }
+.dss-map-heading p { margin: 0; max-width: 700px; }
+.dss-map-eyebrow {
+  font-size: 0.69rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  font-weight: 750;
+  color: #70c8df;
+}
+.dss-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 260px);
+  gap: 13px;
+  align-items: start;
+}
+.dss-map-stage {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #38566c;
+  border-radius: 9px;
+  background: #102333;
+}
+.dss-warning-svg {
+  display: block;
+  width: 100%;
+  max-height: 555px;
+  aspect-ratio: 1040 / 540;
+  background: #0c283b;
+}
+.dss-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 16px;
+  padding: 9px 12px;
+  background: #102839;
+  color: #d3e4ee;
+  font-size: 0.78rem;
+}
+.dss-map-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dss-legend-line { display: inline-block; width: 21px; height: 0; border-top: 4px solid; }
+.dss-legend-line.route { border-color: #49e0f2; }
+.dss-legend-line.tor { border-color: #fb6669; }
+.dss-legend-line.svr { border-color: #ffbe55; }
+.dss-legend-line.past { border-color: #9babb8; border-top-style: dashed; }
+.dss-map-disclaimer {
+  margin: 0;
+  padding: 9px 12px;
+  color: #adc3d3;
+  background: #0c1e2c;
+  font-size: 0.77rem;
+  line-height: 1.5;
+}
+.dss-map-warning-list {
+  max-height: 635px;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+}
+.dss-map-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+.dss-map-list-header button { padding: 5px 9px; font-size: 0.77rem; }
+.dss-map-past-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 0.79rem;
+  color: #b7cee1;
+}
+.dss-map-warning-button {
+  text-align: left;
+  display: grid;
+  gap: 6px;
+  padding: 11px;
+  width: 100%;
+  background: #102439;
+  border: 1px solid #2c4a61;
+  border-radius: 8px;
+  color: #e8f4fc;
+  cursor: pointer;
+}
+.dss-map-warning-button:hover { background: #19334b; }
+.dss-map-warning-button.selected { border-color: #6cd6f2; box-shadow: inset 3px 0 #6cd6f2; }
+.dss-map-warning-button small { color: #9fb3c4; }
+.dss-map-warning-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dss-map-hazard { padding: 3px 6px; border-radius: 4px; color: white; }
+.dss-map-hazard.tor { background: #a6242d; }
+.dss-map-hazard.svr { background: #83601a; }
+.dss-map-status-active, .dss-map-status-past { font-size: .72rem; text-transform: capitalize; }
+.dss-map-status-active { color: #8bddb1; }
+.dss-map-status-past { color: #a3b0bf; }
+.dss-map-selected-detail {
+  padding: 10px;
+  background: #102b3b;
+  border: 1px solid #3a647a;
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+.dss-map-selected-detail p { margin: 7px 0; color: #b6d0df; }
+.dss-map-selected-detail summary { cursor: pointer; }
+.dss-map-selected-detail pre {
+  overflow: auto;
+  max-height: 180px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #dcebf5;
+}
+@media (max-width: 850px) {
+  .dss-map-layout { grid-template-columns: 1fr; }
+  .dss-map-warning-list { max-height: 280px; }
+  .dss-warning-map-panel { padding: 10px; }
+}
