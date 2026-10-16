@@ -12,7 +12,19 @@ import json
 from pathlib import Path
 import re
 
-from fetch_goes import object_start_time
+# Keep this audit dependency-free so it can run in backend CI without boto3.
+START_RE = re.compile(r"_s(\d{4})(\d{3})(\d{2})(\d{2})(\d{2})(\d)")
+
+
+def object_start_time(filename: str) -> datetime | None:
+    match = START_RE.search(filename)
+    if match is None:
+        return None
+    year, day, hour, minute, second, tenth = map(int, match.groups())
+    return datetime.strptime(f"{year}{day:03d}", "%Y%j").replace(
+        hour=hour, minute=minute, second=second,
+        microsecond=tenth * 100_000, tzinfo=timezone.utc,
+    )
 
 CHANNEL_RE = re.compile(r"-M\dC(\d{2})_")
 CHANNELS = ("02", "05", "13", "15")
