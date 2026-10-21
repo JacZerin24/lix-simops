@@ -315,6 +315,16 @@ export function Mesoanalyst({ sessionCode, onUpdate }: Props) {
             />
           </div>
           <div className="radar-footer">
+            {selectedProduct?.id === "rap_kmsy_sounding" && (
+              <a
+                href={frame.asset_url}
+                target="_blank"
+                rel="noreferrer"
+                title="Open the unchanged full-resolution profile and hodograph"
+              >
+                Open full-resolution sounding ↗
+              </a>
+            )}
             <span>
               <strong>{selectedProduct?.label ?? product}</strong>
               {selectedProduct?.units ? ` · ${selectedProduct.units}` : ""}
