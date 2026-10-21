@@ -73,7 +73,7 @@ communications:
   mock_shift_log:
     owner: Facilitator team / coworker
     implementation: Google Form responses populate a linked Google Sheet
-    form_url: null
+    form_url: "https://docs.google.com/forms/d/e/1FAIpQLSeSMRb47V-FGAIx4cuX6OEaNsKbXCZtFf5mzuxbFHtRO3STcQ/viewform"
     participant_role: dss
     required_use: >-
       The DSS Meteorologist should submit a shift-log entry for each meaningful communication
