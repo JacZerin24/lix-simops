@@ -5,12 +5,35 @@ from functools import lru_cache
 from pathlib import Path
 
 from simulator.radar.manifest import RadarManifest, visible_frames
+from simulator.radar.velocity_palette import make_velocity_palette
 
 from ..state import SessionState
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CACHE_ROOT = REPO_ROOT / "data" / "cache"
+VELOCITY_PALETTE_PATH = REPO_ROOT / "simulator" / "radar" / "palettes" / "dl_BV-GRA2.pal"
+
+
+def _product_palette(product) -> list[str]:
+    """Apply the user's velocity table at request time to an existing radar cache.
+
+    Radar gate binaries are still quantized with their original display bounds,
+    so generating the 256-color lookup table here requires no data rebuild.
+    Existing PNG fallback frames retain their baked-in colors.
+    """
+    if (
+        product.id == "VEL"
+        and product.vmin is not None
+        and product.vmax is not None
+        and VELOCITY_PALETTE_PATH.is_file()
+    ):
+        return make_velocity_palette(
+            VELOCITY_PALETTE_PATH,
+            vmin=float(product.vmin),
+            vmax=float(product.vmax),
+        )
+    return product.palette or []
 
 
 def manifest_path(scenario_id: str) -> Path:
@@ -125,7 +148,7 @@ def radar_payload(
                 "vmin": product.vmin,
                 "vmax": product.vmax,
                 "cmap": product.cmap,
-                "palette": product.palette,
+                "palette": _product_palette(product),
             }
             for product in manifest.products
         ],
