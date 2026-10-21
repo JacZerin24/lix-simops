@@ -1,13 +1,29 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 
-from simulator.meso.manifest import MesoManifest, visible_frames
+from simulator.meso.manifest import MesoFrame, MesoManifest, MesoProduct, visible_frames
 
 from ..state import SessionState
 from .radar_data import CACHE_ROOT
+
+# Optional, case-blind, T=0 archival sounding overlay for the Endymion exercise.
+# The binary image is distributed separately with workshop assets, not in git.
+WORKSHOP_SCENARIO_ID = "mardi-gras-dss-001"
+SOUNDING_ID = "rap_kmsy_sounding"
+SOUNDING_ASSET = "meso/frames/rap_kmsy_sounding/KMSY_RAP_F00_20270206_1445CST.png"
+SOUNDING_VALID = datetime(2027, 2, 6, 20, 45, tzinfo=timezone.utc)
+
+
+def _workshop_sounding_installed(scenario_id: str) -> bool:
+    return (
+        scenario_id == WORKSHOP_SCENARIO_ID
+        and (CACHE_ROOT / scenario_id / SOUNDING_ASSET).is_file()
+    )
+
 
 
 def manifest_path(scenario_id: str) -> Path:
@@ -49,6 +65,10 @@ def _asset_first_times(path_string: str, mtime_ns: int, size: int) -> dict[str, 
 
 
 def meso_asset_first_time(scenario_id: str, asset_path: str):
+    # Only explicitly allow the optional image at/after its exercise-valid time.
+    # Missing assets or any other scenario remain inaccessible.
+    if asset_path == SOUNDING_ASSET and _workshop_sounding_installed(scenario_id):
+        return SOUNDING_VALID
     fingerprint = _fingerprint(scenario_id)
     if fingerprint is None:
         return None
@@ -71,14 +91,36 @@ def meso_payload(
             "frames": [],
         }
 
-    product_ids = [product.id for product in manifest.products]
+    products = list(manifest.products)
+    if _workshop_sounding_installed(session.scenario_id):
+        products.append(
+            MesoProduct(
+                id=SOUNDING_ID,
+                label="RAP F00 Sounding - KMSY",
+                category="Thermodynamics",
+                units="",
+                description=(
+                    "Displaced RAP analysis/forecast profile for the simulated "
+                    "2:45 PM CST exercise start. Static reference sounding with "
+                    "Skew-T, hodograph and derived parameters; not a live update."
+                ),
+            )
+        )
+
+    product_ids = [product.id for product in products]
     selected_product = (
-        requested_product if requested_product in product_ids else manifest.products[0].id
+        requested_product if requested_product in product_ids else products[0].id
     )
-    frames = visible_frames(manifest, session.sim_time, selected_product)
+    if selected_product == SOUNDING_ID:
+        frames = (
+            [MesoFrame(timestamp=SOUNDING_VALID, product=SOUNDING_ID, asset=SOUNDING_ASSET)]
+            if session.sim_time >= SOUNDING_VALID else []
+        )
+    else:
+        frames = visible_frames(manifest, session.sim_time, selected_product)
 
     categories: list[str] = []
-    for product in manifest.products:
+    for product in products:
         if product.category not in categories:
             categories.append(product.category)
 
@@ -97,7 +139,7 @@ def meso_payload(
                 "description": product.description,
                 "kind": product.kind,
             }
-            for product in manifest.products
+            for product in products
         ],
         "selected_product": selected_product,
         "frames": [
