@@ -137,11 +137,12 @@ def get_radar_frames(
     session_code: str,
     product: str | None = None,
     elevation: float | None = None,
+    scan_mode: str = "matched",
 ) -> dict:
     session = manager.get(session_code)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    return radar_payload(session, product, elevation)
+    return radar_payload(session, product, elevation, scan_mode)
 
 
 @app.get("/api/sessions/{session_code}/meso/frames")
