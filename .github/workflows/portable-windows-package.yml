@@ -12,6 +12,11 @@ on:
         description: Full Endymion Case Build run ID (only used when app_only is unchecked)
         required: false
         default: "36658715392"
+      include_meso_addons:
+        description: Restore verified LightningCast (42 images) and KMSY sounding from the checked-in workshop addon ZIP (full package only)
+        required: false
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -82,6 +87,34 @@ jobs:
             "case_run_id=$env:CASE_RUN_ID"
             "app_commit=$env:GITHUB_SHA"
           ) | Set-Content "$dest\PACKAGE_INFO.txt"
+
+      - name: Restore verified LightningCast and KMSY sounding (optional)
+        if: ${{ inputs.include_meso_addons }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $archive = Join-Path $PWD "weather-addons/Endymion_LightningCast_Sounding_Restore.zip"
+          if (-not (Test-Path $archive)) {
+            throw "Missing verified Meso add-on ZIP in GitHub checkout. See weather-addons/README.md before enabling include_meso_addons."
+          }
+          $expected = "bb8ec7c30b99f1232ef53ea94fbcf53740f822a8b30b7603403c23245c8fe328"
+          $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) {
+            throw "Workshop Meso add-on ZIP SHA-256 mismatch. Refusing to merge unchecked or modified images."
+          }
+          $expanded = Join-Path $PWD ".addon-stage"
+          New-Item -ItemType Directory -Path $expanded -Force | Out-Null
+          Expand-Archive -LiteralPath $archive -DestinationPath $expanded -Force
+          $installer = Join-Path $expanded "RESTORE_ENDYMION_ADDONS.py"
+          if (-not (Test-Path $installer)) {
+            throw "Verified addon ZIP does not contain RESTORE_ENDYMION_ADDONS.py"
+          }
+          $portable = Join-Path $PWD "portable-build/LIX-SimOps"
+          python $installer --target $portable --source $expanded
+          if ($LASTEXITCODE -ne 0) {
+            throw "Verified Meso weather add-on merge failed."
+          }
+          Write-Host "Merged 21 LightningCast, 21 LightningCast+MRMS, and 1 case-blind RAP sounding into full package."
 
       - name: Reject historical source-case leakage
         shell: pwsh
@@ -184,7 +217,11 @@ jobs:
           & $testPython -m pip install --no-index --find-links "$dest\wheelhouse" -r "$dest\portable-requirements.txt"
 
           Push-Location $dest
-          & $testPython scripts\validate_exercise_cache.py
+          $checks = @()
+          if ("${{ inputs.include_meso_addons }}" -eq "true") {
+            $checks = @("--require-lightningcast", "--require-startup-radar")
+          }
+          & $testPython scripts\validate_exercise_cache.py @checks
           if ($LASTEXITCODE -ne 0) {
             Pop-Location
             throw "Portable cache validation failed."
