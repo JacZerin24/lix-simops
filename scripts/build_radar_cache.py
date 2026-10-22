@@ -31,6 +31,16 @@ def parse_args() -> argparse.Namespace:
         default=[0.5, 0.9, 1.3],
     )
     parser.add_argument("--range-km", type=float, default=230.0)
+    parser.add_argument(
+        "--include-low-level-revisits",
+        action="store_true",
+        help="Preserve every 0.5-degree SAILS cut using actual last-ray timestamps.",
+    )
+    parser.add_argument(
+        "--simulation-end",
+        type=str,
+        help="Do not include sweeps collected after this ISO-8601 UTC cutoff.",
+    )
     parser.add_argument("--event-lat", type=float)
     parser.add_argument("--event-lon", type=float)
     parser.add_argument("--event-label", default="Event")
@@ -69,6 +79,12 @@ def main() -> None:
         simulation_date=simulation_date,
         timezone_name=args.timezone,
         local_time_offset_minutes=args.local_time_offset_minutes,
+        include_low_level_revisits=args.include_low_level_revisits,
+        simulation_end=(
+            datetime.fromisoformat(args.simulation_end.replace("Z", "+00:00"))
+            if args.simulation_end
+            else None
+        ),
     )
     data_frames = sum(frame.data is not None for frame in manifest.frames)
     print(
