@@ -72,6 +72,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cache-root", type=Path, default=Path("data/cache"))
     parser.add_argument("--require-lightningcast", action="store_true")
     parser.add_argument(
+        "--require-startup-radar",
+        action="store_true",
+        help="Require initial REF and VEL 0.5-degree frames at/before the paused T=0 clock.",
+    )
+    parser.add_argument(
         "--scope",
         choices=["all", "radar", "meso"],
         default="all",
@@ -123,6 +128,23 @@ def main() -> None:
                 if not (root / frame["asset"]).is_file():
                     failures.append(f"radar asset missing: {frame['asset']}")
                     break
+
+            if args.require_startup_radar:
+                # The user must see a historical scan when joining at T=0;
+                # a first-frame grace period would leave a paused demo blank.
+                for required_product in ("REF", "VEL"):
+                    present_at_start = any(
+                        item["product"] == required_product
+                        and abs(float(item["elevation"]) - 0.5) < 0.051
+                        and datetime.fromisoformat(
+                            item["timestamp"].replace("Z", "+00:00")
+                        ) <= scenario_start
+                        for item in radar_frames
+                    )
+                    if not present_at_start:
+                        failures.append(
+                            f"radar {required_product} 0.5 degree has no real scan at T=0"
+                        )
 
             missing_radar = sorted(REQUIRED_RADAR_PRODUCTS - set(radar_times))
             if missing_radar:
