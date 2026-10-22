@@ -122,3 +122,40 @@ These flags are deliberately opt-in on the CLI. The **Full Endymion Case Build**
 ### Immediate demo-only workaround with an older cache
 
 Create a **disposable demo session**, start it at 4x speed while not projected, and pause as soon as its first radar image becomes available. Use that paused demo for interface training, then create a **fresh untouched 2:45 PM session** for the exercise. This avoids a blank demo screen, but it is not a substitute for a true pre-start radar scan. Do not project future case details or use the demo session as the official exercise; if the first scan arrives after a scripted inject, use a static interface overview instead.
+
+
+## Radar moment synchronization and supplemental cuts
+
+The full-case build for the October 22 workshop produced 170 REF and 106 each of
+VEL, CC and ZDR across three selected elevations. This is **not** the count of
+whole radar volumes. The SAILS-aware selector kept every valid 0.5-degree REF
+sweep, including cuts that cannot necessarily be paired with other radar
+moments. The Level II raw data and original frames remain unchanged.
+
+The Radar Operator now has two scan-selection modes:
+
+- **Matched moments (default)**: for 0.5-degree REF, select one genuine REF cut
+  per available 0.5-degree VEL cut within the same source volume. This removes
+  redundant REF-only cuts from that comparative view but never interpolates
+  or forges VEL, CC, or ZDR data. Each frame retains its true sweep completion
+  time. Other tilts/products remain as actually observed.
+- **All available cuts**: expose every archived REF cut, including unpaired
+  scans. This keeps the dense low-level coverage available when useful.
+
+Switching product or tilt preserves the currently examined observation time,
+choosing the most recent real scan at or before that timestamp. If that new
+product's first available scan is later, the interface uses the first
+available actual scan, which remains restricted by the authoritative
+simulation time. Use **Latest** to return to the newest available data.
+
+**Do not equate an equal list count with simultaneous observations.** Even
+matched Level II moments can have slightly different completion times
+because of split cuts and moment-specific collection. The status clock
+continues to report the actual time of the displayed product.
+
+This is an application/API update only: rebuilding the large radar cache is
+not required to activate these controls. The successful Full Endymion Case
+Build run `39713155828` remains the source of the cache. Rebuild the portable
+app at the current feature-branch commit, or apply the newest app-only update
+over a separately tested full package using that cache. Preserve a previous
+working installation until Radar, Meso and DSS are validated.
