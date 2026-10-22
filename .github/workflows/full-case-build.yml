@@ -478,7 +478,7 @@ jobs:
           PY
 
       - name: Final case-blindness and product validation
-        run: python scripts/validate_exercise_cache.py
+        run: python scripts/validate_exercise_cache.py --require-startup-radar
 
       - name: Write build metadata
         run: |
