@@ -23,8 +23,8 @@ Facilitators float between teams and operate exercise control.
 ## Slide 4 — How information should flow
 - Radar Operator tracks storm-scale evolution
 - Mesoanalyst maintains environmental/lightning/MRMS context
-- DSS translates that information into partner-facing recommendations
-- Partner questions should drive targeted requests back to Radar/Meso
+- DSS communicates partner-facing weather observations, hazard timing, expected impacts, threshold proximity, and forecast confidence
+- Unified Command owns decisions on starting, delaying, holding, protective actions, and resuming; partner requests are for weather information only
 
 ## Slide 5 — Systems you will use
 - LIX SimOps — live DRT, radar/meso, partner injects
@@ -47,8 +47,9 @@ DSS logs every meaningful external communication to/from Event Command.
 ## Slide 9 — Lightning decision framework
 - 15 mi — elevated monitoring/preparation
 - 12 mi — impending threat
-- 8 mi — hold/suspend threatened operations
-- Organized convection — account for 30+ minutes lead time
+- 8 mi — partner's hold/suspension decision point; DSS communicates proximity
+- Organized convection — communicate forecast hazard lead time (potentially 30+ minutes)
+- Meso GLM map: toggle the 8/12/15-mile reference rings centered on the Endymion start; measure the full active route/staging area for threshold decisions
 
 ## Slide 10 — Other decision triggers
 - Severe/Tornado Watch
@@ -62,7 +63,7 @@ DSS logs every meaningful external communication to/from Event Command.
 - Do not look ahead
 - Stay in assigned role
 - Communicate verbally within the team
-- DSS owns partner communication and the shift log
+- DSS owns weather communication and the shift log; partners own operational decisions
 - Facilitators will float and troubleshoot but will not coach toward an answer
 
 ## Slide 12 — Start checklist

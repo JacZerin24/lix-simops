@@ -5,6 +5,10 @@ event:
   scheduled_start_local: "16:00"
   timezone: America/Chicago
   primary_operational_area: Mid-City to Caesars Superdome, New Orleans
+  radar_marker:
+    label: Endymion Start / Samedi Gras
+    lat: 29.9864
+    lon: -90.1006
   pre_parade:
     name: Samedi Gras
     location: Orleans Avenue near the start of the parade route
@@ -20,6 +24,27 @@ event:
     - Right on Loyola Avenue to Girod Street
     - Left on Girod Street to Caesars Superdome
   route_end: Caesars Superdome
+  route_map:
+    image_url: https://endymion.org/wp-content/uploads/2025-map-1.png
+    source_url: https://endymion.org/
+    image_alt: Krewe of Endymion Mid-City parade route schematic showing the start on Orleans Avenue, Canal Street, St. Charles, and the route to the Superdome.
+    caption: Endymion's published 2025 route schematic, provided as a reference for the 2027 exercise. Use the route directions below if route details change.
+  # Approximate centerline reference for exercise-only warning/route overlap alerts.
+  # These waypoints trace the documented streets. They are not an official
+  # surveyed/GIS route and must be checked before real-world operational use.
+  route_geometry_note: Approximate exercise centerline; warning overlap notifications are training cues, not operational GIS determinations.
+  route_centerline:
+    - { lat: 29.9864, lon: -90.1006 } # City Park / Orleans start
+    - { lat: 29.9841, lon: -90.0932 } # Orleans / N Carrollton vicinity
+    - { lat: 29.97437, lon: -90.1003 } # N Carrollton / Canal
+    - { lat: 29.9634, lon: -90.0819 } # Canal / Galvez corridor
+    - { lat: 29.9537, lon: -90.0695 } # Canal / St Charles vicinity
+    - { lat: 29.94333, lon: -90.07247 } # St Charles / Harmony Circle
+    - { lat: 29.9471, lon: -90.0738 } # Howard Avenue corridor
+    - { lat: 29.9493, lon: -90.0775 } # Howard / Loyola vicinity
+    - { lat: 29.9501, lon: -90.0791 } # Loyola / Girod vicinity
+    - { lat: 29.9511, lon: -90.0812 } # Caesars Superdome
+
   crowd_note: >-
     Endymion is a large moving event with dense crowds distributed along a multi-mile route,
     so protective-action lead time and the ability to communicate route-wide are central to the exercise.
@@ -30,6 +55,12 @@ partner:
   assumption_note: >-
     This is an exercise construct based on the City of New Orleans' recent Mardi Gras
     multi-agency/EOC operations. It is not a representation of a confirmed 2027 command structure.
+  roles_and_decision_authority: >-
+    NWS DSS provides observed weather, forecast hazards and impacts, confidence,
+    threshold proximity, lead time, and official NWS watch/warning information.
+    Mardi Gras Unified Command owns decisions about parade start, delays, holds,
+    protective actions, public messaging, and resuming operations. Partners may
+    request a forecast assessment; they do not delegate operational decisions to DSS.
   partner_priorities:
     - Whether the parade can start on time
     - Whether to hold floats/riders before the route becomes committed
@@ -42,12 +73,13 @@ communications:
   mock_shift_log:
     owner: Facilitator team / coworker
     implementation: Google Form responses populate a linked Google Sheet
-    form_url: null
+    form_url: "https://docs.google.com/forms/d/e/1FAIpQLSeSMRb47V-FGAIx4cuX6OEaNsKbXCZtFf5mzuxbFHtRO3STcQ/viewform"
     participant_role: dss
     required_use: >-
       The DSS Meteorologist should submit a shift-log entry for each meaningful communication
-      to or from Mardi Gras Unified Command / the event coordinator, including recommendations,
-      timing updates, changes in confidence, holds, and all-clear guidance.
+      to or from Mardi Gras Unified Command / the event coordinator, including
+      forecast timing, threshold proximity, changes in confidence, impacts,
+      partner-reported operational decisions, and follow-up weather assessments.
     recommended_fields:
       - Simulation time
       - Team
@@ -55,7 +87,7 @@ communications:
       - Partner or contact
       - Communication method
       - Message or request summary
-      - DSS recommendation / response
+      - DSS weather information / forecast response
       - Key timing or confidence information
       - Follow-up needed / next update time
       - Initials
@@ -83,9 +115,9 @@ operations:
       hazard: lightning
       threshold: "Lightning detected within 15 miles of any active parade/staging segment"
       action: >-
-        Elevate monitoring and notify Event Command. Prepare route staff for a possible hold
-        or protective action. For an organized storm moving toward the route, begin lead-time
-        calculations and consider 30 minutes or more for protective action.
+        DSS should report observed flash proximity and movement relative to active route or staging
+        areas, with 15-mile threshold status, expected lead time, and confidence. Event Command
+        determines whether to initiate monitoring/preparations under its own plan.
       basis: NWS Lightning Safety Toolkit for Large Venues
       exercise_note: >-
         The NWS toolkit allows lightning radii to be modified for venue size and sheltering time.
@@ -94,52 +126,58 @@ operations:
       hazard: lightning
       threshold: "Lightning detected within 12 miles of any active parade/staging segment"
       action: >-
-        Treat the lightning threat as impending. Event Command should ensure staff are positioned
-        for crowd direction and that protective action is beginning or continuing as needed.
+        DSS should report that lightning has reached or is approaching the 12-mile planning
+        threshold, affected route areas, storm motion, expected timing and uncertainty. Event
+        Command is responsible for protective-action decisions.
       basis: NWS Lightning Safety Toolkit for Large Venues
     - id: lightning-suspend
       hazard: lightning
       threshold: "Lightning detected within 8 miles of any active parade/staging segment"
       action: >-
-        Recommend a parade hold/suspension for the threatened segment and direct people toward
-        lightning-safe structures or enclosed vehicles where feasible.
+        DSS should immediately communicate observed lightning proximity to the 8-mile planning
+        threshold, the affected active route or staging segments, continued lightning potential,
+        and the relevant official guidance. Event Command decides whether to hold/suspend and how
+        to direct the public.
       basis: NWS Lightning Safety Toolkit for Large Venues
     - id: lightning-resume
       hazard: lightning
-      threshold: "Professional meteorologist with real-time lightning data determines all-clear criteria are met"
+      threshold: "Weather factors relevant to Unified Command's event-specific resumption criteria"
       action: >-
-        Resume only when lightning has moved beyond 8 miles, storm motion is carrying activity away,
-        and the threat of new lightning within 8 miles has ended. If professional real-time monitoring
-        is unavailable, use the NWS 30-minute wait after the last observed thunder/lightning.
+        DSS provides time and distance of most recent lightning, trends in storm motion, remaining
+        nearby/upstream convection, and confidence in sustained improvement. Event Command applies
+        its resumption plan; NWS DSS does not issue an operational all-clear.
       basis: NWS Lightning Safety Toolkit for Large Venues
     - id: severe-watch
       hazard: severe thunderstorms/tornadoes
       threshold: "Severe Thunderstorm Watch or Tornado Watch affects the parade area"
       action: >-
-        Elevate monitoring, review protective-action options and lead times, and communicate the
-        primary watch hazards and expiration time to Event Command.
+        DSS communicates watch type, affected route segments, hazard types, validity period,
+        forecast timing and uncertainty. Event Command evaluates staffing and protective-action
+        procedures.
       basis: NWS Lightning Safety Toolkit / Event Ready guidance
     - id: severe-warning
       hazard: severe thunderstorms/tornadoes
       threshold: "Severe Thunderstorm Warning or Tornado Warning threatens an active route segment"
       action: >-
-        Treat the threat as imminent. Recommend immediate hold/protective action for the affected
-        portion of the route; for tornado threat, prioritize substantial shelter and movement away
-        from exposed outdoor locations.
+        DSS promptly relays official warning type, polygon/affected areas, hazard magnitude,
+        arrival timing and uncertainty. Event Command determines operational holds, sheltering or
+        other actions; the Radar Operator retains NWS warning responsibilities.
       basis: NWS Lightning Safety Toolkit / Event Ready guidance
     - id: damaging-wind
       hazard: damaging wind
       threshold: "Warning-level or otherwise operationally significant wind threat to floats, temporary structures, or crowds"
       action: >-
-        Escalate immediately to Event Command and use the event's equipment/float limits if known.
-        The simulator intentionally does not invent a City of New Orleans fixed wind cutoff.
+        DSS communicates observed or anticipated gust magnitude, onset, duration, likely effects on
+        floats, temporary structures and crowds, and confidence. Event Command applies its
+        equipment and route operating limits; no cutoff is invented here.
       basis: NWS Event Ready guidance
     - id: flooding
       hazard: flash flooding
       threshold: "Flash Flood Warning, observed street flooding, or rapidly increasing rainfall threat along the route"
       action: >-
-        Flag route-access, responder-mobility, and crowd-movement impacts and recommend a hold or
-        reroute decision when safe passage cannot be maintained.
+        DSS communicates Flash Flood Warning status, observed flooding, expected rainfall and
+        timing, and possible access or responder-mobility impacts. Event Command makes any route
+        hold, relocation or reroute decision.
       basis: NWS Event Ready guidance
 
 research_sources:

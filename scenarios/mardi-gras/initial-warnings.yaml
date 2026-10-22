@@ -1,0 +1,3 @@
+# Only warning polygons already in effect at simulation start belong here.
+# Historical warnings issued after T=0 must never be loaded into participant view.
+warnings: []

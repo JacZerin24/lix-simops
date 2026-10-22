@@ -57,3 +57,16 @@ def load_event_config(scenario: ScenarioConfig) -> dict:
         return {}
     with path.open("r", encoding="utf-8") as handle:
         return yaml.safe_load(handle) or {}
+
+
+def load_initial_warnings(scenario: ScenarioConfig) -> list[dict]:
+    directory = scenario_directory_by_id(scenario.id)
+    path = directory / scenario.initial_warnings_file
+    if not path.exists():
+        return []
+
+    with path.open("r", encoding="utf-8") as handle:
+        raw = yaml.safe_load(handle) or {}
+
+    warnings = raw.get("warnings", [])
+    return warnings if isinstance(warnings, list) else []

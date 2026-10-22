@@ -1,6 +1,6 @@
 import type { EventOperationsConfig, MesoFrameResponse, RadarFrameResponse, ScenarioSummary, SessionState } from "../types/simulation";
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE || "";
 
 export async function listScenarios(): Promise<ScenarioSummary[]> {
   const response = await fetch(`${API_BASE}/api/scenarios`);
@@ -26,10 +26,12 @@ export async function getRadarFrames(
   sessionCode: string,
   product: string,
   elevation: number,
+  scanMode: "matched" | "all" = "matched",
 ): Promise<RadarFrameResponse> {
   const params = new URLSearchParams({
     product,
     elevation: String(elevation),
+    scan_mode: scanMode,
   });
   const response = await fetch(
     `${API_BASE}/api/sessions/${encodeURIComponent(sessionCode)}/radar/frames?${params.toString()}`,
@@ -43,6 +45,11 @@ export async function getRadarFrames(
       asset_url: frame.asset_url.startsWith("http")
         ? frame.asset_url
         : `${API_BASE}${frame.asset_url}`,
+      data_url: frame.data_url
+        ? frame.data_url.startsWith("http")
+          ? frame.data_url
+          : `${API_BASE}${frame.data_url}`
+        : null,
     })),
   };
 }

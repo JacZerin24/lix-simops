@@ -1,0 +1,429 @@
+from datetime import datetime, timedelta, timezone
+
+import pytest
+from fastapi.testclient import TestClient
+
+from backend.app.main import app
+from backend.app.state import SessionManager, manager, warning_from_definition
+
+
+def receive_type(socket, expected: str) -> dict:
+    for _ in range(10):
+        message = socket.receive_json()
+        if message.get("type") == expected:
+            return message
+    raise AssertionError(f"Did not receive {expected}")
+
+
+def test_radar_warning_is_team_scoped_and_reset_clears_it() -> None:
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/sessions",
+            json={"scenario_id": "mardi-gras-dss-001"},
+        ).json()
+        code = created["session_code"]
+
+        with client.websocket_connect(
+            f"/ws/{code}?display_name=Radar+One&team_id=Team+1&role=radar"
+        ) as team_one:
+            receive_type(team_one, "session_state")
+            receive_type(team_one, "event_history")
+            initial_one = receive_type(team_one, "warning_state")
+            assert initial_one["warnings"] == []
+
+            with client.websocket_connect(
+                f"/ws/{code}?display_name=Radar+Two&team_id=Team+2&role=radar"
+            ) as team_two:
+                receive_type(team_two, "session_state")
+                receive_type(team_two, "event_history")
+                initial_two = receive_type(team_two, "warning_state")
+                assert initial_two["warnings"] == []
+
+                team_one.send_json(
+                    {
+                        "type": "warning_issue",
+                        "hazard": "TOR",
+                        "duration_minutes": 30,
+                        "points": [
+                            {"lat": 29.95, "lon": -90.20},
+                            {"lat": 30.00, "lon": -90.10},
+                            {"lat": 29.90, "lon": -90.05},
+                        ],
+                        "text": "...THIS IS AN EXERCISE...",
+                        "attributes": {"track_type": "one_storm"},
+                    }
+                )
+
+                warning_one = receive_type(team_one, "warning_state")
+                warning_two = receive_type(team_two, "warning_state")
+
+                assert len(warning_one["warnings"]) == 1
+                assert warning_one["warnings"][0]["hazard"] == "TOR"
+                assert warning_one["warnings"][0]["team_id"] == "Team 1"
+                assert warning_two["warnings"] == []
+
+                session = manager.get(code)
+                assert session is not None
+                assert len(session.warnings) == 1
+                assert session.warnings[0].issuer == "Radar One"
+
+                session.reset_clock()
+                assert session.warnings == []
+
+
+def test_non_radar_role_cannot_issue_warning() -> None:
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/sessions",
+            json={"scenario_id": "mardi-gras-dss-001"},
+        ).json()
+        code = created["session_code"]
+
+        with client.websocket_connect(
+            f"/ws/{code}?display_name=Meso&team_id=Team+1&role=mesoanalyst"
+        ) as socket:
+            receive_type(socket, "session_state")
+            receive_type(socket, "event_history")
+            receive_type(socket, "warning_state")
+
+            socket.send_json(
+                {
+                    "type": "warning_issue",
+                    "hazard": "SVR",
+                    "duration_minutes": 30,
+                    "points": [
+                        {"lat": 29.95, "lon": -90.20},
+                        {"lat": 30.00, "lon": -90.10},
+                        {"lat": 29.90, "lon": -90.05},
+                    ],
+                }
+            )
+
+            error = receive_type(socket, "error")
+            assert "Radar Operator" in error["message"]
+
+
+def test_inherited_warning_must_be_active_at_t0() -> None:
+    start = datetime(2027, 2, 6, 20, 45, tzinfo=timezone.utc)
+    polygon = [
+        {"lat": 29.95, "lon": -90.20},
+        {"lat": 30.00, "lon": -90.10},
+        {"lat": 29.90, "lon": -90.05},
+    ]
+
+    active = warning_from_definition(
+        {
+            "id": "prior-tor",
+            "hazard": "TOR",
+            "issued_at": (start - timedelta(minutes=15)).isoformat(),
+            "expires_at": (start + timedelta(minutes=15)).isoformat(),
+            "points": polygon,
+        },
+        scenario_start=start,
+    )
+    assert active.inherited is True
+
+    with pytest.raises(ValueError):
+        warning_from_definition(
+            {
+                "id": "future-tor",
+                "hazard": "TOR",
+                "issued_at": (start + timedelta(minutes=5)).isoformat(),
+                "expires_at": (start + timedelta(minutes=35)).isoformat(),
+                "points": polygon,
+            },
+            scenario_start=start,
+        )
+
+
+
+def test_warngen_durations_and_attributes_are_preserved() -> None:
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/sessions",
+            json={"scenario_id": "mardi-gras-dss-001"},
+        ).json()
+        code = created["session_code"]
+
+        with client.websocket_connect(
+            f"/ws/{code}?display_name=Radar&team_id=Team+1&role=radar"
+        ) as socket:
+            receive_type(socket, "session_state")
+            receive_type(socket, "event_history")
+            receive_type(socket, "warning_state")
+
+            socket.send_json(
+                {
+                    "type": "warning_issue",
+                    "hazard": "TOR",
+                    "duration_minutes": 20,
+                    "points": [
+                        {"lat": 29.95, "lon": -90.20},
+                        {"lat": 30.00, "lon": -90.10},
+                        {"lat": 29.90, "lon": -90.05},
+                    ],
+                    "text": "...THIS IS AN EXERCISE...",
+                    "attributes": {
+                        "track_type": "one_storm",
+                        "basis": "doppler",
+                        "motion_speed_kt": 35.0,
+                    },
+                }
+            )
+
+            state = receive_type(socket, "warning_state")
+            assert state["warnings"][0]["attributes"]["track_type"] == "one_storm"
+            assert state["warnings"][0]["attributes"]["basis"] == "doppler"
+            assert state["warnings"][0]["text"] == "...THIS IS AN EXERCISE..."
+
+            socket.send_json(
+                {
+                    "type": "warning_issue",
+                    "hazard": "SVR",
+                    "duration_minutes": 90,
+                    "points": [
+                        {"lat": 30.10, "lon": -90.30},
+                        {"lat": 30.20, "lon": -90.10},
+                        {"lat": 30.00, "lon": -90.00},
+                    ],
+                    "text": "...THIS IS AN EXERCISE...",
+                    "attributes": {
+                        "track_type": "one_storm",
+                        "severe_wind_mph": 80,
+                    },
+                }
+            )
+
+            state = receive_type(socket, "warning_state")
+            assert len(state["warnings"]) == 2
+            assert state["warnings"][1]["hazard"] == "SVR"
+
+            socket.send_json(
+                {
+                    "type": "warning_issue",
+                    "hazard": "TOR",
+                    "duration_minutes": 90,
+                    "points": [
+                        {"lat": 29.95, "lon": -90.20},
+                        {"lat": 30.00, "lon": -90.10},
+                        {"lat": 29.90, "lon": -90.05},
+                    ],
+                }
+            )
+
+            error = receive_type(socket, "error")
+            assert "duration" in error["message"].lower()
+
+
+
+def test_line_of_storms_metadata_is_preserved() -> None:
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/sessions",
+            json={"scenario_id": "mardi-gras-dss-001"},
+        ).json()
+        code = created["session_code"]
+
+        with client.websocket_connect(
+            f"/ws/{code}?display_name=Radar&team_id=Team+1&role=radar"
+        ) as socket:
+            receive_type(socket, "session_state")
+            receive_type(socket, "event_history")
+            receive_type(socket, "warning_state")
+
+            socket.send_json(
+                {
+                    "type": "warning_issue",
+                    "hazard": "SVR",
+                    "duration_minutes": 45,
+                    "points": [
+                        {"lat": 29.90, "lon": -90.30},
+                        {"lat": 30.20, "lon": -90.25},
+                        {"lat": 30.30, "lon": -89.90},
+                        {"lat": 29.95, "lon": -89.85},
+                    ],
+                    "text": "...THIS IS AN EXERCISE...",
+                    "attributes": {
+                        "track_type": "line_of_storms",
+                        "motion_bearing_deg": 70.0,
+                        "motion_speed_kt": 42.0,
+                        "current_line": [
+                            {"lat": 29.95, "lon": -90.20},
+                            {"lat": 30.15, "lon": -90.15},
+                        ],
+                        "previous_line": [
+                            {"lat": 29.92, "lon": -90.28},
+                            {"lat": 30.12, "lon": -90.23},
+                        ],
+                    },
+                }
+            )
+
+            state = receive_type(socket, "warning_state")
+            warning = state["warnings"][0]
+            assert warning["attributes"]["track_type"] == "line_of_storms"
+            assert warning["attributes"]["motion_speed_kt"] == 42.0
+            assert len(warning["attributes"]["current_line"]) == 2
+            assert len(warning["attributes"]["previous_line"]) == 2
+
+
+
+def test_svs_con_can_workflow_preserves_history_and_blocks_expansion() -> None:
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/sessions",
+            json={"scenario_id": "mardi-gras-dss-001"},
+        ).json()
+        code = created["session_code"]
+
+        with client.websocket_connect(
+            f"/ws/{code}?display_name=Radar&team_id=Team+1&role=radar"
+        ) as socket:
+            receive_type(socket, "session_state")
+            receive_type(socket, "event_history")
+            receive_type(socket, "warning_state")
+
+            socket.send_json(
+                {
+                    "type": "warning_issue",
+                    "hazard": "SVR",
+                    "duration_minutes": 45,
+                    "points": [
+                        {"lat": 29.90, "lon": -90.30},
+                        {"lat": 30.20, "lon": -90.30},
+                        {"lat": 30.20, "lon": -89.90},
+                        {"lat": 29.90, "lon": -89.90},
+                    ],
+                    "text": "...THIS IS AN EXERCISE...",
+                    "attributes": {"track_type": "line_of_storms"},
+                }
+            )
+            issued = receive_type(socket, "warning_state")
+            warning_id = issued["warnings"][0]["id"]
+
+            trimmed = [
+                {"lat": 29.95, "lon": -90.25},
+                {"lat": 30.15, "lon": -90.25},
+                {"lat": 30.15, "lon": -90.00},
+                {"lat": 29.95, "lon": -90.00},
+            ]
+            socket.send_json(
+                {
+                    "type": "warning_followup",
+                    "warning_id": warning_id,
+                    "action": "CON",
+                    "points": trimmed,
+                    "text": "SEVERE WEATHER STATEMENT\n...THIS IS AN EXERCISE...",
+                    "attributes": {"still_wind": True},
+                }
+            )
+            continued = receive_type(socket, "warning_state")
+            warning = continued["warnings"][0]
+            assert warning["status"] == "active"
+            assert warning["points"] == trimmed
+            assert warning["initial_points"] == [
+                {"lat": 29.90, "lon": -90.30},
+                {"lat": 30.20, "lon": -90.30},
+                {"lat": 30.20, "lon": -89.90},
+                {"lat": 29.90, "lon": -89.90},
+            ]
+            assert len(warning["followups"]) == 1
+            assert warning["followups"][0]["action"] == "CON"
+            assert warning["followups"][0]["attributes"]["still_wind"] is True
+
+            socket.send_json(
+                {
+                    "type": "warning_followup",
+                    "warning_id": warning_id,
+                    "action": "CON",
+                    "points": [
+                        {"lat": 29.94, "lon": -90.26},
+                        {"lat": 30.16, "lon": -90.26},
+                        {"lat": 30.30, "lon": -89.80},
+                        {"lat": 29.94, "lon": -90.00},
+                    ],
+                    "text": "Attempted expanded continuation",
+                }
+            )
+            error = receive_type(socket, "error")
+            assert "cannot expand" in error["message"].lower()
+
+            socket.send_json(
+                {
+                    "type": "warning_followup",
+                    "warning_id": warning_id,
+                    "action": "CAN",
+                    "text": "SEVERE WEATHER STATEMENT\n...WARNING CANCELLED...",
+                    "attributes": {"reason": "weakened"},
+                }
+            )
+            cancelled = receive_type(socket, "warning_state")
+            warning = cancelled["warnings"][0]
+            assert warning["status"] == "cancelled"
+            assert len(warning["followups"]) == 2
+            assert warning["followups"][1]["action"] == "CAN"
+            assert warning["followups"][1]["attributes"]["reason"] == "weakened"
+
+
+def test_direct_warning_update_and_cancel_require_svs() -> None:
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/sessions",
+            json={"scenario_id": "mardi-gras-dss-001"},
+        ).json()
+        code = created["session_code"]
+
+        with client.websocket_connect(
+            f"/ws/{code}?display_name=Radar&team_id=Team+1&role=radar"
+        ) as socket:
+            receive_type(socket, "session_state")
+            receive_type(socket, "event_history")
+            receive_type(socket, "warning_state")
+
+            socket.send_json({"type": "warning_update", "warning_id": "unused"})
+            error = receive_type(socket, "error")
+            assert "svs" in error["message"].lower()
+
+            socket.send_json({"type": "warning_cancel", "warning_id": "unused"})
+            error = receive_type(socket, "error")
+            assert "svs" in error["message"].lower()
+
+
+
+def test_inherited_warning_is_forked_per_team() -> None:
+    start = datetime(2027, 2, 6, 20, 45, tzinfo=timezone.utc)
+    local_manager = SessionManager()
+    state = local_manager.create(
+        scenario_id="test",
+        scenario_name="Test",
+        scenario_start=start,
+        default_speed=1.0,
+        initial_warnings=[
+            {
+                "id": "inherited-tor",
+                "hazard": "TOR",
+                "issued_at": (start - timedelta(minutes=10)).isoformat(),
+                "expires_at": (start + timedelta(minutes=20)).isoformat(),
+                "points": [
+                    {"lat": 29.90, "lon": -90.30},
+                    {"lat": 30.10, "lon": -90.20},
+                    {"lat": 29.95, "lon": -90.00},
+                ],
+            }
+        ],
+    )
+
+    assert state.warnings == []
+
+    state.ensure_team_warnings("Team 1")
+    state.ensure_team_warnings("Team 2")
+
+    assert len(state.warnings) == 2
+    team_one = next(w for w in state.warnings if w.team_id == "Team 1")
+    team_two = next(w for w in state.warnings if w.team_id == "Team 2")
+    assert team_one.id != team_two.id
+    assert team_one.inherited is True
+    assert team_two.inherited is True
+
+    team_one.status = "cancelled"
+    assert team_two.status == "active"

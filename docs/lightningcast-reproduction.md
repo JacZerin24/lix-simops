@@ -1,77 +1,112 @@
-# Historical LightningCast plan
+# Historical LightningCast reconstruction — current Endymion case
 
-LightningCast matters to this exercise because the stated training goal is not only warning operations; it is **early DSS decision-making for a large outdoor event**.
+> Facilitator/developer only. This source-case documentation must not be bundled
+> into the participant portable package.
 
-## What is confirmed
+## Current status and correct source window
 
-NOAA/CIMSS documentation describes LightningCast as a deep-learning model that predicts the probability that GLM will observe lightning in the next 60 minutes.
+The active Endymion exercise uses historical **12 May 2021, 06:00–07:45 UTC**
+weather, displaced to **6 February 2027, 2:45–4:30 PM CST**. Older December
+2022 source-case instructions were obsolete and have been replaced here.
 
-The model uses four GOES ABI predictors:
+The portable Endymion case currently includes observed GLM flash density,
+GOES IR and MRMS lowest-altitude reflectivity, but **does not have LightningCast**.
+Genuine model probabilities require the official CSPP Geo software, not a
+rebranding of GLM density or invented contours.
 
-- Channel 2 — 0.64 µm visible reflectance
-- Channel 5 — 1.6 µm near-IR reflectance
-- Channel 13 — 10.3 µm brightness temperature
-- Channel 15 — 12.3 µm brightness temperature
+Official instructions:
+- https://cimss.ssec.wisc.edu/csppgeo/lightningcast_v1.0b2.html
+- https://cimss.ssec.wisc.edu/satellite-blog/archives/60965
 
-The CSPP Geo LightningCast package supports GOES-16 ABI Level 1b input and was explicitly designed to create current **or historical** LightningCast probability fields.
+CSPP Geo LightningCast v1.0beta2 consumes GOES-16 ABI Level 1b channels
+02, 05, 13 and 15, and can output geolocated GeoJSON and NetCDF.
+It is a separate, registration-gated software download for compatible
+Linux systems. It is not bundled with this repository or with SimOps.
 
-References:
+The source case occurs at night. That does not automatically prevent model
+inference, but skill is different from daytime conditions. Assess the real
+probabilities against observed GLM and the radar evolution before using them
+in this training case.
 
-- NOAA/NESDIS HWT 2022 demonstration plan:
-  https://goes-r.noaa.gov/users/docs/pg-activities/HWT-PG-2022-Demonstration-Plan.pdf
-- CSPP Geo LightningCast:
-  https://cimss.ssec.wisc.edu/csppgeo/lightningcast_v1.0b1.html
-- CIMSS historical LightningCast example:
-  https://cimss.ssec.wisc.edu/satellite-blog/archives/56487
+## Step 1 — Archived ABI source-data pilot (passed)
 
-## Why reproduce rather than depend on a 2022 LightningCast archive
+The GitHub Actions workflow at:
+.github/workflows/endymion-lightningcast-pilot.yml
 
-LightningCast was experimental in 2022 and delivered to participating NWS systems through UWSSEC/Regional LDM streams. Public documentation confirms filenames and AWIPS ingest patterns, but this project has **not confirmed a durable public archive containing the exact December 14, 2022 experimental NetCDF stream**.
+uses the public NOAA GOES-16 AWS archive. Initial successful run:
+https://github.com/JacZerin24/lix-simops/actions/runs/38924109564
 
-For a defensible/reproducible exercise, V0.6 therefore downloads the original GOES-16 ABI Level 1b predictors and treats CSPP Geo LightningCast as the preferred historical reconstruction path.
+This run downloaded **12 ABI L1b NetCDF files**, constituting **three complete
+four-channel scene groups**, near 06:31, 06:36 and 06:41 UTC on May 12.
+The workflow verified all four required channels were present for each.
+The run artifact is named **endymion-lightningcast-abi-pilot**.
 
-## Input acquisition
+If more input history is needed, manually rerun the workflow with an expanded
+UTC window. The archive package can become large. Full case coverage is
+06:00–07:45 UTC.
 
-V0.6 fetches:
+## Step 2 — Run the real model on an approved Linux computer
 
-```text
-ABI-L1b-RadC
-C02
-C05
-C13
-C15
-20:30–22:45 UTC
-December 14, 2022
-GOES-16
-```
+Acquire the *official* CSPP Geo LightningCast v1.0beta2 binary using the
+registration/download instructions above. On a compatible, adequately
+resourced Linux host, unzip the GitHub pilot artifact, then extract the
+included lightningcast-abi-pilot.tar archive into the following directory
+of a checkout of this repository:
 
-These files are staged under:
+    data/raw/goes/lightningcast-inputs/
 
-```text
-data/raw/goes/lightningcast-inputs/
-```
+Run the source audit again as needed:
 
-## Intended output
+    python scripts/verify_lightningcast_inputs.py --input data/raw/goes/lightningcast-inputs
 
-Run CSPP Geo LightningCast over a New Orleans/LIX region of interest and export either:
+Then, from the repository root with the authentic model executable in PATH:
 
-- imagery with probability contours, or
-- NetCDF converted to exercise PNG frames.
+    python scripts/run_lightningcast_pilot.py --input data/raw/goes/lightningcast-inputs --output data/raw/lightningcast-native
 
-Those outputs should be placed under:
+The pilot runner calls the official CSPP Geo executable, with a small LIX
+bounding box (-93 to -87 W, 27.5 to 32.5 N), native GeoJSON, and NetCDF
+output. It does not simulate LightningCast values. Record the model version
+and metadata. This computation has not yet been executed in this repository.
 
-```text
-data/raw/meso/lightningcast/
-```
+## Step 3 — Inspect the true CSPP Geo product
 
-with UTC timestamps in filenames. Then `build_meso_cache.py` remaps the historical local clock time onto February 6, 2027.
+Before implementing final rendering, inspect a representative native
+GeoJSON and NetCDF to learn its exact coordinate, probability-variable,
+and timestamp schema. Do not assume the output uses any particular name.
 
-## Validation
+Evaluate timing and geographic consistency, probability evolution versus
+subsequent GLM (source time T to T+60 minutes), relationship to MRMS
+convection, and whether nighttime probabilities are physically reasonable.
+Retain original satellite scene time and product-availability time, and
+ensure case-blind displaced exercise timestamps are never ahead of the
+live simulated clock.
 
-Before the exercise is finalized, compare reconstructed LightningCast evolution against:
+## Step 4 — Target: probability over MRMS lowest-altitude reflectivity
 
-- observed GOES GLM lightning
-- storm initiation/intensification on KLIX
-- the timing of the partner decision points
+The desired Meso product IDs are:
+- lightningcast — standalone LightningCast probability
+- lightningcast_mrms_lowest_refl — authentic LightningCast probability
+  contours over native MRMS lowest-altitude reflectivity (dBZ)
 
-LightningCast should remain one input to the DSS decision, not an answer key.
+Use geolocated source data on a common projection (not a PNG-on-PNG
+screenshot overlay). Draw labeled 10, 25, 50 and 75% contours above the
+existing reflectivity palette. Match each LightningCast scene to the latest
+MRMS valid time **at or before** the scene time within a short fixed
+tolerance; never select future MRMS data to fill a gap. Confirm the two
+datasets align over known weather features, and document whether and how
+LightningCast parallax is corrected.
+
+When the native output is verified, build both timestamped image products
+from it, add the renderer to the Endymion meso packaging jobs, and rebuild
+the entire validated portable weather cache. Simply installing an app-only
+update cannot add missing weather frames.
+
+The standalone and overlay entries in the meso product configuration will
+be silently omitted by the cache builder until their source PNGs exist.
+
+## Training fallback
+
+Do not block the existing Endymion exercise solely on this experimental
+optional product. If genuine nighttime LightningCast output fails model or
+scientific QA, use the already verified GOES IR, observed GLM and MRMS data.
+Never present simulated or retrospective GLM observations as LightningCast.

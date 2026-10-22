@@ -45,7 +45,9 @@ jobs:
             --range-km 230 \
             --simulation-date 2027-02-06 \
             --timezone America/Chicago \
-            --local-time-offset-minutes 825
+            --local-time-offset-minutes 825 \
+            --include-low-level-revisits \
+            --simulation-end 2027-02-06T22:30:00Z
 
       - uses: actions/upload-artifact@v4
         with:
@@ -198,7 +200,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install supporting meso dependencies
-        run: pip install boto3 matplotlib cartopy numpy xarray netCDF4 pygrib
+        run: pip install boto3 matplotlib cartopy numpy xarray netCDF4 pygrib pyyaml
 
       - name: Download GLM, RAP, and surface observations
         run: |
@@ -235,6 +237,8 @@ jobs:
           python scripts/render_glm_flash_density.py \
             --input data/raw/goes/glm-lcfa \
             --output data/raw/meso/glm_flash_density \
+            --ring-output data/raw/meso/glm_flash_density_rings \
+            --event-config scenarios/mardi-gras/event.yaml \
             --domain -93 -87 27.5 32.5 \
             --simulation-date 2027-02-06 \
             --local-time-offset-minutes 825
@@ -262,6 +266,7 @@ jobs:
       - name: Verify supporting rendered frames
         run: |
           test "$(find data/raw/meso/glm_flash_density -type f -name '*.png' | wc -l)" -ge 20
+          test "$(find data/raw/meso/glm_flash_density_rings -type f -name '*.png' | wc -l)" -ge 20
           test "$(find data/raw/meso/mlcape -type f -name '*.png' | wc -l)" -ge 3
           test "$(find data/raw/meso/bulk_shear_0_3km -type f -name '*.png' | wc -l)" -ge 3
           test "$(find data/raw/meso/bulk_shear_0_6km -type f -name '*.png' | wc -l)" -ge 3
@@ -273,6 +278,7 @@ jobs:
         run: |
           tar -czf supporting-meso.tar.gz -C data/raw/meso \
             glm_flash_density \
+            glm_flash_density_rings \
             mlcape \
             bulk_shear_0_3km \
             bulk_shear_0_6km \
@@ -378,6 +384,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install validation dependencies
+        run: pip install -e backend
+
       - name: Download REF radar stage
         uses: actions/download-artifact@v4
         with:
@@ -411,11 +426,14 @@ jobs:
       - name: Assemble participant cache
         run: |
           mkdir -p data/cache/mardi-gras-dss-001/radar/frames
+          mkdir -p data/cache/mardi-gras-dss-001/radar/data
           mkdir -p data/cache/mardi-gras-dss-001
 
           for product in REF VEL CC ZDR; do
             cp -a ".stage/radar-${product}/cache/mardi-gras-dss-001/radar/frames/${product}" \
               data/cache/mardi-gras-dss-001/radar/frames/
+            cp -a ".stage/radar-${product}/cache/mardi-gras-dss-001/radar/data/${product}" \
+              data/cache/mardi-gras-dss-001/radar/data/
           done
 
           tar -xzf .stage/meso-cache/endymion-meso-cache.tar.gz \
@@ -439,7 +457,11 @@ jobs:
           ]
           merged["frames"] = sorted(
               [
-                  frame
+                  {
+                      key: value
+                      for key, value in frame.items()
+                      if key != "source_key"
+                  }
                   for manifest in manifests
                   for frame in manifest.get("frames", [])
               ],
@@ -456,7 +478,7 @@ jobs:
           PY
 
       - name: Final case-blindness and product validation
-        run: python scripts/validate_exercise_cache.py
+        run: python scripts/validate_exercise_cache.py --require-startup-radar
 
       - name: Write build metadata
         run: |

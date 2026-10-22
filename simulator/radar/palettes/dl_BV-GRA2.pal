@@ -1,0 +1,21 @@
+Product: BV
+Units:   KTS
+Step:    10
+Scale:   1.9426     ; converts internal units (M/S) to KTS
+
+Color:       120   255  255    0 
+Color:        70   255   96    0     255  255    0 
+Color:        60   255  128  255     255  196  255 
+Color:        50   255    0  144     255  128  255 
+Color:        40   255    0    0     255    0  128 
+Color:        10   112    0    0     255    0    0 
+Color:         0   144  128  144     112    0    0    
+Color:       -10    16   96   16     112  128  112 
+Color:       -40     0  255    0      16   96   16 
+Color:       -50   160  255  208       0  255    0 
+SolidColor:  -60   160  255  208 
+SolidColor:  -70     3  254  216 
+Color:       -90    48    3  152       9  230  249 
+Color:      -120   255    0  128       0    0  160 
+
+RF:  128    0  128

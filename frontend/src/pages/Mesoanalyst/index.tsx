@@ -1,24 +1,35 @@
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { getMesoFrames } from "../../services/api";
 import type { MesoFrameResponse } from "../../types/simulation";
+import { formatExerciseDateTime } from "../../utils/time";
 
 type Props = {
   sessionCode: string;
+  onUpdate: (draft: {
+    body: string;
+    category: string;
+    product_id: string;
+    product_label: string;
+    frame_time: string;
+  }) => void;
 };
 
+const GLM_PLAIN = "glm_flash_density";
+const GLM_RINGS = "glm_flash_density_rings";
+
 function frameTime(value?: string) {
-  if (!value) return "No valid frame";
-  return new Date(value).toISOString().replace("T", " ").slice(0, 19) + "Z";
+  return formatExerciseDateTime(value, "No valid frame");
 }
 
-export function Mesoanalyst({ sessionCode }: Props) {
+export function Mesoanalyst({ sessionCode, onUpdate }: Props) {
   const [product, setProduct] = useState("");
   const [category, setCategory] = useState("");
   const [data, setData] = useState<MesoFrameResponse | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [followLatest, setFollowLatest] = useState(true);
   const [playing, setPlaying] = useState(false);
+  const [updateBody, setUpdateBody] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -70,8 +81,15 @@ export function Mesoanalyst({ sessionCode }: Props) {
 
   const productsInCategory = useMemo(() => {
     if (!data) return [];
-    return data.products.filter((item) => !category || item.category === category);
+    return data.products.filter(
+      (item) => item.id !== GLM_RINGS && (!category || item.category === category),
+    );
   }, [data, category]);
+
+  const ringsAvailable = Boolean(data?.products.some((item) => item.id === GLM_RINGS));
+  const glmSelected = product === GLM_PLAIN || product === GLM_RINGS;
+  const ringLayerEnabled = product === GLM_RINGS;
+  const productPickerValue = ringLayerEnabled ? GLM_PLAIN : product;
 
   const frames = data?.frames ?? [];
   const frame = frames[selectedIndex];
@@ -92,6 +110,53 @@ export function Mesoanalyst({ sessionCode }: Props) {
     setFollowLatest(true);
     setPlaying(false);
   };
+
+  const stepFrame = (direction: -1 | 1) => {
+    if (frames.length === 0) return;
+    setPlaying(false);
+    setFollowLatest(false);
+    setSelectedIndex((current) =>
+      Math.max(0, Math.min(frames.length - 1, current + direction)),
+    );
+  };
+
+  const submitMesoUpdate = (event: FormEvent) => {
+    event.preventDefault();
+    const value = updateBody.trim();
+    if (!value || !frame || !selectedProduct) return;
+    onUpdate({
+      body: value,
+      category,
+      product_id: selectedProduct.id,
+      product_label: selectedProduct.label,
+      frame_time: frame.timestamp,
+    });
+    setUpdateBody("");
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (frames.length === 0) return;
+
+      event.preventDefault();
+      stepFrame(event.key === "ArrowLeft" ? -1 : 1);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [frames.length]);
 
   return (
     <section className="panel primary meso-workspace">
@@ -133,7 +198,7 @@ export function Mesoanalyst({ sessionCode }: Props) {
         <label>
           Product
           <select
-            value={product}
+            value={productPickerValue}
             onChange={(event) => chooseProduct(event.target.value)}
             disabled={!data?.available}
           >
@@ -145,13 +210,24 @@ export function Mesoanalyst({ sessionCode }: Props) {
           </select>
         </label>
 
+        {glmSelected && ringsAvailable && (
+          <label className="meso-range-ring-toggle" title="Show georeferenced reference rings for the Endymion start. Check lightning distance against any active route segment.">
+            <input
+              type="checkbox"
+              checked={ringLayerEnabled}
+              onChange={(event) => {
+                setProduct(event.target.checked ? GLM_RINGS : GLM_PLAIN);
+                setPlaying(false);
+                setFollowLatest(true);
+              }}
+            />
+            <span>Range rings <small>8 · 12 · 15 mi</small></span>
+          </label>
+        )}
+
         <div className="radar-button-group">
           <button
-            onClick={() => {
-              setPlaying(false);
-              setFollowLatest(false);
-              setSelectedIndex((current) => Math.max(0, current - 1));
-            }}
+            onClick={() => stepFrame(-1)}
             disabled={frames.length === 0 || selectedIndex === 0}
           >
             ◀ Frame
@@ -166,14 +242,7 @@ export function Mesoanalyst({ sessionCode }: Props) {
             {playing ? "Pause Loop" : "Loop"}
           </button>
           <button
-            onClick={() => {
-              setPlaying(false);
-              setSelectedIndex((current) => {
-                const next = Math.min(frames.length - 1, current + 1);
-                if (next === frames.length - 1) setFollowLatest(true);
-                return Math.max(0, next);
-              });
-            }}
+            onClick={() => stepFrame(1)}
             disabled={frames.length === 0 || selectedIndex >= frames.length - 1}
           >
             Frame ▶
@@ -197,6 +266,26 @@ export function Mesoanalyst({ sessionCode }: Props) {
           <span>{selectedProduct.description}</span>
         </div>
       )}
+
+      <form className="meso-update-composer" onSubmit={submitMesoUpdate}>
+        <div>
+          <strong>Send Meso Update to Team</strong>
+          <span>Captures your assessment with the selected product/frame for the team AAR.</span>
+        </div>
+        <textarea
+          value={updateBody}
+          onChange={(event) => setUpdateBody(event.target.value)}
+          placeholder="What environmental trend or concern should Radar and DSS know?"
+          rows={3}
+        />
+        <button
+          type="submit"
+          className="primary-action"
+          disabled={!frame || !selectedProduct || !updateBody.trim()}
+        >
+          Send Meso Update
+        </button>
+      </form>
 
       {error && <div className="error-banner">{error}</div>}
 
@@ -226,12 +315,22 @@ export function Mesoanalyst({ sessionCode }: Props) {
             />
           </div>
           <div className="radar-footer">
+            {selectedProduct?.id === "rap_kmsy_sounding" && (
+              <a
+                href={frame.asset_url}
+                target="_blank"
+                rel="noreferrer"
+                title="Open the unchanged full-resolution profile and hodograph"
+              >
+                Open full-resolution sounding ↗
+              </a>
+            )}
             <span>
               <strong>{selectedProduct?.label ?? product}</strong>
               {selectedProduct?.units ? ` · ${selectedProduct.units}` : ""}
             </span>
-            <span>{followLatest ? "Following latest available frame" : "Reviewing earlier frame"}</span>
-            <span>{category}</span>
+            <span>{followLatest ? "Following latest available frame" : "Reviewing selected frame"}</span>
+            <span>←/→ frame · {category}</span>
           </div>
         </>
       )}

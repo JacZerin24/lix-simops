@@ -13,6 +13,16 @@ import yaml
 NEXRAD_RE = re.compile(r"([A-Z0-9]{4})(\d{8})_(\d{6})")
 GOES_RE = re.compile(r"_s(\d{4})(\d{3})(\d{2})(\d{2})(\d{2})(\d)")
 MRMS_RE = re.compile(r"_(\d{8})-(\d{6})")
+RAP_RE = re.compile(r"rap\.t(\d{2})z")
+
+STRICT_MIN_COUNTS = {
+    "nexrad": 15,
+    "goes_display": 20,
+    "glm": 300,
+    "lightningcast_inputs": 80,
+    "environment": 3,
+}
+STRICT_MRMS_MIN_COUNT = 50
 
 
 def nexrad_time(path: Path) -> datetime | None:
@@ -114,7 +124,18 @@ def parse_args() -> argparse.Namespace:
         default=Path("scenarios/mardi-gras/source-case.yaml"),
     )
     parser.add_argument("--strict", action="store_true")
+    parser.add_argument(
+        "--skip-lightningcast-inputs",
+        action="store_true",
+        help="Do not require archived ABI L1b LightningCast inputs in strict mode.",
+    )
     parser.add_argument("--json", dest="json_output", type=Path)
+    parser.add_argument(
+        "--scope",
+        choices=["all", "radar", "meso"],
+        default="all",
+        help="Validate all raw inputs, radar-only inputs, or meso-only inputs.",
+    )
     return parser.parse_args()
 
 
@@ -170,16 +191,61 @@ def main() -> None:
 
     if args.strict:
         failures = []
-        for key in ["nexrad", "goes_display", "glm", "lightningcast_inputs", "environment"]:
-            if report["datasets"][key]["status"] != "ok":
-                failures.append(key)
+
+        if args.scope in {"all", "radar"}:
+            summary = report["datasets"]["nexrad"]
+            if summary["status"] != "ok":
+                failures.append("nexrad: missing/empty")
+            elif summary["count"] < STRICT_MIN_COUNTS["nexrad"]:
+                failures.append(
+                    f"nexrad: expected at least {STRICT_MIN_COUNTS['nexrad']} files, "
+                    f"found {summary['count']}"
+                )
+
+        if args.scope == "radar":
+            if failures:
+                raise SystemExit("Strict raw-data validation failed: " + "; ".join(failures))
+            return
+
+        required = ["goes_display", "glm", "environment"]
+        if not args.skip_lightningcast_inputs:
+            required.append("lightningcast_inputs")
+        for key in required:
+            summary = report["datasets"][key]
+            if summary["status"] != "ok":
+                failures.append(f"{key}: missing/empty")
+                continue
+            minimum = STRICT_MIN_COUNTS[key]
+            if summary["count"] < minimum:
+                failures.append(
+                    f"{key}: expected at least {minimum} files, found {summary['count']}"
+                )
+
         for product, summary in report["datasets"]["mrms"].items():
             if summary["status"] != "ok":
-                failures.append(f"mrms:{product}")
-        if report["datasets"]["surface_observations"]["status"] != "ok":
-            failures.append("surface_observations")
+                failures.append(f"mrms:{product}: missing/empty")
+            elif summary["count"] < STRICT_MRMS_MIN_COUNT:
+                failures.append(
+                    f"mrms:{product}: expected at least {STRICT_MRMS_MIN_COUNT} files, "
+                    f"found {summary['count']}"
+                )
+
+        obs_summary = report["datasets"]["surface_observations"]
+        if obs_summary["status"] != "ok":
+            failures.append("surface_observations: missing/empty")
+        else:
+            missing_stations = [
+                station
+                for station, count in obs_summary["stations"].items()
+                if count == 0
+            ]
+            if missing_stations:
+                failures.append(
+                    "surface_observations: no reports for " + ", ".join(missing_stations)
+                )
+
         if failures:
-            raise SystemExit("Missing/empty required raw datasets: " + ", ".join(failures))
+            raise SystemExit("Strict raw-data validation failed: " + "; ".join(failures))
 
 
 if __name__ == "__main__":

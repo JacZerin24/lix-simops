@@ -6,12 +6,18 @@ import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
 from zoneinfo import ZoneInfo
 
 import yaml
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from simulator.meso.manifest import MesoFrame, MesoManifest, MesoProduct
 from simulator.time_mapping import remap_timestamp_to_simulation_date
+from backend.app.services.scenario_loader import load_scenario_by_id
 
 
 TIME_RE = re.compile(r"(\d{8})[T_\-]?(\d{6})Z?")
@@ -39,6 +45,12 @@ def parse_args() -> argparse.Namespace:
         help="Optional exercise date YYYY-MM-DD. Preserves historical local clock time.",
     )
     parser.add_argument("--timezone", default="America/Chicago")
+    parser.add_argument(
+        "--local-time-offset-minutes",
+        type=int,
+        default=0,
+        help="Shift historical local clock time before mapping to the exercise date.",
+    )
     return parser.parse_args()
 
 
@@ -58,6 +70,10 @@ def main() -> None:
         else None
     )
     zone = ZoneInfo(args.timezone)
+    scenario = load_scenario_by_id(args.scenario_id)
+    scenario_end = datetime.fromisoformat(
+        scenario.simulation.end.replace("Z", "+00:00")
+    )
 
     products: list[MesoProduct] = []
     source_items: list[tuple[MesoProduct, Path, datetime]] = []
@@ -71,21 +87,27 @@ def main() -> None:
             description=item.get("description", ""),
             kind=item.get("kind", "image"),
         )
-        products.append(product)
-
         source_dir = Path(item["source_dir"])
         pattern = item.get("pattern", "*")
         if not source_dir.exists():
-            print(f"{product.id}: source directory missing ({source_dir}); keeping product with no frames")
+            print(f"{product.id}: source directory missing ({source_dir}); omitting unavailable product")
             continue
 
+        product_sources: list[tuple[MesoProduct, Path, datetime]] = []
         for source in sorted(source_dir.glob(pattern)):
             if not source.is_file():
                 continue
             try:
-                source_items.append((product, source, timestamp_from_filename(source)))
+                product_sources.append((product, source, timestamp_from_filename(source)))
             except ValueError as exc:
                 print(f"{product.id}: skipping {source.name}: {exc}")
+
+        if not product_sources:
+            print(f"{product.id}: no usable frames; omitting unavailable product")
+            continue
+
+        products.append(product)
+        source_items.extend(product_sources)
 
     source_base_date = (
         min(timestamp.astimezone(zone).date() for _, _, timestamp in source_items)
@@ -101,10 +123,18 @@ def main() -> None:
                 source_base_date=source_base_date,
                 simulation_base_date=simulation_date,
                 timezone_name=args.timezone,
+                local_time_offset_minutes=args.local_time_offset_minutes,
             )
             if simulation_date and source_base_date
             else source_timestamp
         )
+
+        if timestamp > scenario_end:
+            print(
+                f"{product.id}: skipping {source.name}; mapped timestamp "
+                f"{timestamp.isoformat()} is after scenario end"
+            )
+            continue
 
         destination_dir = frame_root / product.id
         destination_dir.mkdir(parents=True, exist_ok=True)
@@ -117,7 +147,6 @@ def main() -> None:
                 timestamp=timestamp,
                 product=product.id,
                 asset=destination.relative_to(output_root).as_posix(),
-                source_key=str(source),
             )
         )
 
@@ -127,7 +156,7 @@ def main() -> None:
         frames=sorted(frames, key=lambda frame: (frame.timestamp, frame.product)),
     )
     with (meso_root / "manifest.json").open("w", encoding="utf-8") as handle:
-        json.dump(manifest.model_dump(mode="json"), handle, indent=2)
+        json.dump(manifest.model_dump(mode="json", exclude_none=True), handle, indent=2)
 
     print(
         f"Built meso manifest with {len(products)} products and "

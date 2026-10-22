@@ -5,6 +5,13 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import re
+from math import cos, radians
+
+
+THRESHOLD_RING_IDS = ("lightning-suspend", "lightning-impending", "lightning-monitor")
+# Metro New Orleans, including Houma/western storm approaches and Slidell.
+# The 15-mile threshold circle fills approximately one-third of this map.
+DEFAULT_RING_DOMAIN = (-90.95, -89.45, 29.35, 30.55)
 
 from render_common import add_base_map, local_time_label, parse_domain, timestamp_token
 
@@ -31,6 +38,49 @@ def floor_time(value: datetime, minutes: int) -> datetime:
     return value.replace(minute=minute, second=0, microsecond=0)
 
 
+def ring_config_from_event(path: Path) -> tuple[float, float, list[int]]:
+    """Use exercise-owned 8/12/15-mile thresholds, not generic rings."""
+    import yaml
+
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    marker = data["event"]["radar_marker"]
+    by_id = {
+        entry["id"]: entry["threshold"]
+        for entry in data["operations"]["decision_thresholds"]
+    }
+    miles = []
+    for threshold_id in THRESHOLD_RING_IDS:
+        value = by_id[threshold_id]
+        match = re.search(r"\b(\d+)\s+miles?\b", value)
+        if match is None:
+            raise ValueError(f"No numerical mile threshold for {threshold_id}: {value}")
+        miles.append(int(match.group(1)))
+    if sorted(miles) != miles or len(set(miles)) != 3:
+        raise ValueError("Expected ordered, distinct suspension/impending/monitor miles")
+    lat, lon = float(marker["lat"]), float(marker["lon"])
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        raise ValueError("Invalid Endymion start coordinates")
+    return lat, lon, miles
+
+
+def validate_ring_domain(
+    domain: tuple[float, float, float, float],
+    event_lat: float,
+    event_lon: float,
+    outer_miles: float,
+) -> tuple[float, float, float, float]:
+    """Ensure the zoom does not clip any of the event's lightning rings."""
+    west, east, south, north = domain
+    outer_km = outer_miles * 1.609344
+    lat_pad = outer_km / 110.6 + 0.03
+    lon_pad = outer_km / (111.0 * cos(radians(event_lat))) + 0.03
+    if not (south + lat_pad < event_lat < north - lat_pad):
+        raise ValueError("GLM ring map would clip the outer threshold in latitude")
+    if not (west + lon_pad < event_lon < east - lon_pad):
+        raise ValueError("GLM ring map would clip the outer threshold in longitude")
+    return domain
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Render multi-minute GLM flash-centroid density from LCFA files."
@@ -41,6 +91,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--resolution", type=float, default=0.05)
     parser.add_argument("--domain", nargs=4, type=float)
     parser.add_argument("--timezone", default="America/Chicago")
+    parser.add_argument("--simulation-date")
+    parser.add_argument("--local-time-offset-minutes", type=int, default=0)
+    parser.add_argument("--event-lat", type=float)
+    parser.add_argument("--event-lon", type=float)
+    parser.add_argument("--range-rings-mi", nargs="*", type=float, default=[])
+    parser.add_argument("--event-config", type=Path,
+                        help="Scenario event.yaml: authoritative lightning ring thresholds and start marker")
+    parser.add_argument("--ring-output", type=Path,
+                        help="Also render a separately selectable GLM product with range rings")
+    parser.add_argument(
+        "--ring-domain", nargs=4, type=float, default=list(DEFAULT_RING_DOMAIN),
+        metavar=("WEST", "EAST", "SOUTH", "NORTH"),
+        help="Zoom ONLY the GLM range-ring view; retain the broader plain GLM.",
+    )
     return parser.parse_args()
 
 
@@ -53,6 +117,18 @@ def main() -> None:
 
     domain = parse_domain(args.domain)
     west, east, south, north = domain
+    if args.event_config is not None:
+        args.event_lat, args.event_lon, args.range_rings_mi = ring_config_from_event(
+            args.event_config
+        )
+    if args.ring_output is not None:
+        if args.event_lat is None or args.event_lon is None or not args.range_rings_mi:
+            raise ValueError("--ring-output requires an event center and mile thresholds")
+        ring_domain = validate_ring_domain(
+            parse_domain(args.ring_domain),
+            args.event_lat, args.event_lon, max(args.range_rings_mi),
+        )
+        args.ring_output.mkdir(parents=True, exist_ok=True)
     files = sorted(args.input.glob("*.nc"))
     if not files:
         raise SystemExit(f"No GLM LCFA netCDF files found in {args.input}")
@@ -106,8 +182,112 @@ def main() -> None:
             f"flash centroids per ~{args.resolution:.2f}° grid cell / {args.minutes} min"
         )
         ax.set_title("GOES-16 GLM Flash Density", loc="left", fontweight="bold")
-        ax.set_title(local_time_label(valid, args.timezone), loc="right")
+        ax.set_title(
+            local_time_label(
+                valid, args.timezone, args.simulation_date, args.local_time_offset_minutes
+            ),
+            loc="right",
+        )
         destination = args.output / f"glm_flash_density_{timestamp_token(valid)}.png"
+        # Preserve the original Gulf Coast GLM view. Only the ring-enabled
+        # product zooms into metro New Orleans and nearby upstream storms.
+        if args.ring_output is not None:
+            fig.savefig(destination, dpi=130, bbox_inches="tight")
+            print(destination)
+            ax.set_extent(ring_domain, crs=ccrs.PlateCarree())
+            # At the zoomed scale, the New Orleans city label obscures the
+            # nearby Endymion start marker. Keep the marker instead.
+            for city_label in ax.texts:
+                if city_label.get_text() == "New Orleans":
+                    city_label.set_visible(False)
+                else:
+                    lon, lat = city_label.get_position()
+                    if not (ring_domain[0] <= lon <= ring_domain[1]
+                            and ring_domain[2] <= lat <= ring_domain[3]):
+                        city_label.set_visible(False)
+
+        if args.event_lat is not None and args.event_lon is not None and args.range_rings_mi:
+            from cartopy.geodesic import Geodesic
+            import matplotlib.patheffects as effects
+
+            geod = Geodesic()
+            ring_colors = {
+                min(args.range_rings_mi): "#e03131",
+                max(args.range_rings_mi): "#167f99",
+            }
+            if len(args.range_rings_mi) >= 3:
+                ring_colors[sorted(args.range_rings_mi)[1]] = "#f08c00"
+            ax.plot(
+                args.event_lon,
+                args.event_lat,
+                marker="*",
+                markersize=11,
+                markerfacecolor="#ffffff",
+                markeredgecolor="#111111",
+                transform=ccrs.PlateCarree(),
+                zorder=10,
+            )
+            ax.text(
+                args.event_lon + 0.035,
+                args.event_lat - 0.04,
+                "Endymion start",
+                fontsize=8,
+                weight="bold",
+                color="#151515",
+                path_effects=[effects.withStroke(linewidth=2.4, foreground="white")],
+                transform=ccrs.PlateCarree(),
+                zorder=11,
+            )
+            for miles in sorted(args.range_rings_mi):
+                ring = geod.circle(
+                    lon=args.event_lon,
+                    lat=args.event_lat,
+                    radius=miles * 1609.344,
+                    n_samples=240,
+                    endpoint=False,
+                )
+                color = ring_colors.get(miles, "#167f99")
+                ax.plot(
+                    ring[:, 0], ring[:, 1],
+                    color="white", linewidth=3.8, alpha=0.95,
+                    transform=ccrs.PlateCarree(), zorder=8,
+                )
+                ax.plot(
+                    ring[:, 0], ring[:, 1],
+                    color=color, linewidth=2.0,
+                    transform=ccrs.PlateCarree(), zorder=9,
+                )
+                # Label at different bearings so 8/12/15 miles don't stack.
+                label_index = {
+                    min(args.range_rings_mi): 35,  # NE
+                    sorted(args.range_rings_mi)[1]: 125,  # SSE
+                    max(args.range_rings_mi): 185,  # WSW
+                }[miles]
+                label_lon, label_lat = ring[label_index]
+                ax.text(
+                    label_lon, label_lat,
+                    f"{miles:g} mi",
+                    fontsize=8,
+                    weight="bold",
+                    color=color,
+                    ha="center", va="center",
+                    bbox={"facecolor": "white", "edgecolor": color,
+                          "alpha": 0.95, "boxstyle": "round,pad=0.16"},
+                    transform=ccrs.PlateCarree(),
+                    zorder=11,
+                )
+            ax.text(
+                0.01, 0.015,
+                "Rings reference Endymion start only. Evaluate the active route/staging areas separately.",
+                transform=ax.transAxes,
+                fontsize=7, color="#1c2932", va="bottom", ha="left",
+                bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.90},
+                zorder=11,
+            )
+            ax.set_title("Metro New Orleans GLM · 8 / 12 / 15 mi",
+                         loc="left", fontweight="bold")
+        if args.ring_output is not None:
+            destination = args.ring_output / f"glm_flash_density_rings_{timestamp_token(valid)}.png"
         fig.savefig(destination, dpi=130, bbox_inches="tight")
         plt.close(fig)
         print(destination)
