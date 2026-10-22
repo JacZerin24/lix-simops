@@ -17,6 +17,7 @@ import type {
   WarningRecord,
 } from "../../types/simulation";
 import { formatExerciseDateTime, formatExerciseTime } from "../../utils/time";
+import { frameIndexAtOrBefore } from "../../utils/radarTimeSync";
 import {
   CursorSample,
   RadarAnnotation,
@@ -266,6 +267,7 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
   const [eventConfig, setEventConfig] = useState<EventOperationsConfig | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [followLatest, setFollowLatest] = useState(true);
+  const pendingTimeAnchor = useRef<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [loopSpeedMs, setLoopSpeedMs] = useState(500);
   const [endDwellMs, setEndDwellMs] = useState(1500);
@@ -365,6 +367,11 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
 
         setSelectedIndex((current) => {
           if (response.frames.length === 0) return 0;
+          if (pendingTimeAnchor.current !== null) {
+            const anchored = frameIndexAtOrBefore(response.frames, pendingTimeAnchor.current);
+            pendingTimeAnchor.current = null;
+            return anchored;
+          }
           if (followLatest) return response.frames.length - 1;
           return Math.min(current, response.frames.length - 1);
         });
@@ -383,9 +390,27 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
     };
   }, [sessionCode, product, elevation, followLatest]);
 
-  const frames = data?.frames ?? [];
+  // Do not briefly render the prior product/tilt while a new API response loads.
+  const responseMatchesSelection =
+    data?.selected_product === product &&
+    Math.abs((data?.selected_elevation ?? elevation) - elevation) < 0.01;
+  const frames = responseMatchesSelection ? data?.frames ?? [] : [];
   const safeIndex = frames.length ? Math.min(selectedIndex, frames.length - 1) : 0;
   const frame = frames[safeIndex];
+
+  const switchFrameSeries = useCallback(
+    (nextProduct: string, nextElevation: number) => {
+      if (nextProduct === product && Math.abs(nextElevation - elevation) < 0.01) return;
+      // Lock to the currently displayed observation time; never reuse its
+      // array index in a product with a different number of real scans.
+      pendingTimeAnchor.current = frame?.timestamp ?? data?.sim_time ?? null;
+      setPlaying(false);
+      setFollowLatest(false);
+      setProduct(nextProduct);
+      setElevation(nextElevation);
+    },
+    [product, elevation, frame?.timestamp, data?.sim_time],
+  );
 
   const eventMarker = eventConfig?.event?.radar_marker ?? null;
   const overlayTime = data?.sim_time ? new Date(data.sim_time).getTime() : Number.NaN;
@@ -510,10 +535,9 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
         0,
       );
       const next = Math.max(0, Math.min(elevations.length - 1, current + direction));
-      setElevation(elevations[next]);
-      setFollowLatest(true);
+      switchFrameSeries(product, elevations[next]);
     },
-    [data?.elevations, elevation],
+    [data?.elevations, elevation, product, switchFrameSeries],
   );
 
   useEffect(() => {
@@ -556,8 +580,7 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
       } else if (/^[1-4]$/.test(event.key)) {
         const requested = PRODUCT_KEYS[Number(event.key) - 1];
         if (data?.products.some((item) => item.id === requested)) {
-          setProduct(requested);
-          setFollowLatest(true);
+          switchFrameSeries(requested, elevation);
         }
       }
     };
@@ -566,12 +589,14 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
     return () => window.removeEventListener("keydown", handler);
   }, [
     data?.products,
+    elevation,
     frames.length,
     goLatest,
     resetView,
     selectNext,
     selectPrevious,
     stepElevation,
+    switchFrameSeries,
     toggleFullscreen,
   ]);
 
@@ -1979,8 +2004,7 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
           <select
             value={product}
             onChange={(event) => {
-              setProduct(event.target.value);
-              setFollowLatest(true);
+              switchFrameSeries(event.target.value, elevation);
             }}
           >
             {(data?.products.length
@@ -1999,8 +2023,7 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
           <select
             value={elevation}
             onChange={(event) => {
-              setElevation(Number(event.target.value));
-              setFollowLatest(true);
+              switchFrameSeries(product, Number(event.target.value));
             }}
           >
             {(data?.elevations.length ? data.elevations : [0.5]).map((value) => (
