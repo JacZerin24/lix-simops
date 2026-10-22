@@ -267,6 +267,7 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
   const [eventConfig, setEventConfig] = useState<EventOperationsConfig | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [followLatest, setFollowLatest] = useState(true);
+  const [scanMode, setScanMode] = useState<"matched" | "all">("matched");
   const pendingTimeAnchor = useRef<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [loopSpeedMs, setLoopSpeedMs] = useState(500);
@@ -352,7 +353,7 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
 
     const refresh = async () => {
       try {
-        const response = await getRadarFrames(sessionCode, product, elevation);
+        const response = await getRadarFrames(sessionCode, product, elevation, scanMode);
         if (cancelled) return;
 
         setData(response);
@@ -388,7 +389,7 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [sessionCode, product, elevation, followLatest]);
+  }, [sessionCode, product, elevation, followLatest, scanMode]);
 
   // Do not briefly render the prior product/tilt while a new API response loads.
   const responseMatchesSelection =
@@ -2015,6 +2016,22 @@ export function RadarOperator({ sessionCode, warnings, events, onWarningAction }
                 {item.label}
               </option>
             ))}
+          </select>
+        </label>
+
+        <label>
+          Scan selection
+          <select
+            value={scanMode}
+            onChange={(event) => {
+              pendingTimeAnchor.current = frame?.timestamp ?? data?.sim_time ?? null;
+              setPlaying(false);
+              setFollowLatest(false);
+              setScanMode(event.target.value as "matched" | "all");
+            }}
+          >
+            <option value="matched">Matched moments</option>
+            <option value="all">All available cuts</option>
           </select>
         </label>
 
