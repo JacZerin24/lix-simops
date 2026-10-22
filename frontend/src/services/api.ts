@@ -26,10 +26,12 @@ export async function getRadarFrames(
   sessionCode: string,
   product: string,
   elevation: number,
+  scanMode: "matched" | "all" = "matched",
 ): Promise<RadarFrameResponse> {
   const params = new URLSearchParams({
     product,
     elevation: String(elevation),
+    scan_mode: scanMode,
   });
   const response = await fetch(
     `${API_BASE}/api/sessions/${encodeURIComponent(sessionCode)}/radar/frames?${params.toString()}`,
