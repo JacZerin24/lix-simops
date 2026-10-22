@@ -79,6 +79,55 @@ def _nearest_sweep(
     return index, fixed_angles[index]
 
 
+def _sweeps_for_elevation(
+    radar,
+    requested_elevation: float,
+    field: str,
+    *,
+    include_low_level_revisits: bool,
+) -> list[tuple[int, float]]:
+    """Select all genuine low-level revisits, or one normal volume tilt.
+
+    Supplemental 0.5-degree sweeps must be selected separately for each radar
+    moment: alternating NEXRAD REF and VEL sweeps can have different masks.
+    """
+    if include_low_level_revisits and abs(requested_elevation - 0.5) < 0.051:
+        found = [
+            (idx, float(angle))
+            for idx, angle in enumerate(radar.fixed_angle["data"])
+            if abs(float(angle) - requested_elevation) <= 0.16
+            and _sweep_valid_gate_count(radar, idx, field) > 0
+        ]
+        return found
+
+    sweep, angle = _nearest_sweep(radar, requested_elevation, field=field)
+    if (
+        abs(angle - requested_elevation) > 0.4
+        or _sweep_valid_gate_count(radar, sweep, field) == 0
+    ):
+        return []
+    return [(sweep, angle)]
+
+
+def _sweep_completion_time_utc(radar, sweep: int) -> datetime:
+    """Timestamp when the entire sweep was collected, never volume start.
+
+    Py-ART radar.time is in seconds relative to a CF 'seconds since' timestamp.
+    Use the final ray so no frame is released before its data was available.
+    """
+    units = str(radar.time["units"])
+    if " since " not in units.lower():
+        raise ValueError(f"Unsupported Py-ART ray-time units: {units}")
+    unit, epoch_text = units.split(" since ", 1)
+    if unit.strip().lower() not in {"seconds", "second", "secs", "sec"}:
+        raise ValueError(f"Unsupported Py-ART ray-time unit: {unit}")
+    epoch = datetime.fromisoformat(epoch_text.strip().replace("Z", "+00:00"))
+    epoch = epoch.replace(tzinfo=timezone.utc) if epoch.tzinfo is None else epoch
+    end_ray = int(radar.sweep_end_ray_index["data"][sweep])
+    elapsed_seconds = float(radar.time["data"][end_ray])
+    return (epoch + timedelta(seconds=elapsed_seconds)).astimezone(timezone.utc)
+
+
 def _resolve_colormap(name: str) -> str:
     import matplotlib as mpl
 
@@ -248,6 +297,8 @@ def build_radar_cache(
     simulation_date: date | None = None,
     timezone_name: str = "America/Chicago",
     local_time_offset_minutes: int = 0,
+    include_low_level_revisits: bool = False,
+    simulation_end: datetime | None = None,
 ) -> RadarManifest:
     """Build archived NEXRAD Level II into both PNG fallback and gate-aware assets.
 
@@ -258,6 +309,10 @@ def build_radar_cache(
     When simulation_date is supplied, source data keep their local clock time but
     are mapped onto the exercise date. local_time_offset_minutes can then shift
     the case to the desired displaced-real-time exercise clock.
+
+    With include_low_level_revisits, every available 0.5-degree sweep is
+    preserved using its last-ray completion time; other elevations also use
+    their true sweep-completion time to avoid releasing data prematurely.
     """
     import cartopy.crs as ccrs
     import matplotlib.pyplot as plt
@@ -298,8 +353,8 @@ def build_radar_cache(
         for _, timestamp in parsed_files
     )
 
-    for source, source_timestamp in parsed_files:
-        timestamp = (
+    for volume_number, (source, source_timestamp) in enumerate(parsed_files):
+        volume_timestamp = (
             remap_timestamp_to_simulation_date(
                 source_timestamp,
                 source_base_date=source_base_date,
@@ -310,7 +365,7 @@ def build_radar_cache(
             else source_timestamp
         )
         if local_time_offset_minutes:
-            timestamp += timedelta(minutes=local_time_offset_minutes)
+            volume_timestamp += timedelta(minutes=local_time_offset_minutes)
 
         try:
             radar = pyart.io.read_nexrad_archive(str(source))
@@ -333,94 +388,113 @@ def build_radar_cache(
             config = RADAR_RENDER_CONFIG[product_id]
             cmap = _colormap_for_product(product_id, config)
             for requested_elevation in elevations:
-                sweep, actual_elevation = _nearest_sweep(
+                selected_sweeps = _sweeps_for_elevation(
                     radar,
                     requested_elevation,
-                    field=field,
+                    field,
+                    include_low_level_revisits=include_low_level_revisits,
                 )
-                if abs(actual_elevation - requested_elevation) > 0.4:
-                    continue
-                if _sweep_valid_gate_count(radar, sweep, field) == 0:
-                    continue
-
-                stem = timestamp.strftime("%Y%m%dT%H%M%SZ")
-                destination = (
-                    frame_root
-                    / product_id
-                    / f"{requested_elevation:.1f}"
-                    / f"{stem}.png"
-                )
-                destination.parent.mkdir(parents=True, exist_ok=True)
-
-                data_destination = (
-                    data_root
-                    / product_id
-                    / f"{requested_elevation:.1f}"
-                    / f"{stem}.bin"
-                )
-                data_destination.parent.mkdir(parents=True, exist_ok=True)
-
-                packed, grid = _uniform_gate_grid(
-                    radar,
-                    field=field,
-                    sweep=sweep,
-                    range_km=range_km,
-                    value_min=float(config["vmin"]),
-                    value_max=float(config["vmax"]),
-                )
-                data_destination.write_bytes(packed)
-
-                fig = plt.figure(figsize=(10, 8), constrained_layout=True)
-                try:
-                    display.plot_ppi_map(
-                        field,
-                        sweep=sweep,
-                        width=range_km * 2000.0,
-                        height=range_km * 2000.0,
-                        vmin=config["vmin"],
-                        vmax=config["vmax"],
-                        cmap=cmap,
-                        title=(
-                            f"{radar_site} {RADAR_PRODUCTS[product_id]} "
-                            f"{actual_elevation:.1f}° — "
-                            f"{timestamp.astimezone(zone):%H:%M:%S %Z}"
-                        ),
-                        colorbar_flag=True,
-                        embellish=True,
-                        add_grid_lines=True,
-                        resolution="50m",
-                    )
-                    if event_lat is not None and event_lon is not None:
-                        ax = plt.gca()
-                        ax.plot(
-                            event_lon,
-                            event_lat,
-                            marker="*",
-                            markersize=15,
-                            markeredgecolor="black",
-                            transform=ccrs.PlateCarree(),
-                            label=event_label,
+                for sweep, actual_elevation in selected_sweeps:
+                    timestamp = volume_timestamp
+                    if include_low_level_revisits:
+                        scan_utc = _sweep_completion_time_utc(radar, sweep)
+                        timestamp = (
+                            remap_timestamp_to_simulation_date(
+                                scan_utc,
+                                source_base_date=source_base_date,
+                                simulation_base_date=simulation_date,
+                                timezone_name=timezone_name,
+                                local_time_offset_minutes=local_time_offset_minutes,
+                            )
+                            if simulation_date
+                            else scan_utc + timedelta(minutes=local_time_offset_minutes)
                         )
-                        ax.legend(loc="upper right")
 
-                    fig.savefig(destination, dpi=125, bbox_inches="tight")
-                finally:
-                    plt.close(fig)
+                    if simulation_end is not None and timestamp > simulation_end:
+                        continue
 
-                product_ids_with_frames.add(product_id)
-                frames.append(
-                    RadarFrame(
-                        timestamp=timestamp,
-                        product=product_id,
-                        elevation=round(requested_elevation, 1),
-                        asset=destination.relative_to(output_root).as_posix(),
-                        data=RadarGridData(
-                            asset=data_destination.relative_to(output_root).as_posix(),
-                            actual_elevation=float(actual_elevation),
-                            **grid,
-                        ),
+                    # Use generated simulation dates only, never original source
+                    # dates, in participant-visible filenames.
+                    stem = timestamp.strftime("%Y%m%dT%H%M%SZ")
+                    if include_low_level_revisits:
+                        stem += f"_v{volume_number:03d}_s{sweep:02d}"
+                    destination = (
+                        frame_root
+                        / product_id
+                        / f"{requested_elevation:.1f}"
+                        / f"{stem}.png"
                     )
-                )
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+
+                    data_destination = (
+                        data_root
+                        / product_id
+                        / f"{requested_elevation:.1f}"
+                        / f"{stem}.bin"
+                    )
+                    data_destination.parent.mkdir(parents=True, exist_ok=True)
+
+                    packed, grid = _uniform_gate_grid(
+                        radar,
+                        field=field,
+                        sweep=sweep,
+                        range_km=range_km,
+                        value_min=float(config["vmin"]),
+                        value_max=float(config["vmax"]),
+                    )
+                    data_destination.write_bytes(packed)
+
+                    fig = plt.figure(figsize=(10, 8), constrained_layout=True)
+                    try:
+                        display.plot_ppi_map(
+                            field,
+                            sweep=sweep,
+                            width=range_km * 2000.0,
+                            height=range_km * 2000.0,
+                            vmin=config["vmin"],
+                            vmax=config["vmax"],
+                            cmap=cmap,
+                            title=(
+                                f"{radar_site} {RADAR_PRODUCTS[product_id]} "
+                                f"{actual_elevation:.1f}° - "
+                                f"{timestamp.astimezone(zone):%H:%M:%S %Z}"
+                            ),
+                            colorbar_flag=True,
+                            embellish=True,
+                            add_grid_lines=True,
+                            resolution="50m",
+                        )
+                        if event_lat is not None and event_lon is not None:
+                            ax = plt.gca()
+                            ax.plot(
+                                event_lon,
+                                event_lat,
+                                marker="*",
+                                markersize=15,
+                                markeredgecolor="black",
+                                transform=ccrs.PlateCarree(),
+                                label=event_label,
+                            )
+                            ax.legend(loc="upper right")
+
+                        fig.savefig(destination, dpi=125, bbox_inches="tight")
+                    finally:
+                        plt.close(fig)
+
+                    product_ids_with_frames.add(product_id)
+                    frames.append(
+                        RadarFrame(
+                            timestamp=timestamp,
+                            product=product_id,
+                            elevation=round(requested_elevation, 1),
+                            asset=destination.relative_to(output_root).as_posix(),
+                            data=RadarGridData(
+                                asset=data_destination.relative_to(output_root).as_posix(),
+                                actual_elevation=float(actual_elevation),
+                                **grid,
+                            ),
+                        )
+                    )
 
     manifest_products = []
     for product_id in products:
