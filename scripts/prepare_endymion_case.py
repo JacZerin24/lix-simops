@@ -44,6 +44,9 @@ def main() -> None:
     args = parse_args()
     date = "2021-05-12"
     start = "06:00"
+    # Include the preceding full KLIX volumes so Radar has a real
+    # pre-simulation image available at the paused 2:45 PM start.
+    radar_start = "05:40"
     end = "07:45"
 
     if args.scope in {"all", "radar"}:
@@ -53,7 +56,7 @@ def main() -> None:
                 "scripts/fetch_nexrad.py",
                 "--site", "KLIX",
                 "--date", date,
-                "--start", start,
+                "--start", radar_start,
                 "--end", end,
                 "--output", "data/raw/nexrad/20210512",
                 *(["--list-only"] if args.list_only else []),
