@@ -11,7 +11,7 @@ on:
       case_run_id:
         description: Full Endymion Case Build run ID (only used when app_only is unchecked)
         required: false
-        default: "36658715392"
+        default: "39713155828"
       include_meso_addons:
         description: Restore verified LightningCast (42 images) and KMSY sounding from the checked-in workshop addon ZIP (full package only)
         required: false
@@ -22,7 +22,7 @@ permissions:
   actions: read
 
 env:
-  CASE_RUN_ID: ${{ github.event.inputs.case_run_id || '36658715392' }}
+  CASE_RUN_ID: ${{ github.event.inputs.case_run_id || '39713155828' }}
 
 jobs:
   package:
