@@ -46,6 +46,8 @@ jobs:
             --simulation-date 2027-02-06 \
             --timezone America/Chicago \
             --local-time-offset-minutes 825
+            --include-low-level-revisits \
+            --simulation-end 2027-02-06T22:30:00Z
 
       - uses: actions/upload-artifact@v4
         with:
